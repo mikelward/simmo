@@ -44,6 +44,12 @@ class RuleEditorScreenshotTest {
                     ),
                     countryOptions = listOf(
                         CountryOptionUi("AU", "+61 Australia"),
+                        CountryOptionUi("CA", "+1 Canada"),
+                        CountryOptionUi("FR", "+33 France"),
+                        CountryOptionUi("DE", "+49 Germany"),
+                        CountryOptionUi("JP", "+81 Japan"),
+                        CountryOptionUi("NZ", "+64 New Zealand"),
+                        CountryOptionUi("GB", "+44 United Kingdom"),
                         CountryOptionUi("US", "+1 United States"),
                     ),
                     onSave = {},
@@ -55,6 +61,8 @@ class RuleEditorScreenshotTest {
         composeRule.waitForIdle()
 
         composeRule.onNodeWithText("Edit rule").assertExists()
+        composeRule.onNodeWithText("+61 Australia").assertExists()
+        composeRule.onNodeWithText("+81 Japan").assertExists()
         composeRule.onNodeWithText("A specific SIM").assertExists()
         captureSnapshot("rule_editor.png")
     }
