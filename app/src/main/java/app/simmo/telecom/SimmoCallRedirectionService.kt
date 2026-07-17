@@ -32,9 +32,12 @@ class SimmoCallRedirectionService : CallRedirectionService() {
     ) {
         val app = application as SimmoApp
         val responded = AtomicBoolean(false)
+        // Scoped to this call: concurrent redirections each get their own
+        // watchdog, and finishing one must not cancel another's fallback.
+        val watchdogToken = Any()
         fun respond(action: () -> Unit) {
             if (responded.compareAndSet(false, true)) {
-                mainHandler.removeCallbacksAndMessages(WATCHDOG_TOKEN)
+                mainHandler.removeCallbacksAndMessages(watchdogToken)
                 try {
                     action()
                 } catch (e: RuntimeException) {
@@ -49,7 +52,7 @@ class SimmoCallRedirectionService : CallRedirectionService() {
 
         mainHandler.postDelayed(
             { respond { placeCallUnmodified() } },
-            WATCHDOG_TOKEN,
+            watchdogToken,
             WATCHDOG_MILLIS,
         )
 
@@ -98,6 +101,5 @@ class SimmoCallRedirectionService : CallRedirectionService() {
     private companion object {
         const val TAG = "SimmoRedirection"
         const val WATCHDOG_MILLIS = 3_000L
-        val WATCHDOG_TOKEN = Any()
     }
 }
