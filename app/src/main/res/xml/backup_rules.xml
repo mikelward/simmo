@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- API 30 and below (fullBackupContent). Backups are deliberately ON for
+     Simmo's own state (rules + SIM registry — settings, not call data; dialed
+     numbers are never persisted), and an explicit include limits the backup to
+     exactly that. See SPEC "Permissions and privacy". -->
+<full-backup-content>
+    <include domain="file" path="datastore/" />
+</full-backup-content>
