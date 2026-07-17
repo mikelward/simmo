@@ -83,6 +83,38 @@ class DecisionEngineTest {
     }
 
     @Test
+    fun `multi-country rule matches any of its countries`() {
+        val rules = listOf(
+            Rule(RuleMatcher.Countries(listOf("AU", "US")), RuleAction.UseSim(telstra.ref())),
+            any(RuleAction.SystemDefault),
+        )
+        assertEquals(
+            Verdict.RedirectToAccount(telstra.phoneAccount),
+            engine.decide(call(auNumber), snapshot(rules), now),
+        )
+        assertEquals(
+            Verdict.RedirectToAccount(telstra.phoneAccount),
+            engine.decide(call(usNumber), snapshot(rules), now),
+        )
+        // A destination outside the set falls through, same as a single-country miss.
+        assertEquals(
+            Verdict.Proceed(ProceedReason.SYSTEM_DEFAULT),
+            engine.decide(call(gbNumber), snapshot(rules), now),
+        )
+    }
+
+    @Test
+    fun `multi-country rule matches regions case-insensitively`() {
+        val rules = listOf(
+            Rule(RuleMatcher.Countries(listOf("au")), RuleAction.UseSim(telstra.ref())),
+        )
+        assertEquals(
+            Verdict.RedirectToAccount(telstra.phoneAccount),
+            engine.decide(call(auNumber), snapshot(rules), now),
+        )
+    }
+
+    @Test
     fun `undetermined destinations match only any-destination rules`() {
         val rules = listOf(
             country("AU", RuleAction.UseSim(telstra.ref())),

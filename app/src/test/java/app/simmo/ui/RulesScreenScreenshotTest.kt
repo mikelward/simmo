@@ -38,6 +38,7 @@ class RulesScreenScreenshotTest {
                         RuleRowUi("+44 United Kingdom", ActionUi.UseSim("Vodafone UK"), pause = RulePause.SIM_DISABLED),
                         RuleRowUi("+81 Japan", ActionUi.UseSim("Docomo"), pause = RulePause.SIM_AMBIGUOUS),
                         RuleRowUi("+64 New Zealand", ActionUi.Ask),
+                        RuleRowUi("+33 France, +49 Germany", ActionUi.UseSim("T-Mobile")),
                         RuleRowUi(null, ActionUi.MatchingCountrySim),
                         RuleRowUi(null, ActionUi.SystemDefault),
                     ),

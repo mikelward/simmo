@@ -82,7 +82,7 @@ small stack), fully unit-tested, with `./gradlew test` and `./gradlew lint` gree
       user's contacts' numbers (and/or recent calls) as a "Suggested" bucket above the
       full list, so the common destinations are one tap away. Needs `READ_CONTACTS` and a
       cheap country-of-number rollup off the main thread.
-- [ ] Multiple countries per rule: let one rule match a set of countries rather than a
+- [x] Multiple countries per rule: let one rule match a set of countries rather than a
       single one. The "A specific country" radio becomes a "+ Add a country or code"
       affordance that adds each picked country to the rule, shown as removable ✕ entries;
       the matcher model changes from `RuleMatcher.Country(regionCode)` to a set of regions

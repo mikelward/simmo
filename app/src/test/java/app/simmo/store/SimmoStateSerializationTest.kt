@@ -25,6 +25,7 @@ class SimmoStateSerializationTest {
                 Rule(RuleMatcher.Country("US"), RuleAction.HandOff.ViaPhoneAccount(PhoneAccountRef("acct-gv"))),
                 Rule(RuleMatcher.Country("GB"), RuleAction.HandOff.ViaDialIntent("com.example.voip")),
                 Rule(RuleMatcher.Country("NZ"), RuleAction.Ask),
+                Rule(RuleMatcher.Countries(listOf("FR", "DE")), RuleAction.Ask),
                 Rule(RuleMatcher.AnyDestination, RuleAction.UseMatchingCountrySim),
                 Rule(RuleMatcher.AnyDestination, RuleAction.SystemDefault),
             ),
@@ -60,6 +61,24 @@ class SimmoStateSerializationTest {
             .removeSuffix("}") + ""","futureFeature":{"enabled":true}}"""
         val read = SimmoStateSerializer.readFrom(ByteArrayInputStream(json.encodeToByteArray()))
         assertEquals(fullState, read)
+    }
+
+    @Test
+    fun `legacy single-country matchers still decode`() = runTest {
+        // The exact bytes a pre-multi-country version wrote: matcher type
+        // "country" with a single regionCode. Changing that decode path would
+        // wipe every existing user's rules via the corruption handler.
+        val json = """
+            {"rules":{"rules":[
+              {"matcher":{"type":"country","regionCode":"AU"},
+               "action":{"type":"systemDefault"}}
+            ]},"simRegistry":[],"defaultRegionOverride":null,"installId":null}
+        """.trimIndent()
+        val read = SimmoStateSerializer.readFrom(ByteArrayInputStream(json.encodeToByteArray()))
+        assertEquals(
+            listOf(Rule(RuleMatcher.Country("AU"), RuleAction.SystemDefault)),
+            read.rules.rules,
+        )
     }
 
     @Test

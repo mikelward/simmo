@@ -55,10 +55,10 @@ class RuleEditorScreenshotTest {
         composeRule.waitForIdle()
 
         composeRule.onNodeWithText("Edit rule").assertExists()
-        // The chosen country replaces the "A specific country" label in place;
+        // Chosen countries are removable entries above the add affordance;
         // the full list lives behind the picker (CountryPickerScreenshotTest).
         composeRule.onNodeWithText("+61 Australia").assertExists()
-        composeRule.onNodeWithText("A specific country").assertDoesNotExist()
+        composeRule.onNodeWithText("Add a country or code").assertExists()
         // SIMs are listed directly as actions; no "A specific SIM" wrapper row.
         composeRule.onNodeWithText("Telstra AU").assertExists()
         composeRule.onNodeWithText("A specific SIM").assertDoesNotExist()

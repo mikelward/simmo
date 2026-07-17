@@ -9,15 +9,43 @@ import kotlinx.serialization.Serializable
  */
 @Serializable
 sealed interface RuleMatcher {
-    /** A destination country (ISO region; the UI shows its calling code too). */
+    /**
+     * A single destination country (ISO region). The original stored form,
+     * still written for one-country rules so state stays readable by older
+     * app versions; multi-country rules use [Countries].
+     */
     @Serializable
     @SerialName("country")
     data class Country(val regionCode: String) : RuleMatcher
+
+    /** A set of destination countries (ISO regions); any of them matches. */
+    @Serializable
+    @SerialName("countries")
+    data class Countries(val regionCodes: List<String>) : RuleMatcher
 
     /** Any destination, including undetermined ones — used by the defaults. */
     @Serializable
     @SerialName("any")
     data object AnyDestination : RuleMatcher
+}
+
+/** The regions a matcher targets, in display order; empty for [RuleMatcher.AnyDestination]. */
+fun RuleMatcher.regionCodes(): List<String> = when (this) {
+    RuleMatcher.AnyDestination -> emptyList()
+    is RuleMatcher.Country -> listOf(regionCode)
+    is RuleMatcher.Countries -> regionCodes
+}
+
+/**
+ * The country matcher over [regionCodes] (order kept, case-insensitive
+ * duplicates dropped). A single country keeps the legacy [RuleMatcher.Country]
+ * stored form — see its KDoc.
+ */
+fun countryMatcher(regionCodes: List<String>): RuleMatcher {
+    val distinct = regionCodes.distinctBy { it.uppercase() }
+    require(distinct.isNotEmpty()) { "A country matcher needs at least one region" }
+    return distinct.singleOrNull()?.let { RuleMatcher.Country(it) }
+        ?: RuleMatcher.Countries(distinct)
 }
 
 /** What a rule does with a matching call (SPEC "Rules"). Persisted. */
