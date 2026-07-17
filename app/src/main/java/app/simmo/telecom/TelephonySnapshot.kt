@@ -14,6 +14,9 @@ import app.simmo.domain.PassToken
 import app.simmo.domain.PhoneAccountRef
 import app.simmo.store.SimmoStateHolder
 import java.util.concurrent.CopyOnWriteArrayList
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 /**
  * Reads the telephony side of the decision snapshot. All methods do IPC and
@@ -130,22 +133,24 @@ class SnapshotAssembler(
     private val tokens: PassTokenStore,
     private val nowMillis: () -> Long,
 ) {
-    @Volatile
-    private var sims: TelephonyReader.SimsAndAccounts =
-        TelephonyReader.SimsAndAccounts(emptyList(), emptyMap())
+    private val simsFlow =
+        MutableStateFlow(TelephonyReader.SimsAndAccounts(emptyList(), emptyMap()))
 
     @Volatile
     private var networkRegion: String = ""
 
     /** Blocking IPC — call from a background dispatcher only. */
     fun refresh() {
-        sims = reader.readSimsAndAccounts()
+        simsFlow.value = reader.readSimsAndAccounts()
         networkRegion = reader.readNetworkRegion()
     }
 
-    fun activeSims() = sims.activeSims
+    fun activeSims() = simsFlow.value.activeSims
 
-    fun handleFor(ref: PhoneAccountRef): PhoneAccountHandle? = sims.handlesByRef[ref]
+    /** For the UI: disabled-SIM greying must track live telephony changes. */
+    fun simsAndAccounts(): StateFlow<TelephonyReader.SimsAndAccounts> = simsFlow.asStateFlow()
+
+    fun handleFor(ref: PhoneAccountRef): PhoneAccountHandle? = simsFlow.value.handlesByRef[ref]
 
     fun refFor(handle: PhoneAccountHandle?): PhoneAccountRef? = handle?.toRef()
 
@@ -153,7 +158,7 @@ class SnapshotAssembler(
         val state = stateHolder()?.current ?: return null
         return DecisionSnapshot(
             rules = state.rules,
-            activeSims = sims.activeSims,
+            activeSims = simsFlow.value.activeSims,
             defaultRegion = state.defaultRegionOverride ?: networkRegion,
             passTokens = tokens.currentTokens(nowMillis()),
             // Hand-off target discovery lands with Phase 5 (TODO.md).
