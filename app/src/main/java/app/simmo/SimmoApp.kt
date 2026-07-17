@@ -1,7 +1,13 @@
 package app.simmo
 
 import android.app.Application
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.telephony.SubscriptionManager
+import android.telephony.TelephonyManager
+import androidx.core.content.ContextCompat
 import app.simmo.domain.DecisionEngine
 import app.simmo.domain.PhoneNumberCountryDetector
 import app.simmo.store.InstallMarker
@@ -85,6 +91,21 @@ class SimmoApp : Application() {
                     refreshTelephony()
                 }
             },
+        )
+
+        // Roaming across a border changes the network country without any
+        // subscription change; without this, national-format numbers keep
+        // parsing against the old country until a process restart — the exact
+        // traveler scenario the product exists for.
+        ContextCompat.registerReceiver(
+            this,
+            object : BroadcastReceiver() {
+                override fun onReceive(context: Context, intent: Intent) {
+                    refreshTelephony()
+                }
+            },
+            IntentFilter(TelephonyManager.ACTION_NETWORK_COUNTRY_CHANGED),
+            ContextCompat.RECEIVER_NOT_EXPORTED,
         )
     }
 
