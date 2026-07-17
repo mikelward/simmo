@@ -75,8 +75,11 @@ class MainActivity : ComponentActivity() {
                                 .createRequestRoleIntent(RoleManager.ROLE_CALL_REDIRECTION)
                         },
                         onPhonePermissionGranted = {
-                            // The startup telephony read ran before the grant and
-                            // cached nothing; refresh so rules work immediately.
+                            // Keep the router's copy in sync so a later
+                            // revocation in Settings is seen as a transition,
+                            // and refresh: the startup telephony read ran
+                            // before the grant and cached nothing.
+                            phoneGranted = isPhonePermissionGranted()
                             (application as SimmoApp).refreshTelephony()
                         },
                         onAllGranted = { ready = true },
