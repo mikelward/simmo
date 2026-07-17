@@ -163,6 +163,9 @@ jobs:
       - name: Run onboarding screenshot tests
         run: ./gradlew :app:testDebugUnitTest --tests "app.simmo.ui.OnboardingScreenshotTest" -Proborazzi.test.record=true
 
+      - name: Run rule editor screenshot tests
+        run: ./gradlew :app:testDebugUnitTest --tests "app.simmo.ui.RuleEditorScreenshotTest" -Proborazzi.test.record=true
+
       - name: Print failing test details
         if: failure()
         run: |
