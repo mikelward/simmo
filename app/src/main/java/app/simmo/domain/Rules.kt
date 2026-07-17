@@ -79,6 +79,26 @@ data class Rule(
 data class RuleBook(
     val rules: List<Rule> = defaultRules(),
 ) {
+    fun withRuleAdded(rule: Rule): RuleBook =
+        // New rules land above the preseeded defaults' natural home: the top.
+        copy(rules = listOf(rule) + rules)
+
+    fun withRuleReplaced(index: Int, rule: Rule): RuleBook =
+        copy(rules = rules.mapIndexed { i, existing -> if (i == index) rule else existing })
+
+    fun withRuleRemoved(index: Int): RuleBook =
+        copy(rules = rules.filterIndexed { i, _ -> i != index })
+
+    /** Reorder for drag-and-drop; out-of-range indices are a no-op. */
+    fun withRuleMoved(fromIndex: Int, toIndex: Int): RuleBook {
+        if (fromIndex == toIndex) return this
+        if (fromIndex !in rules.indices || toIndex !in rules.indices) return this
+        val reordered = rules.toMutableList()
+        val rule = reordered.removeAt(fromIndex)
+        reordered.add(toIndex, rule)
+        return copy(rules = reordered)
+    }
+
     companion object {
         /**
          * The preseeded low-priority defaults: use the SIM whose home country
