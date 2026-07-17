@@ -98,7 +98,13 @@ internal fun SimRegistryContent(
                 modifier = Modifier.padding(bottom = 16.dp),
             )
             LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                items(rows, key = { "${it.ref.subscriptionId}|${it.ref.carrierName}|${it.ref.displayName}" }) { row ->
+                // Deliberately no item keys: after a restore invalidates every
+                // subscription ID, same-named rows differing only in last-seen
+                // can share the whole identity triple, and duplicate keys
+                // would crash the list before the user could clean them up
+                // (Codex on PR #19). Rows hold no state, so positional
+                // identity loses nothing.
+                items(rows) { row ->
                     RegistryRow(row, onDeleteRequest = { pendingDelete = row })
                 }
             }
