@@ -1,20 +1,36 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <string name="app_name">Simmo</string>
-    <string name="onboarding_intro">Simmo picks the right SIM for every call you make, using your rules. Two things are needed first.</string>
-    <string name="onboarding_role_label">Let Simmo manage outgoing calls</string>
-    <string name="onboarding_role_button">Allow</string>
-    <string name="onboarding_phone_permission_label">Let Simmo see your SIMs</string>
-    <string name="onboarding_phone_permission_button">Allow</string>
-    <string name="onboarding_granted">Done</string>
-    <string name="onboarding_ready">All set. Your calls now follow your rules.</string>
-    <string name="rules_title">Rules</string>
-    <string name="rules_explainer">Checked top to bottom for every call; the first rule that can act wins.</string>
-    <string name="rule_matcher_any">Any country</string>
-    <string name="rule_action_use_sim">Call with %1$s</string>
-    <string name="rule_action_matching_sim">Call with the SIM for that country</string>
-    <string name="rule_action_hand_off">Hand off to %1$s</string>
-    <string name="rule_action_ask">Ask which SIM to use</string>
-    <string name="rule_action_system_default">No change</string>
-    <string name="rule_sim_disabled">SIM disabled — rule paused</string>
+    <!-- TODO: translate -->
+    <string name="onboarding_intro" tools:ignore="MissingTranslation">Simmo picks the right SIM for every call you make, using your rules. Two things are needed first.</string>
+    <!-- TODO: translate -->
+    <string name="onboarding_role_label" tools:ignore="MissingTranslation">Let Simmo manage outgoing calls</string>
+    <!-- TODO: translate -->
+    <string name="onboarding_role_button" tools:ignore="MissingTranslation">Allow</string>
+    <!-- TODO: translate -->
+    <string name="onboarding_phone_permission_label" tools:ignore="MissingTranslation">Let Simmo see your SIMs</string>
+    <!-- TODO: translate -->
+    <string name="onboarding_phone_permission_button" tools:ignore="MissingTranslation">Allow</string>
+    <!-- TODO: translate -->
+    <string name="onboarding_granted" tools:ignore="MissingTranslation">Done</string>
+    <!-- TODO: translate -->
+    <string name="onboarding_ready" tools:ignore="MissingTranslation">All set. Your calls now follow your rules.</string>
+    <!-- TODO: translate -->
+    <string name="rules_title" tools:ignore="MissingTranslation">Rules</string>
+    <!-- TODO: translate -->
+    <string name="rules_explainer" tools:ignore="MissingTranslation">Checked top to bottom for every call; the first rule that can act wins.</string>
+    <!-- TODO: translate -->
+    <string name="rule_matcher_any" tools:ignore="MissingTranslation">Any country</string>
+    <!-- TODO: translate -->
+    <string name="rule_action_use_sim" tools:ignore="MissingTranslation">Call with %1$s</string>
+    <!-- TODO: translate -->
+    <string name="rule_action_matching_sim" tools:ignore="MissingTranslation">Call with the SIM for that country</string>
+    <!-- TODO: translate -->
+    <string name="rule_action_hand_off" tools:ignore="MissingTranslation">Hand off to %1$s</string>
+    <!-- TODO: translate -->
+    <string name="rule_action_ask" tools:ignore="MissingTranslation">Ask which SIM to use</string>
+    <!-- TODO: translate -->
+    <string name="rule_action_system_default" tools:ignore="MissingTranslation">No change</string>
+    <!-- TODO: translate -->
+    <string name="rule_sim_disabled" tools:ignore="MissingTranslation">SIM disabled — rule paused</string>
 </resources>
