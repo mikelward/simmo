@@ -87,6 +87,11 @@ fixing it in the same commit.
 
 - Use the `mcp__github__*` MCP tools for all GitHub operations; the `gh` CLI is not
   available in the sandbox.
+- **Merge when green + Codex thumbs up, then continue.** Once a PR's CI is green and
+  Codex has finished its pass with no unaddressed suggestions (its "no suggestions"
+  outcome is a 👍 reaction; suggestion threads count as addressed once fixed or
+  answered), rebase-merge the PR without waiting for a further go-ahead, then pick up
+  the next `TODO.md` item.
 - Never leave a review comment thread silently dismissed: reply on the thread or
   resolve it. When a comment is a false positive, say why on the thread.
 - Link every open PR in the stack (one URL per line) whenever you push, summarize CI,
