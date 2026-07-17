@@ -40,10 +40,14 @@ class TelephonyReader(private val context: Context) {
     fun readSimsAndAccounts(): SimsAndAccounts {
         if (!hasPhonePermission()) return SimsAndAccounts(emptyList(), emptyMap())
         return try {
+            // System services can be absent on no-radio devices, which the
+            // manifest deliberately supports (telephony required=false).
             val telecom = context.getSystemService(TelecomManager::class.java)
+                ?: return SimsAndAccounts(emptyList(), emptyMap())
             val telephony = context.getSystemService(TelephonyManager::class.java)
+                ?: return SimsAndAccounts(emptyList(), emptyMap())
             val subscriptions = context.getSystemService(SubscriptionManager::class.java)
-                .activeSubscriptionInfoList.orEmpty()
+                ?.activeSubscriptionInfoList.orEmpty()
                 .associateBy { it.subscriptionId }
 
             val sims = mutableListOf<ActiveSim>()
@@ -66,14 +70,24 @@ class TelephonyReader(private val context: Context) {
             SimsAndAccounts(sims, handles)
         } catch (_: SecurityException) {
             SimsAndAccounts(emptyList(), emptyMap())
+        } catch (_: UnsupportedOperationException) {
+            SimsAndAccounts(emptyList(), emptyMap())
         }
     }
 
-    /** The region national-format numbers resolve against, absent an override. */
-    fun readNetworkRegion(): String {
-        val telephony = context.getSystemService(TelephonyManager::class.java)
-        return telephony.networkCountryIso.ifEmpty { telephony.simCountryIso }
-    }
+    /**
+     * The region national-format numbers resolve against, absent an override.
+     * No-radio devices (tablets, Chromebooks — the manifest supports them so
+     * rules can be reviewed there) throw UnsupportedOperationException from
+     * these reads; degrade to no region rather than crash the startup refresh.
+     */
+    fun readNetworkRegion(): String =
+        try {
+            val telephony = context.getSystemService(TelephonyManager::class.java) ?: return ""
+            telephony.networkCountryIso.ifEmpty { telephony.simCountryIso }
+        } catch (_: UnsupportedOperationException) {
+            ""
+        }
 }
 
 /** Stable, process-independent identity for a platform phone account handle. */
