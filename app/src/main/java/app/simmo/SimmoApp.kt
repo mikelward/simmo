@@ -8,6 +8,7 @@ import android.content.IntentFilter
 import android.telephony.SubscriptionManager
 import android.telephony.TelephonyManager
 import androidx.core.content.ContextCompat
+import app.simmo.domain.CountryVerdict
 import app.simmo.domain.DecisionEngine
 import app.simmo.domain.PhoneNumberCountryDetector
 import app.simmo.store.InstallMarker
@@ -56,6 +57,15 @@ class SimmoApp : Application() {
 
     /** Null until the install marker read completes; readers degrade until then. */
     fun stateHolder(): SimmoStateHolder? = stateHolderFlow.value
+
+    /**
+     * Country of [dialedNumber] against the current default region, for the
+     * chooser's header. The chooser is only ever launched by the service
+     * after a warm snapshot produced an Ask verdict, so the parser metadata
+     * is already loaded and this stays instant.
+     */
+    fun detectCountry(dialedNumber: String): CountryVerdict =
+        detector.detect(dialedNumber, assembler.current()?.defaultRegion ?: "")
 
     /** For the UI, which needs to react when the holder becomes available. */
     fun stateHolders(): StateFlow<SimmoStateHolder?> = stateHolderFlow

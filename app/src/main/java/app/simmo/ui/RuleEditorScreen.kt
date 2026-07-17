@@ -122,10 +122,11 @@ internal fun RuleEditorContent(
     var regions by rememberSaveable(stateSaver = RegionsSaver) {
         mutableStateOf(initialRegions)
     }
-    // An existing rule whose action the editor can't yet represent (Ask, or a
-    // hand-off): kept verbatim so saving an edit to its country never silently
-    // rewrites the action. Null for new rules and editor-representable ones.
-    val keepAction = initial?.action?.takeIf { it is RuleAction.Ask || it is RuleAction.HandOff }
+    // An existing rule whose action the editor can't yet represent (hand-off,
+    // which lands with Phase 5): kept verbatim so saving an edit to its
+    // country never silently rewrites the action. Null for new rules and
+    // editor-representable ones.
+    val keepAction = initial?.action?.takeIf { it is RuleAction.HandOff }
     // Null means "keep the unsupported original action" (only reachable when
     // keepAction is non-null); a concrete choice replaces it. A new rule
     // opened from the new-SIM prompt starts on that SIM's action.
@@ -226,15 +227,14 @@ internal fun RuleEditorContent(
                     Text(stringResource(R.string.editor_do_label), style = MaterialTheme.typography.titleMedium)
                 }
                 if (keepAction != null) {
-                    // The rule's current action can't be edited here yet (no
-                    // chooser for Ask; hand-off lands in a later phase). Show it
-                    // as a preselected row so the user can see and keep it; the
+                    // The rule's current action can't be edited here yet
+                    // (hand-off lands in a later phase). Show it as a
+                    // preselected row so the user can see and keep it; the
                     // action is only rewritten if they pick a control below.
                     item {
                         ChoiceRow(
                             selected = actionChoice == null,
                             text = when (val a = keepAction) {
-                                RuleAction.Ask -> stringResource(R.string.rule_action_ask)
                                 is RuleAction.HandOff.ViaPhoneAccount ->
                                     stringResource(R.string.rule_action_hand_off, a.account.id)
                                 is RuleAction.HandOff.ViaDialIntent ->
@@ -266,11 +266,13 @@ internal fun RuleEditorContent(
                         onSelect = { actionChoice = ActionChoice.MATCHING_SIM },
                     )
                 }
-                // "Ask" is deliberately absent as a *new* choice until the
-                // chooser exists — a saved Ask rule would otherwise silently
-                // behave as "No change" (see TODO.md Phase 3 chooser). An
-                // existing Ask rule is still preserved via the keep-action row
-                // above.
+                item {
+                    ChoiceRow(
+                        selected = actionChoice == ActionChoice.ASK,
+                        text = stringResource(R.string.rule_action_ask),
+                        onSelect = { actionChoice = ActionChoice.ASK },
+                    )
+                }
                 item {
                     ChoiceRow(
                         selected = actionChoice == ActionChoice.SYSTEM_DEFAULT,
@@ -428,27 +430,30 @@ internal fun CountryPickerContent(
 internal enum class ActionChoice {
     USE_SIM,
     MATCHING_SIM,
+    ASK,
     SYSTEM_DEFAULT,
     ;
 
     fun toAction(simRef: SimRef?): RuleAction = when (this) {
         USE_SIM -> RuleAction.UseSim(simRef!!)
         MATCHING_SIM -> RuleAction.UseMatchingCountrySim
+        ASK -> RuleAction.Ask
         SYSTEM_DEFAULT -> RuleAction.SystemDefault
     }
 
     companion object {
         /**
          * The editor control for [action], or null when the editor can't
-         * represent it (Ask, hand-off) and must preserve the original on save.
+         * represent it (hand-off) and must preserve the original on save.
          * A new rule (null [action]) defaults to the matching-country SIM.
          */
         fun of(action: RuleAction?): ActionChoice? = when (action) {
             is RuleAction.UseSim -> USE_SIM
             RuleAction.UseMatchingCountrySim -> MATCHING_SIM
+            RuleAction.Ask -> ASK
             RuleAction.SystemDefault -> SYSTEM_DEFAULT
             null -> MATCHING_SIM
-            RuleAction.Ask, is RuleAction.HandOff -> null
+            is RuleAction.HandOff -> null
         }
     }
 }

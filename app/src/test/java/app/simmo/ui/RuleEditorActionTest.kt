@@ -17,6 +17,7 @@ class RuleEditorActionTest {
     fun `supported actions map to their editor control`() {
         assertEquals(ActionChoice.USE_SIM, ActionChoice.of(RuleAction.UseSim(telstra)))
         assertEquals(ActionChoice.MATCHING_SIM, ActionChoice.of(RuleAction.UseMatchingCountrySim))
+        assertEquals(ActionChoice.ASK, ActionChoice.of(RuleAction.Ask))
         assertEquals(ActionChoice.SYSTEM_DEFAULT, ActionChoice.of(RuleAction.SystemDefault))
     }
 
@@ -27,7 +28,6 @@ class RuleEditorActionTest {
 
     @Test
     fun `actions the editor cannot represent have no control`() {
-        assertNull(ActionChoice.of(RuleAction.Ask))
         assertNull(ActionChoice.of(RuleAction.HandOff.ViaDialIntent("com.google.android.apps.voice")))
     }
 
@@ -35,17 +35,24 @@ class RuleEditorActionTest {
     fun `saving with a chosen control uses that action`() {
         assertEquals(
             RuleAction.UseMatchingCountrySim,
-            resolveEditorAction(ActionChoice.MATCHING_SIM, simRef = null, keepAction = RuleAction.Ask),
+            resolveEditorAction(
+                ActionChoice.MATCHING_SIM,
+                simRef = null,
+                keepAction = RuleAction.HandOff.ViaDialIntent("com.example.voip"),
+            ),
         )
         assertEquals(
             RuleAction.UseSim(telstra),
             resolveEditorAction(ActionChoice.USE_SIM, simRef = telstra, keepAction = null),
         )
+        assertEquals(
+            RuleAction.Ask,
+            resolveEditorAction(ActionChoice.ASK, simRef = null, keepAction = null),
+        )
     }
 
     @Test
     fun `saving without changing an unsupported action preserves it`() {
-        assertEquals(RuleAction.Ask, resolveEditorAction(choice = null, simRef = null, keepAction = RuleAction.Ask))
         val handOff = RuleAction.HandOff.ViaDialIntent("com.google.android.apps.voice")
         assertEquals(handOff, resolveEditorAction(choice = null, simRef = null, keepAction = handOff))
     }

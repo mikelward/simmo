@@ -60,9 +60,9 @@ small stack), fully unit-tested, with `./gradlew test` and `./gradlew lint` gree
 - [x] Subscription + phone-account snapshot readers and change listeners; SIM registry
       capture of newly seen subscriptions, including each SIM's home country
       (`SubscriptionInfo.countryIso`) for the matching-country default rule.
-- [ ] Re-place path: `TelecomManager.placeCall` with chosen account, pass-token loop
+- [x] Re-place path: `TelecomManager.placeCall` with chosen account, pass-token loop
       guard (`PassTokenStore` landed with the service), `CALL_PHONE` request on first
-      use — completes with the Phase 3 chooser, which is what re-places calls.
+      use — landed with the Phase 3 chooser, which is what re-places calls.
 - [ ] Verify on device: 5s deadline comfortably met from cold process; document measured
       cold-decision time. Confirm emergency numbers never reach the service.
 
@@ -97,8 +97,12 @@ small stack), fully unit-tested, with `./gradlew test` and `./gradlew lint` gree
       is still pending — long lists need a device check anyway.
 - [x] New-SIM prompt: nudge to create rules for a newly seen SIM, inserted above rules
       referencing disabled SIMs.
-- [ ] Chooser activity (Ask flow): number + detected country, targets, "remember for
-      <country>", cancel. Re-places on confirm.
+- [x] Chooser activity (Ask flow): number + detected country, targets, "remember for
+      <country>", cancel. Re-places on confirm. Ask is offered in the rule editor
+      again. Device QA still owed: background-activity-launch rules may block the
+      service's startActivity on some Android versions (fallback would be a
+      full-screen-intent notification), and the double call-UI flash from
+      cancel-then-re-place needs measuring (SPEC open question).
 - [ ] SIM registry screen (rename, delete, last-seen).
 - [x] Screenshot tests (Robolectric + Roborazzi) wired into CI with the explicit
       `--tests` allow-list pattern from Type Launcher (rules list + onboarding landed;

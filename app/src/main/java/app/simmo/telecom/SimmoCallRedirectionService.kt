@@ -10,6 +10,7 @@ import android.util.Log
 import app.simmo.SimmoApp
 import app.simmo.domain.PlacedCall
 import app.simmo.domain.Verdict
+import app.simmo.ui.ChooserActivity
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.launch
 
@@ -90,10 +91,20 @@ class SimmoCallRedirectionService : CallRedirectionService() {
                     )
                 }
 
-                // TODO(Phase 3): cancel + launch the chooser activity, minting a
-                // pass token for the re-placed call. Until the chooser exists,
-                // an Ask verdict must not cost the user their call.
-                is Verdict.OpenChooser -> respond { placeCallUnmodified() }
+                // The chooser re-places the call and mints the pass token
+                // (SPEC "The chooser (Ask flow)"). Background-activity-launch
+                // rules can silently swallow startActivity on some Android
+                // versions; whether the redirection binding exempts us needs
+                // the on-device QA pass (docs/qa-matrix.md) — if it doesn't,
+                // this must move to a full-screen-intent notification.
+                is Verdict.OpenChooser -> respond {
+                    cancelCall()
+                    startActivity(
+                        ChooserActivity
+                            .launchIntent(this@SimmoCallRedirectionService, handle, verdict.skippedInactiveSims)
+                            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                    )
+                }
             }
         }
     }
