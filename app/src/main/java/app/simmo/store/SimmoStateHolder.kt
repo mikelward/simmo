@@ -22,7 +22,7 @@ class SimmoStateHolder(
     private val store: DataStore<SimmoState>,
     scope: CoroutineScope,
     /** The device's install marker; see [InstallMarker] and [withInstallValidated]. */
-    installId: String,
+    private val installId: String,
 ) {
     init {
         // Persist the install adoption so later loads are no-ops. Correctness
@@ -46,12 +46,23 @@ class SimmoStateHolder(
 
     val current: SimmoState? get() = state.value
 
+    // Every write transform validates first for the same reason the read side
+    // does: a mutation racing the launch-time adoption write must not operate
+    // on restored state whose old-device subscription IDs could collide with
+    // this device's (e.g. recordSeen ID-overwriting a restored registry row).
+
     suspend fun updateRules(transform: (RuleBook) -> RuleBook) {
-        store.updateData { it.copy(rules = transform(it.rules)) }
+        store.updateData {
+            val valid = it.withInstallValidated(installId)
+            valid.copy(rules = transform(valid.rules))
+        }
     }
 
     /** Registry capture on every subscription change (SPEC "Disabled-SIM assist"). */
     suspend fun recordSeenSims(active: List<ActiveSim>, nowMillis: Long) {
-        store.updateData { it.copy(simRegistry = it.simRegistry.recordSeen(active, nowMillis)) }
+        store.updateData {
+            val valid = it.withInstallValidated(installId)
+            valid.copy(simRegistry = valid.simRegistry.recordSeen(active, nowMillis))
+        }
     }
 }

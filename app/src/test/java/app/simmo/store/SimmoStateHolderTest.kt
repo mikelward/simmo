@@ -91,6 +91,32 @@ class SimmoStateHolderTest {
     }
 
     @Test
+    fun `sim capture validates restored state so id collisions cannot overwrite rows`() = runTest {
+        // Codex P2 on PR #4: on a new phone, an active SIM can reuse the same
+        // subscription id as a restored registry row for a different carrier.
+        // recordSeenSims must invalidate the restored row first, keeping it
+        // (id sentinel) instead of ID-overwriting it.
+        val restored = SimmoState(
+            simRegistry = listOf(RegisteredSim(1, "Vodafone", "Voda AU", 100L)),
+            installId = "old-phone",
+        )
+        val store = FakeDataStore(restored)
+        val holder = SimmoStateHolder(store, backgroundScope, installId = "new-phone")
+        holder.recordSeenSims(
+            listOf(ActiveSim(1, "Telstra", "Telstra personal", PhoneAccountRef("a1"))),
+            nowMillis = 900L,
+        )
+        val state = holder.state.filterNotNull().first { it.simRegistry.size == 2 }
+        assertEquals(
+            listOf(
+                RegisteredSim(SimRef.INVALID_SUBSCRIPTION_ID, "Vodafone", "Voda AU", 100L),
+                RegisteredSim(1, "Telstra", "Telstra personal", 900L),
+            ),
+            state.simRegistry,
+        )
+    }
+
+    @Test
     fun `rule updates and sim capture land in the in-memory state`() = runTest {
         // Already adopted by this install so the restore guard stays inert here.
         val store = FakeDataStore(SimmoState(installId = "install-1"))
