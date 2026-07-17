@@ -164,6 +164,8 @@ data class SimOptionUi(
 data class CountryOptionUi(
     val regionCode: String,
     val label: String,
+    /** Normalized names/codes/aliases this country is found by; see [matches]. */
+    val searchTerms: List<String> = emptyList(),
 )
 
 internal fun buildSimOptions(
@@ -197,13 +199,21 @@ internal fun buildSimOptions(
         .sortedWith(compareByDescending<SimOptionUi> { it.active }.thenBy { it.label.lowercase() })
 }
 
-private fun allCountryOptions(): List<CountryOptionUi> =
-    PhoneNumberUtil.getInstance().supportedRegions
-        .map { region -> region to CountryOptionUi(region, countryLabel(region)) }
+private fun allCountryOptions(): List<CountryOptionUi> {
+    val util = PhoneNumberUtil.getInstance()
+    return util.supportedRegions
+        .map { region -> region to countryDisplayName(region) }
         // Sort by the localized country name, not the "+61 …" label, so the
         // picker reads alphabetically (Australia under A, not by dialing code).
-        .sortedBy { (region, _) -> countryDisplayName(region).lowercase() }
-        .map { (_, option) -> option }
+        .sortedBy { (_, name) -> name.lowercase() }
+        .map { (region, name) ->
+            CountryOptionUi(
+                regionCode = region,
+                label = countryLabel(region),
+                searchTerms = countrySearchTerms(region, name, util.getCountryCodeForRegion(region)),
+            )
+        }
+}
 
 /** The localized country name alone, e.g. "Australia". */
 internal fun countryDisplayName(regionCode: String): String {
