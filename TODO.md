@@ -70,8 +70,11 @@ small stack), fully unit-tested, with `./gradlew test` and `./gradlew lint` gree
 
 - [x] Rules list as the home screen once grants are held: ordered rules with country +
       action labels, preseeded defaults visible, disabled-SIM rules greyed out.
-- [ ] Rule editor (country picker, action picker limited to registered SIMs and
-      reachable hand-off apps); drag to reorder.
+- [x] Rule editor: add via the list's button, edit by tapping a row, delete; country
+      picker (any destination or a specific country) and action picker (specific SIM
+      from the registry, matching-country SIM, Ask, no change). Hand-off actions wait
+      for Phase 5's reachable-app discovery.
+- [ ] Drag to reorder the rule list (pure reorder helper landed; gesture UI pending).
 - [ ] New-SIM prompt: nudge to create rules for a newly seen SIM, inserted above rules
       referencing disabled SIMs.
 - [ ] Chooser activity (Ask flow): number + detected country, targets, "remember for

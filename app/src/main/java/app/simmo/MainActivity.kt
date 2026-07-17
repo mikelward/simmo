@@ -33,7 +33,10 @@ import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.activity.compose.BackHandler
 import androidx.lifecycle.viewmodel.compose.viewModel
+import app.simmo.ui.EditorTarget
+import app.simmo.ui.RuleEditorScreen
 import app.simmo.ui.RulesScreen
 import app.simmo.ui.RulesViewModel
 
@@ -65,7 +68,27 @@ class MainActivity : ComponentActivity() {
                     ready = isRedirectionRoleHeld() && nowGranted
                 }
                 if (ready) {
-                    RulesScreen(viewModel<RulesViewModel>())
+                    val vm = viewModel<RulesViewModel>()
+                    var editing by remember { mutableStateOf<EditorTarget?>(null) }
+                    val target = editing
+                    if (target == null) {
+                        RulesScreen(
+                            viewModel = vm,
+                            onAddRule = { editing = EditorTarget.New },
+                            onEditRule = { index ->
+                                vm.currentRules().getOrNull(index)?.let {
+                                    editing = EditorTarget.Existing(index, it)
+                                }
+                            },
+                        )
+                    } else {
+                        BackHandler { editing = null }
+                        RuleEditorScreen(
+                            viewModel = vm,
+                            target = target,
+                            onDone = { editing = null },
+                        )
+                    }
                 } else {
                     OnboardingScreen(
                         isRoleHeld = ::isRedirectionRoleHeld,

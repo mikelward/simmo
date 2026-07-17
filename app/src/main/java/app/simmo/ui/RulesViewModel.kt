@@ -5,9 +5,11 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import app.simmo.SimmoApp
 import app.simmo.domain.ActiveSim
+import app.simmo.domain.RegisteredSim
 import app.simmo.domain.Rule
 import app.simmo.domain.RuleAction
 import app.simmo.domain.RuleMatcher
+import app.simmo.domain.SimRef
 import app.simmo.domain.SimResolution
 import app.simmo.domain.resolveSim
 import app.simmo.store.SimmoState
@@ -15,12 +17,14 @@ import com.google.i18n.phonenumbers.PhoneNumberUtil
 import java.util.Locale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 
 /** Why a rule cannot act right now — each points at a different recovery. */
@@ -70,7 +74,75 @@ class RulesViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun buildRows(state: SimmoState?, activeSims: List<ActiveSim>): List<RuleRowUi> =
         state?.rules?.rules.orEmpty().map { rule -> rule.toRow(activeSims) }
+
+    /** SIMs the user can target: every registered SIM, active or not. */
+    val simOptions: StateFlow<List<SimOptionUi>> =
+        app.stateHolders()
+            .flatMapLatest { holder -> holder?.state ?: flowOf(null) }
+            .combine(app.assembler.simsAndAccounts()) { state, sims ->
+                buildSimOptions(state?.simRegistry.orEmpty(), sims.activeSims)
+            }
+            .flowOn(Dispatchers.Default)
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /** The whole country list, sorted by localized name; built off the main thread. */
+    val countryOptions: StateFlow<List<CountryOptionUi>> =
+        flowOf(Unit)
+            .map { allCountryOptions() }
+            .flowOn(Dispatchers.Default)
+            .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    /** The current rules, as domain objects, for the editor to read and edit. */
+    fun currentRules(): List<Rule> = app.stateHolder()?.current?.rules?.rules.orEmpty()
+
+    fun addRule(rule: Rule) = edit { it.withRuleAdded(rule) }
+    fun replaceRule(index: Int, rule: Rule) = edit { it.withRuleReplaced(index, rule) }
+    fun removeRule(index: Int) = edit { it.withRuleRemoved(index) }
+    fun moveRule(from: Int, to: Int) = edit { it.withRuleMoved(from, to) }
+
+    private fun edit(transform: (app.simmo.domain.RuleBook) -> app.simmo.domain.RuleBook) {
+        val holder = app.stateHolder() ?: return
+        viewModelScope.launch { holder.updateRules(transform) }
+    }
 }
+
+/** A SIM the rule editor can target. */
+data class SimOptionUi(
+    val ref: SimRef,
+    val label: String,
+    val active: Boolean,
+)
+
+/** A country the rule editor can match. */
+data class CountryOptionUi(
+    val regionCode: String,
+    val label: String,
+)
+
+private fun buildSimOptions(
+    registry: List<RegisteredSim>,
+    activeSims: List<ActiveSim>,
+): List<SimOptionUi> {
+    val activeById = activeSims.associateBy { it.subscriptionId }
+    // Registry union active, so a SIM seen this session but not yet persisted
+    // still shows; de-duplicate by subscription id.
+    val fromActive = activeSims.map { RegisteredSim(it.subscriptionId, it.carrierName, it.displayName, 0L) }
+    val merged = (registry + fromActive).associateBy { it.subscriptionId }.values
+    return merged
+        .map {
+            SimOptionUi(
+                ref = it.ref(),
+                label = it.displayName.ifBlank { it.carrierName },
+                active = it.subscriptionId in activeById,
+            )
+        }
+        .sortedWith(compareByDescending<SimOptionUi> { it.active }.thenBy { it.label.lowercase() })
+}
+
+private fun allCountryOptions(): List<CountryOptionUi> =
+    PhoneNumberUtil.getInstance().supportedRegions
+        .map { CountryOptionUi(it, countryLabel(it)) }
+        .sortedBy { it.label.lowercase() }
 
 internal fun Rule.toRow(activeSims: List<ActiveSim>): RuleRowUi {
     val matcherLabel = when (val m = matcher) {

@@ -35,4 +35,26 @@
     <string name="rule_sim_disabled" tools:ignore="MissingTranslation">SIM disabled — rule paused</string>
     <!-- TODO: translate -->
     <string name="rule_sim_ambiguous" tools:ignore="MissingTranslation">SIM changed — rule needs re-linking</string>
+    <!-- TODO: translate -->
+    <string name="editor_title_new" tools:ignore="MissingTranslation">New rule</string>
+    <!-- TODO: translate -->
+    <string name="editor_title_edit" tools:ignore="MissingTranslation">Edit rule</string>
+    <!-- TODO: translate -->
+    <string name="editor_when_label" tools:ignore="MissingTranslation">When calling</string>
+    <!-- TODO: translate -->
+    <string name="editor_when_country" tools:ignore="MissingTranslation">A specific country</string>
+    <!-- TODO: translate -->
+    <string name="editor_do_label" tools:ignore="MissingTranslation">Use</string>
+    <!-- TODO: translate -->
+    <string name="editor_action_use_sim" tools:ignore="MissingTranslation">A specific SIM</string>
+    <!-- TODO: translate -->
+    <string name="editor_sim_disabled_suffix" tools:ignore="MissingTranslation">%1$s (disabled)</string>
+    <!-- TODO: translate -->
+    <string name="editor_save" tools:ignore="MissingTranslation">Save</string>
+    <!-- TODO: translate -->
+    <string name="editor_cancel" tools:ignore="MissingTranslation">Cancel</string>
+    <!-- TODO: translate -->
+    <string name="editor_delete" tools:ignore="MissingTranslation">Delete</string>
+    <!-- TODO: translate -->
+    <string name="rules_add" tools:ignore="MissingTranslation">Add rule</string>
 </resources>
