@@ -48,19 +48,21 @@ small stack), fully unit-tested, with `./gradlew test` and `./gradlew lint` gree
 
 ## Phase 2 — Telecom integration
 
-- [ ] `CallRedirectionService` implementation wired to the decision function; manifest
+- [x] `CallRedirectionService` implementation wired to the decision function; manifest
       service declaration with `BIND_CALL_REDIRECTION_SERVICE`.
-- [ ] Response watchdog: a missed deadline makes Telecom cancel the call, so the service
+- [x] Response watchdog: a missed deadline makes Telecom cancel the call, so the service
       must send an explicit response (worst case `placeCallUnmodified`) well before the
       platform's 5 s timeout on every path — including cold start and exceptions in
       decision code (flagged by Codex on PR #1).
-- [ ] Onboarding: request `ROLE_CALL_REDIRECTION` via `RoleManager`, `READ_PHONE_STATE`,
-      default-region setup; degraded states when role/permission is missing.
-- [ ] Subscription + phone-account snapshot readers and change listeners; SIM registry
+- [x] Onboarding: request `ROLE_CALL_REDIRECTION` via `RoleManager` and
+      `READ_PHONE_STATE` (default-region override UI comes with Phase 3 settings);
+      readers degrade to empty state while grants are missing.
+- [x] Subscription + phone-account snapshot readers and change listeners; SIM registry
       capture of newly seen subscriptions, including each SIM's home country
       (`SubscriptionInfo.countryIso`) for the matching-country default rule.
 - [ ] Re-place path: `TelecomManager.placeCall` with chosen account, pass-token loop
-      guard, `CALL_PHONE` request on first use.
+      guard (`PassTokenStore` landed with the service), `CALL_PHONE` request on first
+      use — completes with the Phase 3 chooser, which is what re-places calls.
 - [ ] Verify on device: 5s deadline comfortably met from cold process; document measured
       cold-decision time. Confirm emergency numbers never reach the service.
 

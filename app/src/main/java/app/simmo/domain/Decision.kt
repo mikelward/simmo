@@ -72,6 +72,10 @@ enum class ProceedReason {
     SYSTEM_DEFAULT,
     /** Evaluation exhausted the list with nothing applicable; never drop. */
     NO_APPLICABLE_RULE,
+    /** The in-memory snapshot isn't loaded yet (cold start); never wait, never drop. */
+    SNAPSHOT_UNAVAILABLE,
+    /** Decision code failed; degrade to the untouched call, never drop. */
+    INTERNAL_ERROR,
 }
 
 /**
