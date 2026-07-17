@@ -5,7 +5,6 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.net.Uri
 import android.telephony.SubscriptionManager
 import android.telephony.TelephonyManager
 import androidx.core.content.ContextCompat
@@ -148,15 +147,15 @@ class SimmoApp : Application() {
         maybeOfferHeldCall(active)
         val holder = stateHolderFlow.value ?: return
         if (active.isEmpty()) return
-        // A first-ever capture registers every current SIM at once; nudging
-        // about SIMs the user has had all along would just be noise, so that
-        // batch is marked notified without posting.
-        val firstCapture = holder.current?.simRegistry.isNullOrEmpty()
-        val registry = holder.recordSeenSims(active, System.currentTimeMillis())
-        val pending = registry.pendingNewSimNotifications(active)
+        // The capture reports whether it populated a previously empty
+        // registry (fresh install): that first batch registers every current
+        // SIM at once, and nudging about SIMs the user has had all along
+        // would just be noise — marked notified without posting.
+        val capture = holder.recordSeenSims(active, System.currentTimeMillis())
+        val pending = capture.registry.pendingNewSimNotifications(active)
         if (pending.isEmpty()) return
         when {
-            firstCapture -> holder.markNewSimsNotified(pending.map { it.ref() })
+            capture.firstCapture -> holder.markNewSimsNotified(pending.map { it.ref() })
             notifications.canPost() -> {
                 pending.forEach { sim ->
                     notifications.postNewSim(sim.displayName.ifBlank { sim.carrierName })
@@ -174,14 +173,15 @@ class SimmoApp : Application() {
      * The notification opens the chooser; the call is never auto-placed.
      */
     private fun maybeOfferHeldCall(active: List<ActiveSim>) {
-        val call = heldCalls.current(System.currentTimeMillis()) ?: return
+        val now = System.currentTimeMillis()
+        val call = heldCalls.current(now) ?: return
         val sim = call.activatedWantedSim(active) ?: return
         if (!notifications.canPost()) return
         heldCalls.clear()
         notifications.postHeldCallOffer(
-            handle = Uri.parse(call.handleUri),
-            skippedSims = call.wantedSims,
+            call = call,
             simLabel = sim.displayName.ifBlank { sim.carrierName },
+            nowMillis = now,
         )
     }
 }

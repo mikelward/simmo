@@ -13,7 +13,7 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import app.simmo.MainActivity
 import app.simmo.R
-import app.simmo.domain.SimRef
+import app.simmo.domain.HeldCall
 import app.simmo.ui.ChooserActivity
 
 /**
@@ -33,8 +33,9 @@ class SimNotifications(private val context: Context) {
     }
 
     /** "Telstra is now active — place your call?" Opens the chooser; never auto-places. */
-    fun postHeldCallOffer(handle: Uri, skippedSims: List<SimRef>, simLabel: String) {
-        val intent = ChooserActivity.launchIntent(context, handle, skippedSims)
+    fun postHeldCallOffer(call: HeldCall, simLabel: String, nowMillis: Long) {
+        val handle = Uri.parse(call.handleUri)
+        val intent = ChooserActivity.launchIntent(context, handle, call.wantedSims)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         post(
             tag = TAG_HELD_CALL,
@@ -44,6 +45,12 @@ class SimNotifications(private val context: Context) {
                 handle.schemeSpecificPart.orEmpty(),
             ),
             contentIntent = intent,
+            // The offer must not outlive the held call it represents: left in
+            // the shade, the notification self-dismisses when the call's TTL
+            // (measured from parking) runs out, so a stale tel: URI can't be
+            // re-offered hours later (Codex on PR #21).
+            timeoutMillis = (call.parkedAtMillis + HeldCall.TTL_MILLIS - nowMillis)
+                .coerceAtLeast(MIN_TIMEOUT_MILLIS),
         )
     }
 
@@ -61,7 +68,13 @@ class SimNotifications(private val context: Context) {
         )
     }
 
-    private fun post(tag: String, title: String, body: String, contentIntent: Intent) {
+    private fun post(
+        tag: String,
+        title: String,
+        body: String,
+        contentIntent: Intent,
+        timeoutMillis: Long? = null,
+    ) {
         if (!canPost()) return
         val manager = NotificationManagerCompat.from(context)
         manager.createNotificationChannel(
@@ -81,6 +94,7 @@ class SimNotifications(private val context: Context) {
             .setContentText(body)
             .setContentIntent(pending)
             .setAutoCancel(true)
+            .apply { timeoutMillis?.let(::setTimeoutAfter) }
             .build()
         try {
             manager.notify(tag, NOTIFICATION_ID, notification)
@@ -95,5 +109,12 @@ class SimNotifications(private val context: Context) {
         const val NOTIFICATION_ID = 1
         const val TAG_HELD_CALL = "held_call"
         const val TAG_NEW_SIM = "new_sim:"
+
+        /**
+         * Floor for the self-dismiss window: the store only hands out live
+         * held calls, but a race at the TTL edge must still leave the user a
+         * moment to see the offer rather than posting a zero-length one.
+         */
+        const val MIN_TIMEOUT_MILLIS = 30_000L
     }
 }
