@@ -2,24 +2,28 @@
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
-    android:viewportWidth="108"
-    android:viewportHeight="108">
+    android:viewportWidth="512"
+    android:viewportHeight="512">
+    <group
+        android:translateX="-9"
+        android:translateY="-44">
+        <!-- Background SIM -->
+        <path
+            android:fillColor="#81D4FA"
+            android:pathData="M 210,130 L 340,130 L 390,180 L 390,390 C 390,401.045 381.045,410 370,410 L 230,410 C 218.954,410 210,401.045 210,390 Z" />
 
-    <!-- Background shape (adaptive icons handle their own background, but the prompt implies we have a background gradient. Adaptive icons usually split these.
-         We'll put the gradient in the background XML and just the foreground SIM cards here.) -->
+        <!-- Foreground SIM -->
+        <path
+            android:fillColor="#00BFFF"
+            android:pathData="M 140,190 L 270,190 L 320,240 L 320,450 C 320,461.045 311.045,470 300,470 L 160,470 C 148.954,470 140,461.045 140,450 Z" />
 
-    <!-- Back SIM card (slightly softer, light blue) -->
-    <path
-        android:fillColor="#81D4FA"
-        android:pathData="M 42 22 L 62 22 L 72 32 L 72 68 C 72 71.3 69.3 74 66 74 L 38 74 C 34.7 74 32 71.3 32 68 L 32 28 C 32 24.7 34.7 22 38 22 Z" />
-
-    <!-- Front SIM card (bright cyan with checkmark) -->
-    <path
-        android:fillColor="#00BCD4"
-        android:pathData="M 46 36 L 70 36 L 82 48 L 82 82 C 82 85.3 79.3 88 76 88 L 42 88 C 38.7 88 36 85.3 36 82 L 36 42 C 36 38.7 38.7 36 42 36 Z" />
-
-    <!-- Checkmark -->
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M 52 70 L 44 62 L 48 58 L 52 62 L 66 48 L 70 52 Z" />
+        <!-- Checkmark -->
+        <path
+            android:strokeColor="#FFFFFF"
+            android:strokeWidth="24"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round"
+            android:fillColor="#00000000"
+            android:pathData="M 190,340 L 220,370 L 280,290" />
+    </group>
 </vector>
