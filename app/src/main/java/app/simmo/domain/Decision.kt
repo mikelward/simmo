@@ -23,12 +23,21 @@ data class PassToken(
 /**
  * Everything the decision reads, assembled off the decision path (AGENTS.md
  * "Fast decision path"). No live lookups happen during [DecisionEngine.decide].
+ *
+ * Hand-off rules can outlive their target (the app uninstalled, its phone
+ * account disabled), so the snapshot also carries which targets are currently
+ * reachable; the engine never routes to a target that isn't listed. SIM
+ * accounts come from [activeSims] and need no separate listing.
  */
 data class DecisionSnapshot(
     val rules: RuleBook,
     val activeSims: List<ActiveSim>,
     val defaultRegion: String,
     val passTokens: List<PassToken> = emptyList(),
+    /** Enabled call-capable phone accounts of third-party (hand-off) apps. */
+    val handOffAccounts: Set<PhoneAccountRef> = emptySet(),
+    /** Installed apps that can receive a dial-intent hand-off. */
+    val handOffApps: Set<String> = emptySet(),
 )
 
 /** The one answer per call; total, and never a silent drop (SPEC invariants). */
@@ -89,11 +98,24 @@ class DecisionEngine(private val countryDetector: CountryDetector) {
         return when (action) {
             RuleAction.Ask -> interactiveOnly(call) { Verdict.OpenChooser(ChooserMode.Ask) }
 
+            // A hand-off target that is no longer reachable (app uninstalled,
+            // account disabled) is never routed to blindly: fall back to the
+            // chooser, or proceed when UI is forbidden — never a failed call.
             is RuleAction.HandOff.ViaPhoneAccount ->
-                redirectOrPassThrough(call, action.account)
+                if (action.account in snapshot.handOffAccounts) {
+                    redirectOrPassThrough(call, action.account)
+                } else {
+                    interactiveOnly(call) { Verdict.OpenChooser(ChooserMode.Ask) }
+                }
 
             is RuleAction.HandOff.ViaDialIntent ->
-                interactiveOnly(call) { Verdict.ForwardToApp(action.packageName) }
+                interactiveOnly(call) {
+                    if (action.packageName in snapshot.handOffApps) {
+                        Verdict.ForwardToApp(action.packageName)
+                    } else {
+                        Verdict.OpenChooser(ChooserMode.Ask)
+                    }
+                }
 
             is RuleAction.UseSim -> when (val resolved = resolveSim(action.sim, snapshot.activeSims)) {
                 is SimResolution.Active ->

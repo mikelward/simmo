@@ -177,7 +177,11 @@ supports:
    context.
 
 The rule editor only offers apps that are actually present and reachable by one of
-these mechanisms, and shows which mechanism will be used.
+these mechanisms, and shows which mechanism will be used. Reachability is also
+enforced at call time: the decision snapshot carries the currently reachable hand-off
+targets, and a rule whose target has since been uninstalled or disabled is never
+routed to blindly — the call falls back to the chooser (or proceeds unmodified when
+UI is forbidden).
 
 ## Permissions and privacy
 
