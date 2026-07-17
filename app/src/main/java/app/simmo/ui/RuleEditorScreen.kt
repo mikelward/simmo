@@ -173,13 +173,9 @@ internal fun RuleEditorContent(
                         onSelect = { actionChoice = ActionChoice.MATCHING_SIM },
                     )
                 }
-                item {
-                    ChoiceRow(
-                        selected = actionChoice == ActionChoice.ASK,
-                        text = stringResource(R.string.rule_action_ask),
-                        onSelect = { actionChoice = ActionChoice.ASK },
-                    )
-                }
+                // "Ask" is deliberately omitted until the chooser exists — a
+                // saved Ask rule would otherwise silently behave as "No change"
+                // (see TODO.md Phase 3 chooser).
                 item {
                     ChoiceRow(
                         selected = actionChoice == ActionChoice.SYSTEM_DEFAULT,
@@ -234,14 +230,12 @@ private fun ChoiceRow(selected: Boolean, text: String, onSelect: () -> Unit) {
 private enum class ActionChoice {
     USE_SIM,
     MATCHING_SIM,
-    ASK,
     SYSTEM_DEFAULT,
     ;
 
     fun toAction(simRef: SimRef?): RuleAction = when (this) {
         USE_SIM -> RuleAction.UseSim(simRef!!)
         MATCHING_SIM -> RuleAction.UseMatchingCountrySim
-        ASK -> RuleAction.Ask
         SYSTEM_DEFAULT -> RuleAction.SystemDefault
     }
 
@@ -249,10 +243,11 @@ private enum class ActionChoice {
         fun of(action: RuleAction?): ActionChoice = when (action) {
             is RuleAction.UseSim -> USE_SIM
             RuleAction.UseMatchingCountrySim -> MATCHING_SIM
-            RuleAction.Ask -> ASK
             RuleAction.SystemDefault -> SYSTEM_DEFAULT
-            // Hand-off editing lands with Phase 5; default new rules to Ask.
-            is RuleAction.HandOff, null -> ASK
+            // The editor can't yet represent Ask (no chooser) or hand-off
+            // (Phase 5); a new rule defaults to the matching-country SIM, and
+            // an existing Ask/hand-off rule opens on that until those land.
+            RuleAction.Ask, is RuleAction.HandOff, null -> MATCHING_SIM
         }
     }
 }
