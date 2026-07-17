@@ -17,11 +17,12 @@ import app.simmo.telecom.PassTokenStore
 import app.simmo.telecom.RedirectionCoordinator
 import app.simmo.telecom.SnapshotAssembler
 import app.simmo.telecom.TelephonyReader
-import java.util.concurrent.atomic.AtomicReference
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.asExecutor
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
 /**
@@ -37,7 +38,7 @@ class SimmoApp : Application() {
     val passTokens = PassTokenStore()
 
     private val detector = PhoneNumberCountryDetector()
-    private val stateHolderRef = AtomicReference<SimmoStateHolder?>(null)
+    private val stateHolderFlow = MutableStateFlow<SimmoStateHolder?>(null)
 
     /**
      * Snapshot readiness includes warm parsing metadata: until [detector]'s
@@ -54,14 +55,17 @@ class SimmoApp : Application() {
         private set
 
     /** Null until the install marker read completes; readers degrade until then. */
-    fun stateHolder(): SimmoStateHolder? = stateHolderRef.get()
+    fun stateHolder(): SimmoStateHolder? = stateHolderFlow.value
+
+    /** For the UI, which needs to react when the holder becomes available. */
+    fun stateHolders(): StateFlow<SimmoStateHolder?> = stateHolderFlow
 
     override fun onCreate() {
         super.onCreate()
         val reader = TelephonyReader(this)
         assembler = SnapshotAssembler(
             reader = reader,
-            stateHolder = { stateHolderRef.get() },
+            stateHolder = { stateHolderFlow.value },
             tokens = passTokens,
             nowMillis = System::currentTimeMillis,
         )
@@ -75,7 +79,7 @@ class SimmoApp : Application() {
             // Blocking file read, deliberately off the main thread; until it
             // completes the snapshot is null and calls proceed unmodified.
             val installId = InstallMarker.get(this@SimmoApp)
-            stateHolderRef.set(SimmoStateHolder(simmoStateStore, appScope, installId))
+            stateHolderFlow.value = SimmoStateHolder(simmoStateStore, appScope, installId)
             recordSims()
         }
         appScope.launch {
@@ -123,7 +127,7 @@ class SimmoApp : Application() {
     }
 
     private suspend fun recordSims() {
-        val holder = stateHolderRef.get() ?: return
+        val holder = stateHolderFlow.value ?: return
         val active = assembler.activeSims()
         if (active.isNotEmpty()) {
             holder.recordSeenSims(active, System.currentTimeMillis())
