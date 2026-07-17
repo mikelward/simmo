@@ -219,22 +219,19 @@ internal fun RuleEditorContent(
                         )
                     }
                 }
-                item {
+                // Each SIM is a direct action choice, not nested under a
+                // separate "A specific SIM" mode row — so exactly one radio in
+                // this group is ever filled, never a mode + its selection both.
+                items(simOptions, key = { "${it.ref.subscriptionId}|${it.ref.carrierName}|${it.ref.displayName}" }) { option ->
                     ChoiceRow(
-                        selected = actionChoice == ActionChoice.USE_SIM,
-                        text = stringResource(R.string.editor_action_use_sim),
-                        onSelect = { actionChoice = ActionChoice.USE_SIM },
+                        selected = actionChoice == ActionChoice.USE_SIM && option.ref == selectedSimRef,
+                        text = if (option.active) option.label
+                        else stringResource(R.string.editor_sim_disabled_suffix, option.label),
+                        onSelect = {
+                            actionChoice = ActionChoice.USE_SIM
+                            simRef = option.ref
+                        },
                     )
-                }
-                if (actionChoice == ActionChoice.USE_SIM) {
-                    items(simOptions, key = { "${it.ref.subscriptionId}|${it.ref.carrierName}|${it.ref.displayName}" }) { option ->
-                        ChoiceRow(
-                            selected = option.ref == selectedSimRef,
-                            text = if (option.active) option.label
-                            else stringResource(R.string.editor_sim_disabled_suffix, option.label),
-                            onSelect = { simRef = option.ref },
-                        )
-                    }
                 }
                 item {
                     ChoiceRow(

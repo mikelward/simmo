@@ -59,7 +59,9 @@ class RuleEditorScreenshotTest {
         // the full list lives behind the picker (CountryPickerScreenshotTest).
         composeRule.onNodeWithText("+61 Australia").assertExists()
         composeRule.onNodeWithText("A specific country").assertDoesNotExist()
-        composeRule.onNodeWithText("A specific SIM").assertExists()
+        // SIMs are listed directly as actions; no "A specific SIM" wrapper row.
+        composeRule.onNodeWithText("Telstra AU").assertExists()
+        composeRule.onNodeWithText("A specific SIM").assertDoesNotExist()
         captureSnapshot("rule_editor.png")
     }
 
