@@ -2,8 +2,10 @@ package app.simmo.store
 
 import app.simmo.domain.PhoneAccountRef
 import app.simmo.domain.RegisteredSim
+import app.simmo.domain.Rule
 import app.simmo.domain.RuleAction
 import app.simmo.domain.RuleBook
+import app.simmo.domain.RuleMatcher
 import app.simmo.domain.SimRef
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertSame
@@ -13,12 +15,12 @@ class SimmoStateValidationTest {
 
     private val state = SimmoState(
         rules = RuleBook(
-            countryRules = mapOf(
-                "AU" to RuleAction.UseSim(SimRef(1, "Telstra", "Telstra personal")),
-                "US" to RuleAction.HandOff.ViaPhoneAccount(PhoneAccountRef("acct-gv")),
-                "NZ" to RuleAction.Ask,
+            rules = listOf(
+                Rule(RuleMatcher.Country("AU"), RuleAction.UseSim(SimRef(1, "Telstra", "Telstra personal"))),
+                Rule(RuleMatcher.Country("US"), RuleAction.HandOff.ViaPhoneAccount(PhoneAccountRef("acct-gv"))),
+                Rule(RuleMatcher.Country("NZ"), RuleAction.Ask),
+                Rule(RuleMatcher.AnyDestination, RuleAction.UseSim(SimRef(2, "T-Mobile", "T-Mobile US"))),
             ),
-            fallback = RuleAction.UseSim(SimRef(2, "T-Mobile", "T-Mobile US")),
         ),
         simRegistry = listOf(
             RegisteredSim(1, "Telstra", "Telstra personal", 100L),
@@ -39,15 +41,17 @@ class SimmoStateValidationTest {
         val invalid = SimRef.INVALID_SUBSCRIPTION_ID
         assertEquals(
             RuleAction.UseSim(SimRef(invalid, "Telstra", "Telstra personal")),
-            migrated.rules.countryRules["AU"],
+            migrated.rules.rules[0].action,
         )
         assertEquals(
             RuleAction.UseSim(SimRef(invalid, "T-Mobile", "T-Mobile US")),
-            migrated.rules.fallback,
+            migrated.rules.rules[3].action,
         )
-        // Hand-off and Ask rules carry no subscription ids and pass through.
-        assertEquals(state.rules.countryRules["US"], migrated.rules.countryRules["US"])
-        assertEquals(state.rules.countryRules["NZ"], migrated.rules.countryRules["NZ"])
+        // Hand-off and Ask rules carry no subscription ids and pass through;
+        // matchers are untouched.
+        assertEquals(state.rules.rules[1], migrated.rules.rules[1])
+        assertEquals(state.rules.rules[2], migrated.rules.rules[2])
+        assertEquals(state.rules.rules.map { it.matcher }, migrated.rules.rules.map { it.matcher })
         assertEquals(
             listOf(
                 RegisteredSim(invalid, "Telstra", "Telstra personal", 100L),
@@ -68,7 +72,7 @@ class SimmoStateValidationTest {
         assertEquals("new-phone", migrated.installId)
         assertEquals(
             RuleAction.UseSim(SimRef(SimRef.INVALID_SUBSCRIPTION_ID, "Telstra", "Telstra personal")),
-            migrated.rules.countryRules["AU"],
+            migrated.rules.rules[0].action,
         )
     }
 

@@ -3,8 +3,10 @@ package app.simmo.store
 import androidx.datastore.core.CorruptionException
 import app.simmo.domain.PhoneAccountRef
 import app.simmo.domain.RegisteredSim
+import app.simmo.domain.Rule
 import app.simmo.domain.RuleAction
 import app.simmo.domain.RuleBook
+import app.simmo.domain.RuleMatcher
 import app.simmo.domain.SimRef
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
@@ -18,13 +20,14 @@ class SimmoStateSerializationTest {
 
     private val fullState = SimmoState(
         rules = RuleBook(
-            countryRules = mapOf(
-                "AU" to RuleAction.UseSim(SimRef(1, "Telstra", "Telstra personal")),
-                "US" to RuleAction.HandOff.ViaPhoneAccount(PhoneAccountRef("acct-gv")),
-                "GB" to RuleAction.HandOff.ViaDialIntent("com.example.voip"),
-                "NZ" to RuleAction.Ask,
+            rules = listOf(
+                Rule(RuleMatcher.Country("AU"), RuleAction.UseSim(SimRef(1, "Telstra", "Telstra personal"))),
+                Rule(RuleMatcher.Country("US"), RuleAction.HandOff.ViaPhoneAccount(PhoneAccountRef("acct-gv"))),
+                Rule(RuleMatcher.Country("GB"), RuleAction.HandOff.ViaDialIntent("com.example.voip")),
+                Rule(RuleMatcher.Country("NZ"), RuleAction.Ask),
+                Rule(RuleMatcher.AnyDestination, RuleAction.UseMatchingCountrySim),
+                Rule(RuleMatcher.AnyDestination, RuleAction.SystemDefault),
             ),
-            fallback = RuleAction.UseSim(SimRef(2, "T-Mobile", "T-Mobile US")),
         ),
         simRegistry = listOf(
             RegisteredSim(1, "Telstra", "Telstra personal", 1_000L),

@@ -4,8 +4,10 @@ import androidx.datastore.core.DataStore
 import app.simmo.domain.ActiveSim
 import app.simmo.domain.PhoneAccountRef
 import app.simmo.domain.RegisteredSim
+import app.simmo.domain.Rule
 import app.simmo.domain.RuleAction
 import app.simmo.domain.RuleBook
+import app.simmo.domain.RuleMatcher
 import app.simmo.domain.SimRef
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.Flow
@@ -45,7 +47,7 @@ class SimmoStateHolderTest {
     fun `state from another install gets its subscription ids invalidated`() = runTest {
         val restored = SimmoState(
             rules = RuleBook(
-                countryRules = mapOf("AU" to RuleAction.UseSim(SimRef(1, "Telstra", "Telstra personal"))),
+                listOf(Rule(RuleMatcher.Country("AU"), RuleAction.UseSim(SimRef(1, "Telstra", "Telstra personal")))),
             ),
             simRegistry = listOf(RegisteredSim(1, "Telstra", "Telstra personal", 100L)),
             installId = "old-phone",
@@ -55,7 +57,7 @@ class SimmoStateHolderTest {
         val migrated = holder.state.filterNotNull().first { it.installId == "new-phone" }
         assertEquals(
             RuleAction.UseSim(SimRef(SimRef.INVALID_SUBSCRIPTION_ID, "Telstra", "Telstra personal")),
-            migrated.rules.countryRules["AU"],
+            migrated.rules.rules.single().action,
         )
         assertEquals(
             listOf(RegisteredSim(SimRef.INVALID_SUBSCRIPTION_ID, "Telstra", "Telstra personal", 100L)),
@@ -70,7 +72,7 @@ class SimmoStateHolderTest {
         // writes at all — published state must still come out validated.
         val restored = SimmoState(
             rules = RuleBook(
-                countryRules = mapOf("AU" to RuleAction.UseSim(SimRef(1, "Telstra", "Telstra personal"))),
+                listOf(Rule(RuleMatcher.Country("AU"), RuleAction.UseSim(SimRef(1, "Telstra", "Telstra personal")))),
             ),
             installId = "old-phone",
         )
@@ -86,7 +88,7 @@ class SimmoStateHolderTest {
         assertEquals("new-phone", published.installId)
         assertEquals(
             RuleAction.UseSim(SimRef(SimRef.INVALID_SUBSCRIPTION_ID, "Telstra", "Telstra personal")),
-            published.rules.countryRules["AU"],
+            published.rules.rules.single().action,
         )
     }
 
@@ -123,14 +125,14 @@ class SimmoStateHolderTest {
         val holder = SimmoStateHolder(store, backgroundScope, installId = "install-1")
 
         val rule = RuleAction.UseSim(SimRef(1, "Telstra", "Telstra personal"))
-        holder.updateRules { it.copy(countryRules = mapOf("AU" to rule)) }
+        holder.updateRules { it.copy(rules = listOf(Rule(RuleMatcher.Country("AU"), rule))) }
         holder.recordSeenSims(
             listOf(ActiveSim(1, "Telstra", "Telstra personal", PhoneAccountRef("a1"))),
             nowMillis = 700L,
         )
 
         val state = holder.state.filterNotNull().first()
-        assertEquals(rule, state.rules.countryRules["AU"])
+        assertEquals(rule, state.rules.rules.single().action)
         assertEquals(
             listOf(RegisteredSim(1, "Telstra", "Telstra personal", 700L)),
             state.simRegistry,

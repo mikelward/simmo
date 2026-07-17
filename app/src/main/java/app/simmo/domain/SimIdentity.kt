@@ -37,6 +37,12 @@ data class ActiveSim(
     val carrierName: String,
     val displayName: String,
     val phoneAccount: PhoneAccountRef,
+    /**
+     * The SIM's home country (ISO region, any case), from the subscription
+     * metadata; empty when the platform doesn't report one. Drives the
+     * "use the SIM with the matching country" default rule.
+     */
+    val countryIso: String = "",
 )
 
 /**

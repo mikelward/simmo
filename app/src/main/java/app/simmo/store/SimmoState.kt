@@ -39,8 +39,7 @@ fun SimmoState.withInstallValidated(currentInstallId: String): SimmoState {
     if (installId == currentInstallId) return this
     return copy(
         rules = rules.copy(
-            countryRules = rules.countryRules.mapValues { (_, action) -> action.invalidateSimIds() },
-            fallback = rules.fallback.invalidateSimIds(),
+            rules = rules.rules.map { it.copy(action = it.action.invalidateSimIds()) },
         ),
         simRegistry = simRegistry
             .map { it.copy(subscriptionId = SimRef.INVALID_SUBSCRIPTION_ID) }
@@ -51,7 +50,11 @@ fun SimmoState.withInstallValidated(currentInstallId: String): SimmoState {
 
 private fun RuleAction.invalidateSimIds(): RuleAction = when (this) {
     is RuleAction.UseSim -> RuleAction.UseSim(sim.copy(subscriptionId = SimRef.INVALID_SUBSCRIPTION_ID))
-    // Hand-off targets and Ask carry no subscription IDs; account handles are
+    // No other action carries a subscription ID; hand-off account handles are
     // validated against the live snapshot at call time already.
-    is RuleAction.HandOff, RuleAction.Ask -> this
+    is RuleAction.HandOff,
+    RuleAction.Ask,
+    RuleAction.UseMatchingCountrySim,
+    RuleAction.SystemDefault,
+    -> this
 }
