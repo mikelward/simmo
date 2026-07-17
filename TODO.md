@@ -43,8 +43,8 @@ small stack), fully unit-tested, with `./gradlew test` and `./gradlew lint` gree
       (unique match only); any destination → no change (system default).
 - [x] Chooser payload carries the disabled-SIM rules skipped during evaluation, so
       the enable-assist surfaces there instead of blocking rule hits.
-- [ ] Prompt to add rules when a new SIM is first seen; suggest placement above
-      rules that reference disabled SIMs (UI lands with Phase 3).
+- [x] Prompt to add rules when a new SIM is first seen; suggest placement above
+      rules that reference disabled SIMs (UI landed with Phase 3).
 
 ## Phase 2 — Telecom integration
 
@@ -95,7 +95,7 @@ small stack), fully unit-tested, with `./gradlew test` and `./gradlew lint` gree
 - [x] Drag to reorder the rule list (handle-initiated drag over a working copy;
       single domain commit on drop). Auto-scroll while dragging near the list edges
       is still pending — long lists need a device check anyway.
-- [ ] New-SIM prompt: nudge to create rules for a newly seen SIM, inserted above rules
+- [x] New-SIM prompt: nudge to create rules for a newly seen SIM, inserted above rules
       referencing disabled SIMs.
 - [ ] Chooser activity (Ask flow): number + detected country, targets, "remember for
       <country>", cancel. Re-places on confirm.

@@ -7,6 +7,7 @@ import androidx.activity.ComponentActivity
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import app.simmo.domain.SimRef
 import com.github.takahirom.roborazzi.captureRoboImage
 import org.junit.Rule
 import org.junit.Test
@@ -17,8 +18,8 @@ import org.robolectric.annotation.GraphicsMode
 
 /**
  * Renders the rules list with the states that matter (SPEC "Rules"): an
- * enabled country rule, a greyed rule whose SIM is disabled, and the two
- * preseeded defaults at the bottom.
+ * enabled country rule, a greyed rule whose SIM is disabled, the two
+ * preseeded defaults at the bottom, and the new-SIM prompt card on top.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [36], qualifiers = "w411dp-h914dp-420dpi")
@@ -42,6 +43,9 @@ class RulesScreenScreenshotTest {
                         RuleRowUi(null, ActionUi.MatchingCountrySim),
                         RuleRowUi(null, ActionUi.SystemDefault),
                     ),
+                    newSimPrompts = listOf(
+                        NewSimPromptUi(SimRef(3, "Optus", "Optus travel"), "Optus travel"),
+                    ),
                 )
             }
         }
@@ -49,6 +53,7 @@ class RulesScreenScreenshotTest {
 
         composeRule.onNodeWithText("+61 Australia").assertExists()
         composeRule.onNodeWithText("SIM disabled — rule paused").assertExists()
+        composeRule.onNodeWithText("New SIM: Optus travel").assertExists()
         captureSnapshot("rules_list.png")
     }
 

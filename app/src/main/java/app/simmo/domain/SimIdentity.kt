@@ -55,6 +55,12 @@ data class RegisteredSim(
     val carrierName: String,
     val displayName: String,
     val lastSeenEpochMillis: Long,
+    /**
+     * True until the user has answered the "add rules for this new SIM?"
+     * prompt (SPEC "On SIM change"). Defaults to false so registry entries
+     * stored before this field existed never prompt retroactively.
+     */
+    val needsRulePrompt: Boolean = false,
 ) {
     fun ref(): SimRef = SimRef(subscriptionId, carrierName, displayName)
 }
@@ -107,10 +113,13 @@ private fun String.matchesIgnoringCaseAndSpace(other: String): Boolean =
 fun List<RegisteredSim>.recordSeen(active: List<ActiveSim>, nowMillis: Long): List<RegisteredSim> {
     val activeById = active.associateBy { it.subscriptionId }
     val claimed = mutableSetOf<Int>()
+    // Refreshes and re-binds copy the entry so per-entry state that isn't
+    // identity (the pending rule prompt) survives; only genuinely new rows
+    // start a prompt.
     val refreshed = map { entry ->
         activeById[entry.subscriptionId]?.let { sim ->
             claimed += sim.subscriptionId
-            RegisteredSim(sim.subscriptionId, sim.carrierName, sim.displayName, nowMillis)
+            entry.copy(carrierName = sim.carrierName, displayName = sim.displayName, lastSeenEpochMillis = nowMillis)
         } ?: entry
     }
     val rebound = refreshed.map { entry ->
@@ -121,10 +130,31 @@ fun List<RegisteredSim>.recordSeen(active: List<ActiveSim>, nowMillis: Long): Li
                 sim.displayName.matchesIgnoringCaseAndSpace(entry.displayName)
         } ?: return@map entry
         claimed += match.subscriptionId
-        RegisteredSim(match.subscriptionId, match.carrierName, match.displayName, nowMillis)
+        entry.copy(
+            subscriptionId = match.subscriptionId,
+            carrierName = match.carrierName,
+            displayName = match.displayName,
+            lastSeenEpochMillis = nowMillis,
+        )
     }
     val new = active.filter { it.subscriptionId !in claimed }.map {
-        RegisteredSim(it.subscriptionId, it.carrierName, it.displayName, nowMillis)
+        RegisteredSim(it.subscriptionId, it.carrierName, it.displayName, nowMillis, needsRulePrompt = true)
     }
     return rebound + new
+}
+
+/**
+ * Marks the prompt for [ref]'s SIM answered (rule added or dismissed): exact
+ * subscription-ID match first, else the carrier + display-name identity — the
+ * same ladder as [resolveSim].
+ */
+fun List<RegisteredSim>.withRulePromptCleared(ref: SimRef): List<RegisteredSim> = map { entry ->
+    val matches =
+        if (ref.subscriptionId != SimRef.INVALID_SUBSCRIPTION_ID && entry.subscriptionId == ref.subscriptionId) {
+            true
+        } else {
+            entry.carrierName.matchesIgnoringCaseAndSpace(ref.carrierName) &&
+                entry.displayName.matchesIgnoringCaseAndSpace(ref.displayName)
+        }
+    if (matches && entry.needsRulePrompt) entry.copy(needsRulePrompt = false) else entry
 }

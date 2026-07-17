@@ -40,4 +40,30 @@ class RuleBookMutationTest {
         assertSame(book, book.withRuleMoved(5, 0))
         assertSame(book, book.withRuleMoved(0, -1))
     }
+
+    @Test
+    fun `inserting places the rule exactly there, clamping wild indices`() {
+        val nz = Rule(RuleMatcher.Country("NZ"), RuleAction.Ask)
+        assertEquals(listOf(au, nz, us, fallback), book.withRuleInserted(1, nz).rules)
+        assertEquals(listOf(nz, au, us, fallback), book.withRuleInserted(-3, nz).rules)
+        assertEquals(listOf(au, us, fallback, nz), book.withRuleInserted(99, nz).rules)
+    }
+
+    @Test
+    fun `new-sim rules are suggested above the first paused rule`() {
+        // Only the US SIM is active: the AU rule at index 0 is paused, so the
+        // suggested slot is above it.
+        val tmobileActive = ActiveSim(2, "T-Mobile", "T-Mobile US", PhoneAccountRef("a2"))
+        assertEquals(0, book.newSimRuleInsertionIndex(listOf(tmobileActive)))
+
+        // Both rule SIMs active: nothing is paused, so the slot is the top —
+        // same as an ordinary add.
+        val telstraActive = ActiveSim(1, "Telstra", "Telstra AU", PhoneAccountRef("a1"))
+        assertEquals(0, book.newSimRuleInsertionIndex(listOf(telstraActive, tmobileActive)))
+
+        // The paused rule sits mid-list: the suggestion lands right above it,
+        // below the rules that are actually working.
+        val pausedMidList = RuleBook(listOf(us, au, fallback))
+        assertEquals(1, pausedMidList.newSimRuleInsertionIndex(listOf(tmobileActive)))
+    }
 }
