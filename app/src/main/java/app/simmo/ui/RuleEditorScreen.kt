@@ -110,9 +110,13 @@ internal fun RuleEditorContent(
     var actionChoice by rememberSaveable {
         mutableStateOf(ActionChoice.of(initial?.action))
     }
+    // Holds the raw stored/tapped ref; the *displayed* selection is resolved
+    // from it against the current options below, so a SIM whose id was
+    // invalidated or reissued after a restore still highlights the right row.
     var simRef by rememberSaveable(stateSaver = SimRefSaver) {
-        mutableStateOf((initial?.action as? RuleAction.UseSim)?.sim ?: simOptions.firstOrNull()?.ref)
+        mutableStateOf((initial?.action as? RuleAction.UseSim)?.sim)
     }
+    val selectedSimRef = resolveSelectedSim(simRef, simOptions)
 
     Surface(modifier = Modifier.fillMaxSize()) {
         Column(
@@ -197,7 +201,7 @@ internal fun RuleEditorContent(
                 if (actionChoice == ActionChoice.USE_SIM) {
                     items(simOptions, key = { "${it.ref.subscriptionId}|${it.ref.carrierName}|${it.ref.displayName}" }) { option ->
                         ChoiceRow(
-                            selected = simRef == option.ref,
+                            selected = option.ref == selectedSimRef,
                             text = if (option.active) option.label
                             else stringResource(R.string.editor_sim_disabled_suffix, option.label),
                             onSelect = { simRef = option.ref },
@@ -241,9 +245,9 @@ internal fun RuleEditorContent(
                         val matcher =
                             if (matchesAny) RuleMatcher.AnyDestination
                             else RuleMatcher.Country(region!!)
-                        onSave(EditorDraft(matcher, resolveEditorAction(actionChoice, simRef, keepAction)))
+                        onSave(EditorDraft(matcher, resolveEditorAction(actionChoice, selectedSimRef, keepAction)))
                     },
-                    enabled = isValid(matchesAny, region, actionChoice, simRef),
+                    enabled = isValid(matchesAny, region, actionChoice, selectedSimRef),
                 ) {
                     Text(stringResource(R.string.editor_save))
                 }
@@ -307,6 +311,28 @@ internal fun resolveEditorAction(
     choice?.toAction(simRef)
         ?: keepAction
         ?: error("Rule editor produced no action")
+
+/**
+ * The SIM option that [ref] points at, resolved with the same identity ladder
+ * as `resolveSim`: an exact (real) subscription-id match first, then the unique
+ * carrier + display-name fallback. So a rule whose SIM id was invalidated to the
+ * sentinel or reissued after a restore still highlights (and, on save, re-links
+ * to) the rebound option, rather than opening with "A specific SIM" chosen but
+ * no visible selection. Falls back to [ref] itself when nothing matches (or is
+ * ambiguous), or the first option when [ref] is null, so the selection is never
+ * silently emptied.
+ */
+internal fun resolveSelectedSim(ref: SimRef?, options: List<SimOptionUi>): SimRef? {
+    if (ref == null) return options.firstOrNull()?.ref
+    options.firstOrNull {
+        ref.subscriptionId != SimRef.INVALID_SUBSCRIPTION_ID && it.ref.subscriptionId == ref.subscriptionId
+    }?.let { return it.ref }
+    val byIdentity = options.filter {
+        it.ref.carrierName.trim().equals(ref.carrierName.trim(), ignoreCase = true) &&
+            it.ref.displayName.trim().equals(ref.displayName.trim(), ignoreCase = true)
+    }
+    return byIdentity.singleOrNull()?.ref ?: ref
+}
 
 private fun isValid(
     matchesAny: Boolean,
