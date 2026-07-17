@@ -27,6 +27,14 @@ Consequences that shape everything:
   would strand the user. So the target intent must be **pre-vetted to resolve**
   (reachability discovery, off the decision path, cached in the snapshot); if it does not
   resolve at call time, Simmo **proceeds unmodified** instead of cancelling.
+- **Resolves ≠ ready.** Intent resolution only proves the app can *receive* the intent,
+  not that it can *place the call*: Google Voice needs a linked number, Teams needs a
+  Teams Phone plan, Viber Out needs credit. An installed-but-unprovisioned target would
+  pass discovery, get `cancelCall()`'d, and then dump the user on a setup / no-plan screen
+  with the carrier call already gone. So eligibility must also require **readiness /
+  provisioning where it's detectable**; where it isn't, the target is **unsafe for
+  automatic cancel-and-forward** — don't auto-cancel for it (offer only behind an explicit
+  confirmation, or gate it until device QA proves the account can place the dialed call).
 - **PSTN vs app-to-app.** Only apps that can dial an arbitrary **phone number** are useful
   here. Most "calling" apps (WhatsApp, Signal, Telegram, Messenger, Line, WeChat) are
   **app-to-app** — they can only call *their own users*, which the dial flow can't assume —
@@ -110,9 +118,12 @@ and never cancelled for (proceed unmodified). Editor copy for valid targets: *"o
 
 - **Reachability discovery** (off the decision path): enumerate installed target apps,
   build each candidate **number-carrying** intent, and keep only those that
-  `resolveActivity(...)` *and* carry the dialed number (a bare launcher intent does not
-  count — see the fallback rule). Store the *vetted intent template* per reachable app in
-  the warm snapshot (`handOffApps`), alongside the mechanism label to show in the editor.
+  `resolveActivity(...)`, carry the dialed number (a bare launcher intent does not count —
+  see the fallback rule), **and are provisioned to place the call where that's
+  detectable** (see "Resolves ≠ ready" — a target whose readiness can't be detected is
+  offered only as non-automatic / behind confirmation, never auto-cancelled). Store the
+  *vetted intent template* per reachable app in the warm snapshot (`handOffApps`),
+  alongside the mechanism label and a readiness flag to show in the editor.
 - **Decision path** only fires a pre-vetted intent; it never touches `PackageManager`.
 - **Editor**: a "Hand off to <app>" action listing only reachable apps, with honest
   per-app copy ("opens Google Voice / Teams / Viber with the number").
