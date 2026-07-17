@@ -9,13 +9,56 @@ class SimRegistryRecordTest {
     private val tmobileActive = ActiveSim(2, "T-Mobile", "T-Mobile US", PhoneAccountRef("a2"))
 
     @Test
-    fun `newly seen sims are added to the registry`() {
+    fun `newly seen sims are added to the registry with a pending rule prompt`() {
         assertEquals(
             listOf(
-                RegisteredSim(1, "Telstra", "Telstra personal", 500L),
-                RegisteredSim(2, "T-Mobile", "T-Mobile US", 500L),
+                RegisteredSim(1, "Telstra", "Telstra personal", 500L, needsRulePrompt = true),
+                RegisteredSim(2, "T-Mobile", "T-Mobile US", 500L, needsRulePrompt = true),
             ),
             emptyList<RegisteredSim>().recordSeen(listOf(telstraActive, tmobileActive), nowMillis = 500L),
+        )
+    }
+
+    @Test
+    fun `refreshing a known sim keeps its pending prompt`() {
+        // Every subscription-change refresh re-records the registry; the
+        // unanswered prompt must survive that, not vanish on the next refresh.
+        val pending = RegisteredSim(1, "Telstra", "Telstra personal", 100L, needsRulePrompt = true)
+        assertEquals(
+            listOf(RegisteredSim(1, "Telstra", "Telstra personal", 900L, needsRulePrompt = true)),
+            listOf(pending).recordSeen(listOf(telstraActive), nowMillis = 900L),
+        )
+    }
+
+    @Test
+    fun `re-binding a re-downloaded profile keeps its answered prompt`() {
+        val answered = RegisteredSim(5, "Telstra", "Telstra personal", 100L, needsRulePrompt = false)
+        val redownloaded = ActiveSim(9, "Telstra", "Telstra personal", PhoneAccountRef("a9"))
+        assertEquals(
+            listOf(RegisteredSim(9, "Telstra", "Telstra personal", 900L, needsRulePrompt = false)),
+            listOf(answered).recordSeen(listOf(redownloaded), nowMillis = 900L),
+        )
+    }
+
+    @Test
+    fun `answering the prompt clears exactly that sim`() {
+        val telstra = RegisteredSim(1, "Telstra", "Telstra personal", 100L, needsRulePrompt = true)
+        val tmobile = RegisteredSim(2, "T-Mobile", "T-Mobile US", 100L, needsRulePrompt = true)
+        assertEquals(
+            listOf(telstra.copy(needsRulePrompt = false), tmobile),
+            listOf(telstra, tmobile).withRulePromptCleared(telstra.ref()),
+        )
+    }
+
+    @Test
+    fun `answering the prompt re-binds by name when the id is stale`() {
+        // Same identity ladder as resolveSim: a sentinel id from a restore
+        // still finds the entry by carrier + display name.
+        val restored = RegisteredSim(3, "Telstra", "Telstra personal", 100L, needsRulePrompt = true)
+        val staleRef = SimRef(SimRef.INVALID_SUBSCRIPTION_ID, "telstra", " Telstra personal ")
+        assertEquals(
+            listOf(restored.copy(needsRulePrompt = false)),
+            listOf(restored).withRulePromptCleared(staleRef),
         )
     }
 
@@ -32,7 +75,7 @@ class SimRegistryRecordTest {
     fun `sims not currently active are kept for disabled-sim rules`() {
         val disabled = RegisteredSim(7, "Vodafone", "Voda AU", 100L)
         assertEquals(
-            listOf(disabled, RegisteredSim(1, "Telstra", "Telstra personal", 900L)),
+            listOf(disabled, RegisteredSim(1, "Telstra", "Telstra personal", 900L, needsRulePrompt = true)),
             listOf(disabled).recordSeen(listOf(telstraActive), nowMillis = 900L),
         )
     }
@@ -79,7 +122,7 @@ class SimRegistryRecordTest {
     fun `restored entry with different names is kept, not adopted`() {
         val restored = RegisteredSim(SimRef.INVALID_SUBSCRIPTION_ID, "Vodafone", "Voda AU", 100L)
         assertEquals(
-            listOf(restored, RegisteredSim(1, "Telstra", "Telstra personal", 900L)),
+            listOf(restored, RegisteredSim(1, "Telstra", "Telstra personal", 900L, needsRulePrompt = true)),
             listOf(restored).recordSeen(listOf(telstraActive), nowMillis = 900L),
         )
     }

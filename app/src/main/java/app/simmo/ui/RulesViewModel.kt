@@ -11,6 +11,7 @@ import app.simmo.domain.Rule
 import app.simmo.domain.RuleAction
 import app.simmo.domain.SimRef
 import app.simmo.domain.SimResolution
+import app.simmo.domain.newSimRuleInsertionIndex
 import app.simmo.domain.regionCodes
 import app.simmo.domain.resolveSim
 import app.simmo.store.SimmoState
@@ -107,6 +108,20 @@ class RulesViewModel(
             .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     /**
+     * SIMs whose "add rules for this new SIM?" prompt is pending. Only shown
+     * while the SIM is actually active — a prompt for a SIM the user just
+     * disabled again would only offer a rule that starts out paused.
+     */
+    val newSimPrompts: StateFlow<List<NewSimPromptUi>> =
+        app.stateHolders()
+            .flatMapLatest { holder -> holder?.state ?: flowOf(null) }
+            .combine(app.assembler.simsAndAccounts()) { state, sims ->
+                buildNewSimPrompts(state?.simRegistry.orEmpty(), sims.activeSims)
+            }
+            .flowOn(Dispatchers.Default)
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /**
      * Which rule the editor is open on. Held here (not in composition) and
      * mirrored into [SavedStateHandle] so it survives both configuration
      * changes and process death — restore reopens the editor, letting the
@@ -116,7 +131,10 @@ class RulesViewModel(
     private val _editorTarget = MutableStateFlow(restoreEditorTarget())
     val editorTarget: StateFlow<EditorTarget?> = _editorTarget
 
-    fun openNewRule() = setEditorTarget(EditorTarget.New)
+    fun openNewRule() = setEditorTarget(EditorTarget.New())
+
+    /** The prompt's "add a rule" path: the editor opens preset to [sim]. */
+    fun openNewRuleForSim(sim: SimRef) = setEditorTarget(EditorTarget.New(presetSim = sim))
 
     fun openEditRule(index: Int) {
         currentRules().getOrNull(index)?.let { setEditorTarget(EditorTarget.Existing(index, it)) }
@@ -142,6 +160,27 @@ class RulesViewModel(
     fun removeRule(index: Int) = edit { it.withRuleRemoved(index) }
     fun moveRule(from: Int, to: Int) = edit { it.withRuleMoved(from, to) }
 
+    /**
+     * Save from the new-SIM prompt's editor: the rule is suggested above the
+     * first paused rule (SPEC "On SIM change") rather than at the very top,
+     * and the answered prompt is retired.
+     */
+    fun addRuleForNewSim(sim: SimRef, rule: Rule) {
+        viewModelScope.launch {
+            val holder = app.stateHolders().filterNotNull().first()
+            val activeSims = app.assembler.activeSims()
+            holder.updateRules { book -> book.withRuleInserted(book.newSimRuleInsertionIndex(activeSims), rule) }
+            holder.markSimRulePromptAnswered(sim)
+        }
+    }
+
+    /** The prompt's "not now": retire it without adding anything. */
+    fun dismissNewSimPrompt(sim: SimRef) {
+        viewModelScope.launch {
+            app.stateHolders().filterNotNull().first().markSimRulePromptAnswered(sim)
+        }
+    }
+
     private fun edit(transform: (app.simmo.domain.RuleBook) -> app.simmo.domain.RuleBook) {
         // Wait for the holder rather than dropping the edit: on a fast cold
         // start the rules screen can be interactive before SimmoApp finishes
@@ -162,6 +201,22 @@ data class SimOptionUi(
     val label: String,
     val active: Boolean,
 )
+
+/** One pending "add rules for this new SIM?" nudge on the rules list. */
+data class NewSimPromptUi(
+    val ref: SimRef,
+    val label: String,
+)
+
+internal fun buildNewSimPrompts(
+    registry: List<RegisteredSim>,
+    activeSims: List<ActiveSim>,
+): List<NewSimPromptUi> {
+    val activeIds = activeSims.map { it.subscriptionId }.toSet()
+    return registry
+        .filter { it.needsRulePrompt && it.subscriptionId in activeIds }
+        .map { NewSimPromptUi(it.ref(), it.displayName.ifBlank { it.carrierName }) }
+}
 
 /** A country the rule editor can match. */
 data class CountryOptionUi(

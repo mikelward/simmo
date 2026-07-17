@@ -3,7 +3,9 @@ package app.simmo.store
 import androidx.datastore.core.DataStore
 import app.simmo.domain.ActiveSim
 import app.simmo.domain.RuleBook
+import app.simmo.domain.SimRef
 import app.simmo.domain.recordSeen
+import app.simmo.domain.withRulePromptCleared
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -63,6 +65,14 @@ class SimmoStateHolder(
         store.updateData {
             val valid = it.withInstallValidated(installId)
             valid.copy(simRegistry = valid.simRegistry.recordSeen(active, nowMillis))
+        }
+    }
+
+    /** The new-SIM prompt for [ref] was answered — added a rule or dismissed. */
+    suspend fun markSimRulePromptAnswered(ref: SimRef) {
+        store.updateData {
+            val valid = it.withInstallValidated(installId)
+            valid.copy(simRegistry = valid.simRegistry.withRulePromptCleared(ref))
         }
     }
 }

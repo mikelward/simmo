@@ -111,6 +111,12 @@ data class RuleBook(
         // New rules land above the preseeded defaults' natural home: the top.
         copy(rules = listOf(rule) + rules)
 
+    /** Insert at [index] (clamped), for placements other than the top. */
+    fun withRuleInserted(index: Int, rule: Rule): RuleBook {
+        val at = index.coerceIn(0, rules.size)
+        return copy(rules = rules.take(at) + rule + rules.drop(at))
+    }
+
     fun withRuleReplaced(index: Int, rule: Rule): RuleBook =
         copy(rules = rules.mapIndexed { i, existing -> if (i == index) rule else existing })
 
@@ -137,4 +143,19 @@ data class RuleBook(
             Rule(RuleMatcher.AnyDestination, RuleAction.SystemDefault),
         )
     }
+}
+
+/**
+ * Where a rule created from the new-SIM prompt is inserted (SPEC "On SIM
+ * change"): above the first rule whose SIM can't act right now (disabled, or
+ * needing re-linking), so the suggestion outranks paused rules without
+ * jumping ahead of the rules that are actually working. With no paused rule
+ * it goes to the top, same as an ordinary add.
+ */
+fun RuleBook.newSimRuleInsertionIndex(activeSims: List<ActiveSim>): Int {
+    val firstPaused = rules.indexOfFirst { rule ->
+        val action = rule.action
+        action is RuleAction.UseSim && resolveSim(action.sim, activeSims) !is SimResolution.Active
+    }
+    return if (firstPaused >= 0) firstPaused else 0
 }

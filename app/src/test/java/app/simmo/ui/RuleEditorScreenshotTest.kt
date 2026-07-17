@@ -65,6 +65,45 @@ class RuleEditorScreenshotTest {
         captureSnapshot("rule_editor.png")
     }
 
+    @Test
+    fun editor_editingMultiCountryRule() {
+        val telstra = SimRef(1, "Telstra", "Telstra AU")
+        composeRule.setContent {
+            MaterialTheme {
+                RuleEditorContent(
+                    target = EditorTarget.Existing(
+                        0,
+                        SimmoRule(
+                            RuleMatcher.Countries(listOf("FR", "DE", "IT")),
+                            RuleAction.UseSim(telstra),
+                        ),
+                    ),
+                    simOptions = listOf(
+                        SimOptionUi(telstra, "Telstra AU", active = true),
+                        SimOptionUi(SimRef(2, "T-Mobile", "T-Mobile US"), "T-Mobile US", active = true),
+                    ),
+                    countryOptions = listOf(
+                        CountryOptionUi("FR", "+33 France"),
+                        CountryOptionUi("DE", "+49 Germany"),
+                        CountryOptionUi("IT", "+39 Italy"),
+                    ),
+                    onSave = {},
+                    onDelete = {},
+                    onCancel = {},
+                )
+            }
+        }
+        composeRule.waitForIdle()
+
+        // Every country on the rule shows as its own removable entry, with
+        // the add affordance below them.
+        composeRule.onNodeWithText("+33 France").assertExists()
+        composeRule.onNodeWithText("+49 Germany").assertExists()
+        composeRule.onNodeWithText("+39 Italy").assertExists()
+        composeRule.onNodeWithText("Add a country or code").assertExists()
+        captureSnapshot("rule_editor_multi_country.png")
+    }
+
     private fun captureSnapshot(name: String, widthPx: Int = 1080, heightPx: Int = 1920) {
         val isRecord = System.getProperty("roborazzi.test.record") == "true"
         val isVerify = System.getProperty("roborazzi.test.verify") == "true"

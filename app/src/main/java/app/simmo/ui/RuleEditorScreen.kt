@@ -57,9 +57,10 @@ import kotlinx.serialization.Serializable
  */
 @Serializable
 sealed interface EditorTarget {
+    /** [presetSim] preselects that SIM's action — the new-SIM prompt's path. */
     @Serializable
     @SerialName("new")
-    data object New : EditorTarget
+    data class New(val presetSim: SimRef? = null) : EditorTarget
 
     @Serializable
     @SerialName("existing")
@@ -87,7 +88,11 @@ fun RuleEditorScreen(
         onSave = { draft ->
             val rule = Rule(draft.matcher, draft.action)
             when (target) {
-                EditorTarget.New -> viewModel.addRule(rule)
+                is EditorTarget.New -> {
+                    val presetSim = target.presetSim
+                    if (presetSim != null) viewModel.addRuleForNewSim(presetSim, rule)
+                    else viewModel.addRule(rule)
+                }
                 is EditorTarget.Existing -> viewModel.replaceRule(target.index, rule)
             }
             onDone()
@@ -122,15 +127,17 @@ internal fun RuleEditorContent(
     // rewrites the action. Null for new rules and editor-representable ones.
     val keepAction = initial?.action?.takeIf { it is RuleAction.Ask || it is RuleAction.HandOff }
     // Null means "keep the unsupported original action" (only reachable when
-    // keepAction is non-null); a concrete choice replaces it.
+    // keepAction is non-null); a concrete choice replaces it. A new rule
+    // opened from the new-SIM prompt starts on that SIM's action.
+    val presetSim = (target as? EditorTarget.New)?.presetSim
     var actionChoice by rememberSaveable {
-        mutableStateOf(ActionChoice.of(initial?.action))
+        mutableStateOf(if (presetSim != null) ActionChoice.USE_SIM else ActionChoice.of(initial?.action))
     }
     // Holds the raw stored/tapped ref; the *displayed* selection is resolved
     // from it against the current options below, so a SIM whose id was
     // invalidated or reissued after a restore still highlights the right row.
     var simRef by rememberSaveable(stateSaver = SimRefSaver) {
-        mutableStateOf((initial?.action as? RuleAction.UseSim)?.sim)
+        mutableStateOf(presetSim ?: (initial?.action as? RuleAction.UseSim)?.sim)
     }
     val selectedSimRef = resolveSelectedSim(simRef, simOptions)
 

@@ -112,7 +112,7 @@ class SimmoStateHolderTest {
         assertEquals(
             listOf(
                 RegisteredSim(SimRef.INVALID_SUBSCRIPTION_ID, "Vodafone", "Voda AU", 100L),
-                RegisteredSim(1, "Telstra", "Telstra personal", 900L),
+                RegisteredSim(1, "Telstra", "Telstra personal", 900L, needsRulePrompt = true),
             ),
             state.simRegistry,
         )
@@ -134,7 +134,7 @@ class SimmoStateHolderTest {
         val state = holder.state.filterNotNull().first()
         assertEquals(rule, state.rules.rules.single().action)
         assertEquals(
-            listOf(RegisteredSim(1, "Telstra", "Telstra personal", 700L)),
+            listOf(RegisteredSim(1, "Telstra", "Telstra personal", 700L, needsRulePrompt = true)),
             state.simRegistry,
         )
     }

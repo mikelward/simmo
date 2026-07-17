@@ -17,11 +17,14 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -39,6 +42,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.simmo.R
+import app.simmo.domain.SimRef
 
 /**
  * The home screen: the ordered rule list, first match wins (SPEC "Rules").
@@ -53,15 +57,27 @@ fun RulesScreen(
     onEditRule: (Int) -> Unit,
 ) {
     val rows by viewModel.rows.collectAsStateWithLifecycle()
-    RulesScreenContent(rows, onAddRule, onEditRule, viewModel::moveRule)
+    val newSimPrompts by viewModel.newSimPrompts.collectAsStateWithLifecycle()
+    RulesScreenContent(
+        rows = rows,
+        newSimPrompts = newSimPrompts,
+        onAddRule = onAddRule,
+        onEditRule = onEditRule,
+        onMoveRule = viewModel::moveRule,
+        onAddRuleForSim = viewModel::openNewRuleForSim,
+        onDismissNewSimPrompt = viewModel::dismissNewSimPrompt,
+    )
 }
 
 @Composable
 internal fun RulesScreenContent(
     rows: List<RuleRowUi>,
+    newSimPrompts: List<NewSimPromptUi> = emptyList(),
     onAddRule: () -> Unit = {},
     onEditRule: (Int) -> Unit = {},
     onMoveRule: (Int, Int) -> Unit = { _, _ -> },
+    onAddRuleForSim: (SimRef) -> Unit = {},
+    onDismissNewSimPrompt: (SimRef) -> Unit = {},
 ) {
     val listState = rememberLazyListState()
     val currentRows by rememberUpdatedState(rows)
@@ -104,6 +120,15 @@ internal fun RulesScreenContent(
                     style = MaterialTheme.typography.bodyMedium,
                     modifier = Modifier.padding(bottom = 16.dp),
                 )
+                // Outside the LazyColumn so rule indices stay list-relative
+                // for editing and dragging.
+                newSimPrompts.forEach { prompt ->
+                    NewSimPromptCard(
+                        prompt = prompt,
+                        onAddRule = { onAddRuleForSim(prompt.ref) },
+                        onDismiss = { onDismissNewSimPrompt(prompt.ref) },
+                    )
+                }
                 LazyColumn(state = listState, verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     itemsIndexed(displayRows) { index, row ->
                         val dragging = dragState.draggingIndex == index
@@ -135,6 +160,39 @@ internal fun RulesScreenContent(
                     imageVector = Icons.Filled.Add,
                     contentDescription = stringResource(R.string.rules_add),
                 )
+            }
+        }
+    }
+}
+
+/**
+ * The "add rules for this new SIM?" nudge (SPEC "On SIM change"). Answering
+ * either way retires the prompt; "Add rule" opens the editor preset to the
+ * SIM, and the saved rule is suggested above any paused rules.
+ */
+@Composable
+private fun NewSimPromptCard(
+    prompt: NewSimPromptUi,
+    onAddRule: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    Card(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = stringResource(R.string.new_sim_prompt_title, prompt.label),
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Text(
+                text = stringResource(R.string.new_sim_prompt_body),
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+            ) {
+                TextButton(onClick = onDismiss) { Text(stringResource(R.string.new_sim_prompt_dismiss)) }
+                Button(onClick = onAddRule) { Text(stringResource(R.string.new_sim_prompt_add)) }
             }
         }
     }

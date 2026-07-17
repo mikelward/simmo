@@ -23,8 +23,24 @@ class EditorTargetSerializationTest {
 
     @Test
     fun `a new-rule target round-trips`() {
-        val target: EditorTarget = EditorTarget.New
+        val target: EditorTarget = EditorTarget.New()
         assertEquals(target, roundTrip(target))
+    }
+
+    @Test
+    fun `a new-rule target keeps its preset sim`() {
+        val target: EditorTarget = EditorTarget.New(presetSim = SimRef(1, "Telstra", "Telstra AU"))
+        assertEquals(target, roundTrip(target))
+    }
+
+    @Test
+    fun `a saved-state target from before preset sims still decodes`() {
+        // EditorTarget.New used to be an object serialized as just its
+        // discriminator; saved state written by that version must restore.
+        assertEquals(
+            EditorTarget.New(),
+            json.decodeFromString<EditorTarget>("""{"type":"new"}"""),
+        )
     }
 
     @Test
