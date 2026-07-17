@@ -6,16 +6,16 @@
     android:viewportHeight="512">
     <group
         android:translateX="-9"
-        android:translateY="-44">
+        android:translateY="-29">
         <!-- Background SIM -->
         <path
             android:fillColor="#81D4FA"
-            android:pathData="M 210,130 L 340,130 L 390,180 L 390,390 C 390,401.045 381.045,410 370,410 L 230,410 C 218.954,410 210,401.045 210,390 Z" />
+            android:pathData="M 210,145 L 340,145 L 390,195 L 390,375 C 390,386.045 381.045,395 370,395 L 230,395 C 218.954,395 210,386.045 210,375 Z" />
 
         <!-- Foreground SIM -->
         <path
             android:fillColor="#00BFFF"
-            android:pathData="M 140,190 L 270,190 L 320,240 L 320,450 C 320,461.045 311.045,470 300,470 L 160,470 C 148.954,470 140,461.045 140,450 Z" />
+            android:pathData="M 140,190 L 270,190 L 320,240 L 320,420 C 320,431.045 311.045,440 300,440 L 160,440 C 148.954,440 140,431.045 140,420 Z" />
 
         <!-- Checkmark -->
         <path
@@ -24,6 +24,6 @@
             android:strokeLineCap="round"
             android:strokeLineJoin="round"
             android:fillColor="#00000000"
-            android:pathData="M 190,340 L 220,370 L 280,290" />
+            android:pathData="M 190,325 L 220,355 L 280,275" />
     </group>
 </vector>
