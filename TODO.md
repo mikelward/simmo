@@ -114,10 +114,21 @@ small stack), fully unit-tested, with `./gradlew test` and `./gradlew lint` gree
 
 ## Phase 5 — Hand-off to other apps
 
-- [ ] Detect call-capable phone accounts from third-party apps; phone-account redirect
-      action end-to-end.
-- [ ] Cancel-and-forward fallback (dial intent) for apps without a phone account; rule
-      editor only offers reachable apps and labels the mechanism (per SPEC).
+Per-app launch intents, what's in/out of scope, and the on-device checklist live in
+`docs/handoff-intents.md`. Grounded finding: the popular targets don't register a
+call-capable phone account (Google Voice included), so the MVP is **cancel-and-forward**
+to **Google Voice, Microsoft Teams, and Viber**; app-to-app apps (WhatsApp, Signal, …)
+can't dial an arbitrary number and are out of scope.
+
+- [ ] Verify the MVP intents on a real device (the `docs/handoff-intents.md` checklist)
+      before building — auto-dial vs pre-fill vs browser is unconfirmed in the sandbox.
+- [ ] Reachable-app discovery off the decision path: resolve each candidate intent and
+      cache the vetted template + mechanism label in the warm snapshot (`handOffApps`).
+- [ ] Cancel-and-forward action: rule editor offers only reachable apps with honest copy
+      ("opens <app>"), and the service cancels **only** when the intent resolves — else
+      proceeds unmodified, never stranding the call.
+- [ ] Phone-account redirect: keep for any VoIP app that does register a Telecom account,
+      but no MVP target needs it.
 - [ ] Google Voice verified end-to-end as the reference target.
 
 ## Phase 6 — Hands-free and Android Auto safeguards
