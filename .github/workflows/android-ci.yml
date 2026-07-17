@@ -1,9 +1,9 @@
 name: Android CI
 
-# Trimmed-down adaptation of Type Launcher's android-ci.yml: build + unit
-# tests + lint only. The screenshot job arrives with the first screenshot
-# test (TODO.md Phase 3) and the deploy job with the release plumbing
-# (Phase 8).
+# Adaptation of Type Launcher's android-ci.yml: build + unit tests + lint,
+# plus the screenshot job (records Roborazzi snapshots, commits drift back
+# to same-repo PR branches, posts a visual diff comment). The deploy job
+# arrives with the release plumbing (TODO.md Phase 8).
 
 on:
   pull_request:
@@ -114,3 +114,157 @@ jobs:
 
       - name: Run lint
         run: ./gradlew lint
+
+  screenshot-tests:
+    name: Screenshot tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      # Write so "Commit refreshed screenshots" can push regenerated snapshot
+      # PNGs back to a same-repo PR branch, and so "Post screenshot diffs"
+      # can upsert its PR comment.
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd  # v5.0.1
+        with:
+          fetch-depth: 0
+          # Same-repo PRs check out the head *branch* (not refs/pull/N/merge)
+          # so the refresh step below can push to it; the build job still runs
+          # these tests' assertions on the merge ref.
+          ref: ${{ github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref || '' }}
+          # Don't leave the write-scoped token in .git/config while Gradle
+          # runs PR-controlled build code; the push step gets it via env.
+          persist-credentials: false
+
+      - name: Set up JDK
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654  # v5.2.0
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@4c125117fe7c5aed11272ec4213f602f012f89f2  # v5
+        with:
+          cache-read-only: ${{ github.event_name == 'pull_request' }}
+
+      - name: Clear committed snapshots before recording
+        # Recording only overwrites files the suites still produce; starting
+        # from empty means removed tests surface as deletions in the refresh
+        # commit instead of stale PNGs living forever.
+        run: |
+          rm -rf app/src/test/snapshots/images
+          mkdir -p app/src/test/snapshots/images
+
+      - name: Run rules screen screenshot tests
+        run: ./gradlew :app:testDebugUnitTest --tests "app.simmo.ui.RulesScreenScreenshotTest" -Proborazzi.test.record=true
+
+      - name: Run onboarding screenshot tests
+        run: ./gradlew :app:testDebugUnitTest --tests "app.simmo.ui.OnboardingScreenshotTest" -Proborazzi.test.record=true
+
+      - name: Print failing test details
+        if: failure()
+        run: |
+          shopt -s nullglob globstar
+          for xml in app/build/test-results/**/TEST-*.xml; do
+            if grep -q "<\(failure\|error\)" "$xml"; then
+              echo "::group::$xml"
+              cat "$xml"
+              echo "::endgroup::"
+            fi
+          done
+
+      - name: Commit refreshed screenshots
+        # Keeps the committed snapshots identical to what this runner renders;
+        # subject prefixed ci: so release notes skip it. Same-repo PRs only.
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "$(git log -1 --pretty=%s)" = "ci: refresh recorded screenshots" ]; then
+            echo "Head commit is already a screenshot refresh; skipping."
+            exit 0
+          fi
+          if [ -z "$(git status --porcelain -- app/src/test/snapshots/images)" ]; then
+            echo "Recorded screenshots match the committed ones; nothing to do."
+            exit 0
+          fi
+          git status --porcelain -- app/src/test/snapshots/images
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/src/test/snapshots/images
+          git commit -m "ci: refresh recorded screenshots"
+          push_url="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          if ! git push "$push_url" "HEAD:${GITHUB_HEAD_REF}"; then
+            echo "::warning::Screenshot refresh push failed (branch gone or moved); the next run will retry."
+            exit 0
+          fi
+
+      - name: Post screenshot diffs as a PR comment
+        # Convenience comment with before/after embeds pinned to commit SHAs;
+        # never gates the job.
+        continue-on-error: true
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          BASE_SHA=$(git merge-base HEAD "origin/${GITHUB_BASE_REF}")
+          HEAD_SHA=$(git rev-parse HEAD)
+          mapfile -t entries < <(git diff --name-status "$BASE_SHA" HEAD -- app/src/test/snapshots/images/ | grep -E '^[AM]' || true)
+          if [ ${#entries[@]} -eq 0 ]; then
+            echo "No added or changed screenshots vs merge-base; skipping comment."
+            exit 0
+          fi
+          raw="https://raw.githubusercontent.com/${GITHUB_REPOSITORY}"
+          body="<!-- screenshot-diff -->"$'\n'"## Screenshot diffs"$'\n\n'"Auto-posted by CI. Images pinned to \`${HEAD_SHA:0:7}\`."$'\n'
+          count=0
+          for entry in "${entries[@]}"; do
+            status="${entry%%$'\t'*}"
+            path="${entry#*$'\t'}"
+            name=$(basename "$path")
+            count=$((count+1))
+            if [ "$count" -gt 20 ]; then
+              body+=$'\n'"_…truncated: more than 20 added/changed screenshots._"
+              break
+            fi
+            if [ "$status" = "A" ]; then
+              body+=$'\n'"**Added — \`${name}\`**"$'\n\n'"<img src=\"${raw}/${HEAD_SHA}/${path}\" width=\"320\">"$'\n'
+            else
+              body+=$'\n'"**Changed — \`${name}\`**"$'\n\n'"| Before | After |"$'\n'"| --- | --- |"$'\n'"| <img src=\"${raw}/${BASE_SHA}/${path}\" width=\"320\"> | <img src=\"${raw}/${HEAD_SHA}/${path}\" width=\"320\"> |"$'\n'
+            fi
+          done
+          api="https://api.github.com/repos/${GITHUB_REPOSITORY}"
+          existing=$(curl -sS \
+            -H "Authorization: token $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "${api}/issues/${PR_NUMBER}/comments?per_page=100" \
+            | jq -r '[.[] | select(.body | startswith("<!-- screenshot-diff -->"))][0].id // empty')
+          payload=$(jq -n --arg body "$body" '{body:$body}')
+          if [ -n "$existing" ]; then
+            curl -sS -X PATCH -H "Authorization: token $GH_TOKEN" -H "Accept: application/vnd.github+json" \
+              "${api}/issues/comments/${existing}" -d "$payload" > /dev/null
+          else
+            curl -sS -X POST -H "Authorization: token $GH_TOKEN" -H "Accept: application/vnd.github+json" \
+              "${api}/issues/${PR_NUMBER}/comments" -d "$payload" > /dev/null
+          fi
+
+      - name: Upload Roborazzi screenshots
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        with:
+          name: roborazzi-screenshots
+          path: app/src/test/snapshots/images/
+
+      - name: Upload screenshot test reports
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        with:
+          name: screenshot-test-reports
+          path: |
+            app/build/reports/tests/
+            app/build/test-results/
+          if-no-files-found: ignore
+          retention-days: 1
