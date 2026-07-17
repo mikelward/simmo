@@ -1,9 +1,12 @@
 package app.simmo.domain
 
+import kotlinx.serialization.Serializable
+
 /**
  * Opaque handle to a Telecom phone account. The platform layer maps this to a
  * `PhoneAccountHandle`; the domain only compares it for equality.
  */
+@Serializable
 data class PhoneAccountRef(val id: String)
 
 /**
@@ -11,6 +14,7 @@ data class PhoneAccountRef(val id: String)
  * subscription ID is the primary key; carrier + display name together are the
  * human-meaningful re-binding fallback. Never a slot index.
  */
+@Serializable
 data class SimRef(
     val subscriptionId: Int,
     val carrierName: String,
@@ -29,6 +33,7 @@ data class ActiveSim(
  * A subscription Simmo has seen active at some point — the SIM registry that
  * lets rules target currently disabled profiles (SPEC "Disabled-SIM assist").
  */
+@Serializable
 data class RegisteredSim(
     val subscriptionId: Int,
     val carrierName: String,
@@ -73,3 +78,26 @@ fun resolveSim(ref: SimRef, active: List<ActiveSim>): SimResolution {
 
 private fun String.matchesIgnoringCaseAndSpace(other: String): Boolean =
     trim().equals(other.trim(), ignoreCase = true)
+
+/**
+ * Registry capture (SPEC "Disabled-SIM assist"): every currently active SIM is
+ * upserted by subscription ID with fresh names and last-seen time; entries for
+ * SIMs not currently active are kept so rules can still target them.
+ */
+fun List<RegisteredSim>.recordSeen(active: List<ActiveSim>, nowMillis: Long): List<RegisteredSim> {
+    val seen = active.associateBy { it.subscriptionId }
+    val updated = map { entry ->
+        seen[entry.subscriptionId]?.let {
+            entry.copy(
+                carrierName = it.carrierName,
+                displayName = it.displayName,
+                lastSeenEpochMillis = nowMillis,
+            )
+        } ?: entry
+    }
+    val known = updated.map { it.subscriptionId }.toSet()
+    val new = active.filter { it.subscriptionId !in known }.map {
+        RegisteredSim(it.subscriptionId, it.carrierName, it.displayName, nowMillis)
+    }
+    return updated + new
+}
