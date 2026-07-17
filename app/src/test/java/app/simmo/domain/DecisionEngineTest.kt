@@ -20,7 +20,16 @@ class DecisionEngineTest {
         rules: RuleBook = RuleBook(),
         activeSims: List<ActiveSim> = listOf(telstra, tmobile),
         passTokens: List<PassToken> = emptyList(),
-    ) = DecisionSnapshot(rules, activeSims, defaultRegion = "AU", passTokens = passTokens)
+        handOffAccounts: Set<PhoneAccountRef> = emptySet(),
+        handOffApps: Set<String> = emptySet(),
+    ) = DecisionSnapshot(
+        rules,
+        activeSims,
+        defaultRegion = "AU",
+        passTokens = passTokens,
+        handOffAccounts = handOffAccounts,
+        handOffApps = handOffApps,
+    )
 
     private fun call(
         number: String,
@@ -112,7 +121,11 @@ class DecisionEngineTest {
         val rules = RuleBook(countryRules = mapOf("US" to RuleAction.HandOff.ViaPhoneAccount(voip)))
         assertEquals(
             Verdict.RedirectToAccount(voip),
-            engine.decide(call(usNumber, interactive = false), snapshot(rules), now),
+            engine.decide(
+                call(usNumber, interactive = false),
+                snapshot(rules, handOffAccounts = setOf(voip)),
+                now,
+            ),
         )
     }
 
@@ -123,7 +136,39 @@ class DecisionEngineTest {
         )
         assertEquals(
             Verdict.ForwardToApp("com.example.voip"),
+            engine.decide(call(usNumber), snapshot(rules, handOffApps = setOf("com.example.voip")), now),
+        )
+    }
+
+    @Test
+    fun `stale hand-off account falls back to the chooser, never a blind redirect`() {
+        // The rule's target app was uninstalled or its phone account disabled
+        // after the rule was created: it is absent from the snapshot's
+        // reachable targets.
+        val voip = PhoneAccountRef("acct-gone")
+        val rules = RuleBook(countryRules = mapOf("US" to RuleAction.HandOff.ViaPhoneAccount(voip)))
+        assertEquals(
+            Verdict.OpenChooser(ChooserMode.Ask),
             engine.decide(call(usNumber), snapshot(rules), now),
+        )
+        assertEquals(
+            Verdict.Proceed(ProceedReason.NON_INTERACTIVE_DEGRADE),
+            engine.decide(call(usNumber, interactive = false), snapshot(rules), now),
+        )
+    }
+
+    @Test
+    fun `stale hand-off app falls back to the chooser, never a dead-end cancel`() {
+        val rules = RuleBook(
+            countryRules = mapOf("US" to RuleAction.HandOff.ViaDialIntent("com.example.gone")),
+        )
+        assertEquals(
+            Verdict.OpenChooser(ChooserMode.Ask),
+            engine.decide(call(usNumber), snapshot(rules), now),
+        )
+        assertEquals(
+            Verdict.Proceed(ProceedReason.NON_INTERACTIVE_DEGRADE),
+            engine.decide(call(usNumber, interactive = false), snapshot(rules), now),
         )
     }
 
