@@ -26,7 +26,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 
@@ -92,8 +96,20 @@ internal fun OnboardingScreen(
                 .padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
         ) {
+            val appName = stringResource(R.string.app_name)
+            val annotatedAppName = buildAnnotatedString {
+                val moIndex = appName.indexOf("mo")
+                if (moIndex != -1) {
+                    append(appName.substring(0, moIndex))
+                    withStyle(style = SpanStyle(color = Color(0xFFE91E63))) {
+                        append(appName.substring(moIndex))
+                    }
+                } else {
+                    append(appName)
+                }
+            }
             Text(
-                text = stringResource(R.string.app_name),
+                text = annotatedAppName,
                 style = MaterialTheme.typography.headlineMedium,
             )
             Text(
