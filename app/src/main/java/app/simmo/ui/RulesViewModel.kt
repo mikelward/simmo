@@ -18,6 +18,8 @@ import app.simmo.domain.regionCodes
 import app.simmo.domain.resolveSim
 import app.simmo.store.SimmoState
 import com.google.i18n.phonenumbers.PhoneNumberUtil
+import java.text.DateFormat
+import java.util.Date
 import java.util.Locale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -142,6 +144,43 @@ class RulesViewModel(
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     /**
+     * The SIMs screen rows: the whole registry with live active state, built
+     * off the main thread (the last-seen date formatting included, so
+     * composition just renders strings).
+     */
+    val registryRows: StateFlow<List<RegistrySimRowUi>> =
+        app.stateHolders()
+            .flatMapLatest { holder -> holder?.state ?: flowOf(null) }
+            .combine(app.assembler.simsAndAccounts()) { state, sims ->
+                buildRegistryRows(state?.simRegistry.orEmpty(), sims.activeSims)
+            }
+            .flowOn(Dispatchers.Default)
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /**
+     * Whether the SIMs screen is open. Mirrored into [SavedStateHandle] for
+     * the same reason as [editorTarget]: recreation and process death must
+     * bring the user back where they were.
+     */
+    private val _registryOpen = MutableStateFlow(savedState.get<Boolean>(KEY_REGISTRY_OPEN) ?: false)
+    val registryOpen: StateFlow<Boolean> = _registryOpen
+
+    fun openSimRegistry() = setRegistryOpen(true)
+
+    fun closeSimRegistry() = setRegistryOpen(false)
+
+    private fun setRegistryOpen(open: Boolean) {
+        _registryOpen.value = open
+        savedState[KEY_REGISTRY_OPEN] = open
+    }
+
+    fun deleteRegisteredSim(ref: SimRef) {
+        viewModelScope.launch {
+            app.stateHolders().filterNotNull().first().deleteRegisteredSim(ref)
+        }
+    }
+
+    /**
      * Which rule the editor is open on. Held here (not in composition) and
      * mirrored into [SavedStateHandle] so it survives both configuration
      * changes and process death — restore reopens the editor, letting the
@@ -218,8 +257,41 @@ class RulesViewModel(
 
     private companion object {
         const val KEY_EDITOR_TARGET = "editor_target"
+        const val KEY_REGISTRY_OPEN = "registry_open"
     }
 }
+
+internal fun buildRegistryRows(
+    registry: List<RegisteredSim>,
+    activeSims: List<ActiveSim>,
+    formatLastSeen: (Long) -> String = ::defaultLastSeenLabel,
+): List<RegistrySimRowUi> {
+    val activeIds = activeSims.map { it.subscriptionId }.toSet()
+    return registry
+        // Active SIMs first, then most recently seen — the deletion
+        // candidates (long-stale rows) end up at the bottom together.
+        .sortedWith(
+            compareByDescending<RegisteredSim> { it.subscriptionId in activeIds }
+                .thenByDescending { it.lastSeenEpochMillis },
+        )
+        .map { sim ->
+            val name = sim.displayName.ifBlank { sim.carrierName }
+            RegistrySimRowUi(
+                ref = sim.ref(),
+                name = name,
+                // The carrier line only earns its place when it says
+                // something the name doesn't (it IS the name for SIMs with a
+                // blank or carrier-equal display name).
+                carrier = sim.carrierName
+                    .takeIf { it.isNotBlank() && !it.trim().equals(name.trim(), ignoreCase = true) },
+                active = sim.subscriptionId in activeIds,
+                lastSeenLabel = formatLastSeen(sim.lastSeenEpochMillis),
+            )
+        }
+}
+
+private fun defaultLastSeenLabel(epochMillis: Long): String =
+    DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(epochMillis))
 
 /** A SIM the rule editor can target. */
 data class SimOptionUi(

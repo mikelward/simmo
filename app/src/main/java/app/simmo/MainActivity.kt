@@ -40,6 +40,7 @@ import app.simmo.ui.EditorTarget
 import app.simmo.ui.RuleEditorScreen
 import app.simmo.ui.RulesScreen
 import app.simmo.ui.RulesViewModel
+import app.simmo.ui.SimRegistryScreen
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -70,22 +71,32 @@ class MainActivity : ComponentActivity() {
                 }
                 if (ready) {
                     val vm = viewModel<RulesViewModel>()
-                    // Editor route lives in the ViewModel so a rotation mid-edit
-                    // keeps the user on the editor instead of the list.
+                    // Routes live in the ViewModel so a rotation mid-edit (or
+                    // mid-registry-browse) keeps the user where they were.
                     val target by vm.editorTarget.collectAsStateWithLifecycle()
+                    val registryOpen by vm.registryOpen.collectAsStateWithLifecycle()
                     val editing = target
-                    if (editing == null) {
-                        RulesScreen(
+                    when {
+                        // The editor wins: it can only be open from the rules
+                        // list, and registry state is preserved beneath it.
+                        editing != null -> {
+                            BackHandler { vm.closeEditor() }
+                            RuleEditorScreen(
+                                viewModel = vm,
+                                target = editing,
+                                onDone = vm::closeEditor,
+                            )
+                        }
+
+                        registryOpen -> SimRegistryScreen(
+                            viewModel = vm,
+                            onBack = vm::closeSimRegistry,
+                        )
+
+                        else -> RulesScreen(
                             viewModel = vm,
                             onAddRule = vm::openNewRule,
                             onEditRule = vm::openEditRule,
-                        )
-                    } else {
-                        BackHandler { vm.closeEditor() }
-                        RuleEditorScreen(
-                            viewModel = vm,
-                            target = editing,
-                            onDone = vm::closeEditor,
                         )
                     }
                 } else {

@@ -97,4 +97,20 @@
     <string name="group_caribbean_nanp" tools:ignore="MissingTranslation">Caribbean +1</string>
     <!-- TODO: translate -->
     <string name="group_caribbean_nanp_description" tools:ignore="MissingTranslation">Caribbean countries that dial like +1 but bill internationally</string>
+    <!-- TODO: translate -->
+    <string name="sim_registry_title" tools:ignore="MissingTranslation">SIMs</string>
+    <!-- TODO: translate -->
+    <string name="sim_registry_open" tools:ignore="MissingTranslation">Manage SIMs</string>
+    <!-- TODO: translate -->
+    <string name="sim_registry_explainer" tools:ignore="MissingTranslation">Every SIM Simmo has seen. Rules can use a SIM even while it\'s disabled.</string>
+    <!-- TODO: translate -->
+    <string name="sim_registry_active" tools:ignore="MissingTranslation">Active</string>
+    <!-- TODO: translate -->
+    <string name="sim_registry_last_seen" tools:ignore="MissingTranslation">Last seen %1$s</string>
+    <!-- TODO: translate -->
+    <string name="sim_registry_delete_action" tools:ignore="MissingTranslation">Delete %1$s</string>
+    <!-- TODO: translate -->
+    <string name="sim_registry_delete_title" tools:ignore="MissingTranslation">Delete %1$s?</string>
+    <!-- TODO: translate -->
+    <string name="sim_registry_delete_body" tools:ignore="MissingTranslation">Rules that use this SIM stay paused until a matching SIM appears again.</string>
 </resources>
