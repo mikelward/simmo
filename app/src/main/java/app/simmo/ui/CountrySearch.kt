@@ -1,5 +1,6 @@
 package app.simmo.ui
 
+import app.simmo.domain.CountryGroups
 import java.text.Normalizer
 import java.util.Locale
 
@@ -90,15 +91,20 @@ private fun charMatches(queryChar: Char, targetChar: Char): Boolean =
     else targetChar.lowercaseChar() == queryChar.lowercaseChar()
 
 /**
- * The best fuzzy-match score of [query] against any of this country's search
- * terms, or null if none match. A blank query scores 0 (matches everything),
- * so callers can rank without special-casing the empty field.
+ * The best fuzzy-match score of [query] against any of [terms] (each already
+ * [foldForSearch]-folded), or null if none match. A blank query scores 0
+ * (matches everything), so callers can rank without special-casing the empty
+ * field.
  */
-internal fun countryMatchScore(query: String, option: CountryOptionUi): Int? {
+internal fun termsMatchScore(query: String, terms: List<String>): Int? {
     val folded = foldForSearch(query)
     if (folded.isEmpty()) return 0
-    return option.searchTerms.mapNotNull { fuzzyScore(folded, it) }.maxOrNull()
+    return terms.mapNotNull { fuzzyScore(folded, it) }.maxOrNull()
 }
+
+/** [termsMatchScore] over a country's precomputed search terms. */
+internal fun countryMatchScore(query: String, option: CountryOptionUi): Int? =
+    termsMatchScore(query, option.searchTerms)
 
 /** Whether this option matches [query] at all; a blank query matches everything. */
 internal fun CountryOptionUi.matches(query: String): Boolean =
@@ -116,4 +122,37 @@ internal fun rankCountries(options: List<CountryOptionUi>, query: String): List<
         .mapNotNull { option -> countryMatchScore(query, option)?.let { option to it } }
         .sortedByDescending { it.second } // stable: equal scores keep the name order
         .map { it.first }
+}
+
+/**
+ * Extra strings a country group is found by, beyond its display label.
+ * Keyed by [app.simmo.domain.CountryGroups] id.
+ */
+internal val countryGroupAliases: Map<String, List<String>> = mapOf(
+    CountryGroups.EU_EEA to listOf("EU", "EEA", "Europe", "European Union"),
+)
+
+/** A group's folded search terms: its label plus [countryGroupAliases]. */
+internal fun countryGroupSearchTerms(groupId: String, label: String): List<String> =
+    (listOf(label) + countryGroupAliases[groupId].orEmpty())
+        .map { foldForSearch(it) }
+        .filter { it.isNotEmpty() }
+        .distinct()
+
+/**
+ * The groups the picker should show above [matchedCountries] for [query]: all
+ * of them on a blank query; otherwise those whose own terms match, plus those
+ * with a *member* among the matched countries — so searching "France" or
+ * "+49" also suggests the EU/EEA group right where the tap happens.
+ */
+internal fun matchingGroups(
+    groups: List<CountryGroupOptionUi>,
+    query: String,
+    matchedCountries: List<CountryOptionUi>,
+): List<CountryGroupOptionUi> {
+    if (foldForSearch(query).isEmpty()) return groups
+    return groups.filter { group ->
+        termsMatchScore(query, group.searchTerms) != null ||
+            matchedCountries.any { it.regionCode.uppercase() in group.memberRegions }
+    }
 }

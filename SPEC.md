@@ -23,6 +23,16 @@ reorder. A rule pairs a **matcher** with an **action**:
   calling codes — "+61 Australia"), or **any destination** (used by the preseeded
   defaults below). A multi-country rule matches when the destination is any of its
   countries, so "France, Germany, Italy → local eSIM" is one rule, not three.
+  A rule can also carry a **country group** as a single entry — currently
+  **EU/EEA**: the EU-27 and EEA EFTA states (Iceland, Liechtenstein, Norway) plus
+  the EU territories with their own calling codes (Åland, Guadeloupe, Martinique,
+  French Guiana, Réunion, Mayotte, Saint-Martin) and Svalbard. The group is stored
+  by id and resolved to members at decision time, so membership tracks app updates
+  instead of freezing 30-odd entries into the rule; countries the label excludes
+  but a particular plan covers (UK, Switzerland, …) are added beside the group as
+  ordinary entries. The picker offers groups above the country list, found by
+  "EU", "EEA", "Europe", "European Union" — and also whenever the search matches a
+  member country, so typing "France" suggests the group too.
   Because the +1 group is split by area code, a US rule does not catch Canadian or
   Caribbean numbers. Countries are added one at a time from a searchable picker
   rather than a flat ~240-row list (each shown in the editor as a removable entry):

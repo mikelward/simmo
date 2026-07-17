@@ -88,15 +88,16 @@ small stack), fully unit-tested, with `./gradlew test` and `./gradlew lint` gree
       the matcher model changes from `RuleMatcher.Country(regionCode)` to a set of regions
       and the decision engine matches when the destination is in the set (SPEC update, and
       keep emergency/undetermined-country handling unchanged).
-- [ ] Country groups: pick "All EU countries" or "All EEA countries" (EEA = EU +
-      Iceland, Liechtenstein, Norway) as a single entry, for roam-like-home rules on
-      EU SIMs. Surface the groups at the top of the country picker, searchable by
-      "EU"/"EEA". Decide the representation: expand the group into its member
-      countries on the rule (simple; membership frozen at rule-creation time) vs. a
-      first-class group matcher (one ✕ entry on the rule; membership tracks app
-      updates — e.g. an accession would change what existing rules match). Get the
-      lists right: UK is in neither, Switzerland is in neither (despite being in
-      Schengen), and EU overseas territories often have their own calling codes.
+- [x] Country groups: one "EU/EEA" entry per rule (maintainer decision: a
+      first-class group matcher, not expansion — expansion was judged too
+      cluttered). Membership = EU-27 + EEA EFTA + EU territories with their own
+      codes + Svalbard, resolved at decision time so it tracks app updates; UK,
+      Switzerland, and the EU-roaming-area candidates (UA/MD, Western Balkans)
+      stay out of the label-faithful set and are added per-rule when a plan
+      covers them. Picker surfaces groups on "EU"/"EEA"/"Europe"/"European
+      Union" and on any member-country search. Revisit membership at least
+      yearly (last reviewed 2026-07; Montenegro/Albania may join the EU roaming
+      area soon — a group is only added/changed when the *label* set changes).
 - [ ] Per-contact rule overrides: consider letting a rule (or a quick action) target a
       specific contact — e.g. "always call Mum on Telstra" — layered above the
       country rules. Decide where it lives in the ordered rule model and how it reads on

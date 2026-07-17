@@ -42,4 +42,41 @@ class RuleMatcherTest {
     fun `a country matcher cannot be empty`() {
         assertThrows(IllegalArgumentException::class.java) { countryMatcher(emptyList()) }
     }
+
+    @Test
+    fun `matchers expose their group ids`() {
+        assertEquals(emptyList<String>(), RuleMatcher.AnyDestination.groupIds())
+        assertEquals(emptyList<String>(), RuleMatcher.Country("AU").groupIds())
+        assertEquals(
+            listOf(CountryGroups.EU_EEA),
+            RuleMatcher.Countries(groupIds = listOf(CountryGroups.EU_EEA)).groupIds(),
+        )
+    }
+
+    @Test
+    fun `destination matcher without groups keeps the country forms`() {
+        assertEquals(RuleMatcher.Country("AU"), destinationMatcher(listOf("AU"), emptyList()))
+        assertEquals(
+            RuleMatcher.Countries(listOf("AU", "NZ")),
+            destinationMatcher(listOf("AU", "NZ"), emptyList()),
+        )
+    }
+
+    @Test
+    fun `destination matcher with groups carries both, deduped`() {
+        assertEquals(
+            RuleMatcher.Countries(listOf("GB"), listOf(CountryGroups.EU_EEA)),
+            destinationMatcher(listOf("GB", "gb"), listOf(CountryGroups.EU_EEA, CountryGroups.EU_EEA)),
+        )
+        // A group alone needs no countries.
+        assertEquals(
+            RuleMatcher.Countries(emptyList(), listOf(CountryGroups.EU_EEA)),
+            destinationMatcher(emptyList(), listOf(CountryGroups.EU_EEA)),
+        )
+    }
+
+    @Test
+    fun `a destination matcher cannot be empty either`() {
+        assertThrows(IllegalArgumentException::class.java) { destinationMatcher(emptyList(), emptyList()) }
+    }
 }

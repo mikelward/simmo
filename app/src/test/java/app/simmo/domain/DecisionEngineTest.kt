@@ -104,6 +104,54 @@ class DecisionEngineTest {
     }
 
     @Test
+    fun `country group rule matches members and only members`() {
+        val frNumber = "+33 1 42 68 53 00"
+        val rules = listOf(
+            Rule(
+                RuleMatcher.Countries(groupIds = listOf(CountryGroups.EU_EEA)),
+                RuleAction.UseSim(telstra.ref()),
+            ),
+            any(RuleAction.SystemDefault),
+        )
+        assertEquals(
+            Verdict.RedirectToAccount(telstra.phoneAccount),
+            engine.decide(call(frNumber), snapshot(rules), now),
+        )
+        // The UK is not an EU/EEA member: falls through to the next rule.
+        assertEquals(
+            Verdict.Proceed(ProceedReason.SYSTEM_DEFAULT),
+            engine.decide(call(gbNumber), snapshot(rules), now),
+        )
+    }
+
+    @Test
+    fun `countries can sit alongside a group in one rule`() {
+        // The "my plan also covers the UK" shape: EU/EEA plus GB.
+        val rules = listOf(
+            Rule(
+                RuleMatcher.Countries(regionCodes = listOf("GB"), groupIds = listOf(CountryGroups.EU_EEA)),
+                RuleAction.UseSim(telstra.ref()),
+            ),
+        )
+        assertEquals(
+            Verdict.RedirectToAccount(telstra.phoneAccount),
+            engine.decide(call(gbNumber), snapshot(rules), now),
+        )
+    }
+
+    @Test
+    fun `unknown group ids contribute nothing and never error`() {
+        val rules = listOf(
+            Rule(RuleMatcher.Countries(groupIds = listOf("from_the_future")), RuleAction.UseSim(telstra.ref())),
+            any(RuleAction.SystemDefault),
+        )
+        assertEquals(
+            Verdict.Proceed(ProceedReason.SYSTEM_DEFAULT),
+            engine.decide(call(auNumber), snapshot(rules), now),
+        )
+    }
+
+    @Test
     fun `multi-country rule matches regions case-insensitively`() {
         val rules = listOf(
             Rule(RuleMatcher.Countries(listOf("au")), RuleAction.UseSim(telstra.ref())),

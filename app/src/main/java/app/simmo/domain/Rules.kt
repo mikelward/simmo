@@ -18,10 +18,19 @@ sealed interface RuleMatcher {
     @SerialName("country")
     data class Country(val regionCode: String) : RuleMatcher
 
-    /** A set of destination countries (ISO regions); any of them matches. */
+    /**
+     * A set of destinations: individual countries (ISO regions) and/or
+     * [CountryGroups] ids, any of which matches. A group is stored by id and
+     * resolved to its member regions at decision time, so one "EU/EEA" entry
+     * tracks membership across app updates — and countries can sit alongside
+     * it (e.g. EU/EEA + UK when a plan covers the UK too).
+     */
     @Serializable
     @SerialName("countries")
-    data class Countries(val regionCodes: List<String>) : RuleMatcher
+    data class Countries(
+        val regionCodes: List<String> = emptyList(),
+        val groupIds: List<String> = emptyList(),
+    ) : RuleMatcher
 
     /** Any destination, including undetermined ones — used by the defaults. */
     @Serializable
@@ -29,11 +38,25 @@ sealed interface RuleMatcher {
     data object AnyDestination : RuleMatcher
 }
 
-/** The regions a matcher targets, in display order; empty for [RuleMatcher.AnyDestination]. */
+/** The individually picked regions, in display order; group members are not expanded. */
 fun RuleMatcher.regionCodes(): List<String> = when (this) {
     RuleMatcher.AnyDestination -> emptyList()
     is RuleMatcher.Country -> listOf(regionCode)
     is RuleMatcher.Countries -> regionCodes
+}
+
+/** The group ids a matcher targets; empty unless it is a [RuleMatcher.Countries]. */
+fun RuleMatcher.groupIds(): List<String> = (this as? RuleMatcher.Countries)?.groupIds.orEmpty()
+
+/**
+ * The matcher over hand-picked [regionCodes] and/or [groupIds] (deduped,
+ * order kept; at least one required). Group-less matchers keep the forms
+ * [countryMatcher] chooses, including the legacy single-country one.
+ */
+fun destinationMatcher(regionCodes: List<String>, groupIds: List<String>): RuleMatcher {
+    val groups = groupIds.distinct()
+    if (groups.isEmpty()) return countryMatcher(regionCodes)
+    return RuleMatcher.Countries(regionCodes.distinctBy { it.uppercase() }, groups)
 }
 
 /**

@@ -104,6 +104,46 @@ class RuleEditorScreenshotTest {
         captureSnapshot("rule_editor_multi_country.png")
     }
 
+    @Test
+    fun editor_editingGroupRule() {
+        val telstra = SimRef(1, "Telstra", "Telstra AU")
+        composeRule.setContent {
+            MaterialTheme {
+                RuleEditorContent(
+                    target = EditorTarget.Existing(
+                        0,
+                        // The "my plan also covers the UK" shape: one EU/EEA
+                        // group entry plus a hand-picked country beside it.
+                        SimmoRule(
+                            RuleMatcher.Countries(listOf("GB"), listOf("eu_eea")),
+                            RuleAction.UseSim(telstra),
+                        ),
+                    ),
+                    simOptions = listOf(SimOptionUi(telstra, "Telstra AU", active = true)),
+                    countryOptions = listOf(CountryOptionUi("GB", "+44 United Kingdom")),
+                    groupOptions = listOf(
+                        CountryGroupOptionUi(
+                            id = "eu_eea",
+                            label = "EU/EEA",
+                            description = "European Union and EEA countries",
+                            memberRegions = emptySet(),
+                            searchTerms = emptyList(),
+                        ),
+                    ),
+                    onSave = {},
+                    onDelete = {},
+                    onCancel = {},
+                )
+            }
+        }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithText("EU/EEA").assertExists()
+        composeRule.onNodeWithText("+44 United Kingdom").assertExists()
+        composeRule.onNodeWithText("Add a country or code").assertExists()
+        captureSnapshot("rule_editor_group.png")
+    }
+
     private fun captureSnapshot(name: String, widthPx: Int = 1080, heightPx: Int = 1920) {
         val isRecord = System.getProperty("roborazzi.test.record") == "true"
         val isVerify = System.getProperty("roborazzi.test.verify") == "true"

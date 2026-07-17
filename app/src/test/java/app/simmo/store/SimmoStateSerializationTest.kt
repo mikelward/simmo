@@ -26,6 +26,10 @@ class SimmoStateSerializationTest {
                 Rule(RuleMatcher.Country("GB"), RuleAction.HandOff.ViaDialIntent("com.example.voip")),
                 Rule(RuleMatcher.Country("NZ"), RuleAction.Ask),
                 Rule(RuleMatcher.Countries(listOf("FR", "DE")), RuleAction.Ask),
+                Rule(
+                    RuleMatcher.Countries(listOf("GB"), listOf("eu_eea")),
+                    RuleAction.UseSim(SimRef(1, "Telstra", "Telstra personal")),
+                ),
                 Rule(RuleMatcher.AnyDestination, RuleAction.UseMatchingCountrySim),
                 Rule(RuleMatcher.AnyDestination, RuleAction.SystemDefault),
             ),
@@ -77,6 +81,22 @@ class SimmoStateSerializationTest {
         val read = SimmoStateSerializer.readFrom(ByteArrayInputStream(json.encodeToByteArray()))
         assertEquals(
             listOf(Rule(RuleMatcher.Country("AU"), RuleAction.SystemDefault)),
+            read.rules.rules,
+        )
+    }
+
+    @Test
+    fun `group-less countries matchers from the previous version still decode`() = runTest {
+        // Bytes as written before groupIds existed on the "countries" form.
+        val json = """
+            {"rules":{"rules":[
+              {"matcher":{"type":"countries","regionCodes":["FR","DE"]},
+               "action":{"type":"systemDefault"}}
+            ]},"simRegistry":[],"defaultRegionOverride":null,"installId":null}
+        """.trimIndent()
+        val read = SimmoStateSerializer.readFrom(ByteArrayInputStream(json.encodeToByteArray()))
+        assertEquals(
+            listOf(Rule(RuleMatcher.Countries(listOf("FR", "DE")), RuleAction.SystemDefault)),
             read.rules.rules,
         )
     }

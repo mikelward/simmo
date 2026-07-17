@@ -77,4 +77,55 @@ class CountrySearchTest {
         assertTrue(ci.matches("Côte"))
         assertTrue(ci.matches("ivoire"))
     }
+
+    // --- Country groups ---
+
+    private val euEeaGroup = CountryGroupOptionUi(
+        id = app.simmo.domain.CountryGroups.EU_EEA,
+        label = "EU/EEA",
+        description = "European Union and EEA countries",
+        memberRegions = app.simmo.domain.CountryGroups.members(app.simmo.domain.CountryGroups.EU_EEA)
+            .map { it.uppercase() }.toSet(),
+        searchTerms = countryGroupSearchTerms(app.simmo.domain.CountryGroups.EU_EEA, "EU/EEA"),
+    )
+
+    @Test
+    fun `the group is found by every requested name`() {
+        // The maintainer's list: Europe, European Union, EU, EEA.
+        for (query in listOf("Europe", "europe", "European Union", "EU", "eu", "EEA", "eea", "EU/EEA")) {
+            assertEquals(
+                "query=$query",
+                listOf(euEeaGroup),
+                matchingGroups(listOf(euEeaGroup), query, matchedCountries = emptyList()),
+            )
+        }
+    }
+
+    @Test
+    fun `searching a member country surfaces the group too`() {
+        // "France" doesn't match the group's own terms, but France is a
+        // member — the group is suggested right where the tap happens.
+        val matched = rankCountries(listOf(gb, us, au, fr), "France")
+        assertEquals(
+            listOf(euEeaGroup),
+            matchingGroups(listOf(euEeaGroup), "France", matched),
+        )
+    }
+
+    @Test
+    fun `searching a non-member hides the group`() {
+        val matched = rankCountries(listOf(gb, us, au, fr), "Australia")
+        assertEquals(
+            emptyList<CountryGroupOptionUi>(),
+            matchingGroups(listOf(euEeaGroup), "Australia", matched),
+        )
+    }
+
+    @Test
+    fun `a blank query shows every group`() {
+        assertEquals(
+            listOf(euEeaGroup),
+            matchingGroups(listOf(euEeaGroup), "  ", matchedCountries = emptyList()),
+        )
+    }
 }
