@@ -54,7 +54,11 @@ class MainActivity : ComponentActivity() {
                 // the telephony refresh must also run on that transition.
                 OnResume {
                     val nowGranted = isPhonePermissionGranted()
-                    if (nowGranted && !phoneGranted) {
+                    // Any transition invalidates the cached SIM snapshot: a
+                    // grant must populate it, a revocation must clear it (the
+                    // refresh reads back empty without the permission) so the
+                    // redirection service never routes on stale handles.
+                    if (nowGranted != phoneGranted) {
                         (application as SimmoApp).refreshTelephony()
                     }
                     phoneGranted = nowGranted
@@ -107,9 +111,9 @@ internal fun OnboardingScreen(
     OnResume {
         roleHeld = isRoleHeld()
         val nowGranted = isPhonePermissionGranted()
-        // Granted from Settings rather than our launcher: the refresh
-        // callback must still run.
-        if (nowGranted && !phoneGranted) onPhonePermissionGranted()
+        // Any transition made in Settings (grant or revoke) must refresh the
+        // telephony cache, same as the launcher path.
+        if (nowGranted != phoneGranted) onPhonePermissionGranted()
         phoneGranted = nowGranted
         if (roleHeld && phoneGranted) onAllGranted()
     }
