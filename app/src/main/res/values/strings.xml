@@ -59,4 +59,6 @@
     <string name="editor_delete" tools:ignore="MissingTranslation">Delete</string>
     <!-- TODO: translate -->
     <string name="rules_add" tools:ignore="MissingTranslation">Add rule</string>
+    <!-- TODO: translate -->
+    <string name="rules_drag_handle" tools:ignore="MissingTranslation">Drag to reorder</string>
 </resources>
