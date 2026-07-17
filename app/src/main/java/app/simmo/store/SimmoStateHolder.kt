@@ -7,6 +7,7 @@ import app.simmo.domain.recordSeen
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -24,15 +25,24 @@ class SimmoStateHolder(
     installId: String,
 ) {
     init {
-        // Restore guard: state written by a different install gets its
-        // subscription IDs invalidated before anything routes with it.
+        // Persist the install adoption so later loads are no-ops. Correctness
+        // does not depend on when (or whether) this write lands: the published
+        // flow below validates every value itself.
         scope.launch {
             store.updateData { it.withInstallValidated(installId) }
         }
     }
 
+    /**
+     * Every published value passes through [withInstallValidated], so state
+     * restored from another device can never reach a reader — however briefly —
+     * with its stale subscription IDs intact, regardless of how the eager
+     * collector races the persistence write above.
+     */
     val state: StateFlow<SimmoState?> =
-        store.data.stateIn(scope, SharingStarted.Eagerly, initialValue = null)
+        store.data
+            .map { it.withInstallValidated(installId) }
+            .stateIn(scope, SharingStarted.Eagerly, initialValue = null)
 
     val current: SimmoState? get() = state.value
 
