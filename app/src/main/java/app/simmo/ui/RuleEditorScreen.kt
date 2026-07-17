@@ -272,7 +272,7 @@ internal fun RuleEditorContent(
                             else RuleMatcher.Country(region!!)
                         onSave(EditorDraft(matcher, resolveEditorAction(actionChoice, selectedSimRef, keepAction)))
                     },
-                    enabled = isValid(matchesAny, region, actionChoice, selectedSimRef),
+                    enabled = isValid(matchesAny, region, actionChoice, selectedSimRef, simOptions),
                 ) {
                     Text(stringResource(R.string.editor_save))
                 }
@@ -406,14 +406,19 @@ internal fun resolveSelectedSim(ref: SimRef?, options: List<SimOptionUi>): SimRe
     return byIdentity.singleOrNull()?.ref ?: ref
 }
 
-private fun isValid(
+internal fun isValid(
     matchesAny: Boolean,
     region: String?,
     action: ActionChoice?,
     simRef: SimRef?,
+    simOptions: List<SimOptionUi>,
 ): Boolean {
     if (!matchesAny && region == null) return false
-    if (action == ActionChoice.USE_SIM && simRef == null) return false
+    // A specific-SIM action must point at a SIM actually offered here. When the
+    // stored SIM can't be resolved to a row (e.g. renamed or removed after a
+    // restore, so nothing is selected), require re-linking to a real SIM rather
+    // than silently re-saving the paused rule.
+    if (action == ActionChoice.USE_SIM && simOptions.none { it.ref == simRef }) return false
     return true
 }
 
