@@ -23,6 +23,12 @@ class RuleRowMappingTest {
     }
 
     @Test
+    fun `country display name drops the calling code for sorting`() {
+        assertEquals("Australia", countryDisplayName("AU"))
+        assertEquals("United States", countryDisplayName("us"))
+    }
+
+    @Test
     fun `rule with an active sim is enabled`() {
         val row = Rule(
             RuleMatcher.Country("AU"),
