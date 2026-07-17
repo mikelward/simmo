@@ -17,10 +17,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flowOn
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 
 /** One row of the rules list, ready to render (SPEC "Rules"). */
@@ -45,13 +45,17 @@ class RulesViewModel(application: Application) : AndroidViewModel(application) {
     private val app = application as SimmoApp
 
     /**
-     * Rebuilt off the main thread on every state change; label building
-     * touches libphonenumber metadata, which never belongs in composition.
+     * Rebuilt off the main thread whenever the stored rules OR the live SIM
+     * snapshot changes — disabling a SIM must grey its rules immediately, not
+     * on the next persisted-state write. Label building touches libphonenumber
+     * metadata, which never belongs in composition.
      */
     val rows: StateFlow<List<RuleRowUi>> =
         app.stateHolders()
             .flatMapLatest { holder -> holder?.state ?: flowOf(null) }
-            .map { state -> buildRows(state, app.assembler.activeSims()) }
+            .combine(app.assembler.simsAndAccounts()) { state, sims ->
+                buildRows(state, sims.activeSims)
+            }
             .flowOn(Dispatchers.Default)
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
