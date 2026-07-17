@@ -12,17 +12,17 @@ small stack), fully unit-tested, with `./gradlew test` and `./gradlew lint` gree
 
 ## Phase 1 — Domain: rules, SIM identity, country detection
 
-- [ ] Add libphonenumber; `DialedNumber` parser → `CountryVerdict` (region / undetermined /
+- [x] Add libphonenumber; `DialedNumber` parser → `CountryVerdict` (region / undetermined /
       emergency-flagged), covering international format, national format against a default
       region, short codes, USSD.
-- [ ] Tease apart the +1 NANP countries (US, Canada, Caribbean). libphonenumber resolves
+- [x] Tease apart the +1 NANP countries (US, Canada, Caribbean). libphonenumber resolves
       region by area code (`getRegionCodeForNumber`) — verify its coverage with a test
       table of US/CA/Caribbean area codes; where it returns undetermined, evaluate a
       supplementary hardcoded area-code map and, later, the contact's country details as
       tiebreakers.
-- [ ] `SimIdentity` model + registry re-binding logic (subscription ID primary, carrier +
+- [x] `SimIdentity` model + registry re-binding logic (subscription ID primary, carrier +
       display name fallback; ambiguity → unresolved, per SPEC "SIM identity").
-- [ ] Rule model (country → action; single fallback rule) and the pure decision function
+- [x] Rule model (country → action; single fallback rule) and the pure decision function
       `(call, snapshot) → verdict` with table-driven unit tests: rule hit, fallback, already-
       on-target pass-through, inactive-SIM target, non-interactive degradation, pass-token
       consumption.
@@ -37,6 +37,10 @@ small stack), fully unit-tested, with `./gradlew test` and `./gradlew lint` gree
 
 - [ ] `CallRedirectionService` implementation wired to the decision function; manifest
       service declaration with `BIND_CALL_REDIRECTION_SERVICE`.
+- [ ] Response watchdog: a missed deadline makes Telecom cancel the call, so the service
+      must send an explicit response (worst case `placeCallUnmodified`) well before the
+      platform's 5 s timeout on every path — including cold start and exceptions in
+      decision code (flagged by Codex on PR #1).
 - [ ] Onboarding: request `ROLE_CALL_REDIRECTION` via `RoleManager`, `READ_PHONE_STATE`,
       default-region setup; degraded states when role/permission is missing.
 - [ ] Subscription + phone-account snapshot readers and change listeners; SIM registry
