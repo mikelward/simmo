@@ -34,6 +34,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.activity.compose.BackHandler
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import app.simmo.ui.EditorTarget
 import app.simmo.ui.RuleEditorScreen
@@ -69,24 +70,22 @@ class MainActivity : ComponentActivity() {
                 }
                 if (ready) {
                     val vm = viewModel<RulesViewModel>()
-                    var editing by remember { mutableStateOf<EditorTarget?>(null) }
-                    val target = editing
-                    if (target == null) {
+                    // Editor route lives in the ViewModel so a rotation mid-edit
+                    // keeps the user on the editor instead of the list.
+                    val target by vm.editorTarget.collectAsStateWithLifecycle()
+                    val editing = target
+                    if (editing == null) {
                         RulesScreen(
                             viewModel = vm,
-                            onAddRule = { editing = EditorTarget.New },
-                            onEditRule = { index ->
-                                vm.currentRules().getOrNull(index)?.let {
-                                    editing = EditorTarget.Existing(index, it)
-                                }
-                            },
+                            onAddRule = vm::openNewRule,
+                            onEditRule = vm::openEditRule,
                         )
                     } else {
-                        BackHandler { editing = null }
+                        BackHandler { vm.closeEditor() }
                         RuleEditorScreen(
                             viewModel = vm,
-                            target = target,
-                            onDone = { editing = null },
+                            target = editing,
+                            onDone = vm::closeEditor,
                         )
                     }
                 } else {

@@ -19,7 +19,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -80,13 +81,18 @@ internal fun RuleEditorContent(
     onDelete: (() -> Unit)?,
     onCancel: () -> Unit,
 ) {
+    // rememberSaveable so an in-progress edit survives rotation / recreation.
     val initial = (target as? EditorTarget.Existing)?.rule
-    var matchesAny by remember { mutableStateOf(initial?.matcher is RuleMatcher.AnyDestination || initial == null) }
-    var region by remember {
+    var matchesAny by rememberSaveable {
+        mutableStateOf(initial?.matcher is RuleMatcher.AnyDestination || initial == null)
+    }
+    var region by rememberSaveable {
         mutableStateOf((initial?.matcher as? RuleMatcher.Country)?.regionCode)
     }
-    var actionChoice by remember { mutableStateOf(ActionChoice.of(initial?.action)) }
-    var simRef by remember {
+    var actionChoice by rememberSaveable {
+        mutableStateOf(ActionChoice.of(initial?.action))
+    }
+    var simRef by rememberSaveable(stateSaver = SimRefSaver) {
         mutableStateOf((initial?.action as? RuleAction.UseSim)?.sim ?: simOptions.firstOrNull()?.ref)
     }
 
@@ -238,3 +244,11 @@ private fun isValid(
     if (action == ActionChoice.USE_SIM && simRef == null) return false
     return true
 }
+
+/** Persists the selected SIM across recreation as its three identity fields. */
+private val SimRefSaver: Saver<SimRef?, List<String>> = Saver(
+    save = { it?.let { r -> listOf(r.subscriptionId.toString(), r.carrierName, r.displayName) } ?: emptyList() },
+    restore = { parts ->
+        parts.takeIf { it.size == 3 }?.let { SimRef(it[0].toInt(), it[1], it[2]) }
+    },
+)

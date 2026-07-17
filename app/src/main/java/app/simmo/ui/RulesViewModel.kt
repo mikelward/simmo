@@ -18,6 +18,7 @@ import java.util.Locale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -92,6 +93,26 @@ class RulesViewModel(application: Application) : AndroidViewModel(application) {
             .flowOn(Dispatchers.Default)
             .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
+    /**
+     * Which rule the editor is open on, held here (not in composition) so it
+     * survives configuration changes — a rotation mid-edit must not drop the
+     * user back to the list.
+     */
+    private val _editorTarget = MutableStateFlow<EditorTarget?>(null)
+    val editorTarget: StateFlow<EditorTarget?> = _editorTarget
+
+    fun openNewRule() {
+        _editorTarget.value = EditorTarget.New
+    }
+
+    fun openEditRule(index: Int) {
+        currentRules().getOrNull(index)?.let { _editorTarget.value = EditorTarget.Existing(index, it) }
+    }
+
+    fun closeEditor() {
+        _editorTarget.value = null
+    }
+
     /** The current rules, as domain objects, for the editor to read and edit. */
     fun currentRules(): List<Rule> = app.stateHolder()?.current?.rules?.rules.orEmpty()
 
@@ -119,15 +140,26 @@ data class CountryOptionUi(
     val label: String,
 )
 
-private fun buildSimOptions(
+internal fun buildSimOptions(
     registry: List<RegisteredSim>,
     activeSims: List<ActiveSim>,
 ): List<SimOptionUi> {
     val activeById = activeSims.associateBy { it.subscriptionId }
     // Registry union active, so a SIM seen this session but not yet persisted
-    // still shows; de-duplicate by subscription id.
+    // still shows. De-dup by subscription id when it's a real one, else by the
+    // carrier + display-name fallback identity: after a restore every stored id
+    // is invalidated to the same sentinel, so keying by id alone would collapse
+    // distinct disabled SIMs into one option.
     val fromActive = activeSims.map { RegisteredSim(it.subscriptionId, it.carrierName, it.displayName, 0L) }
-    val merged = (registry + fromActive).associateBy { it.subscriptionId }.values
+    val merged = (registry + fromActive)
+        .associateBy { sim ->
+            if (sim.subscriptionId == SimRef.INVALID_SUBSCRIPTION_ID) {
+                "name:${sim.carrierName.trim().lowercase()}|${sim.displayName.trim().lowercase()}"
+            } else {
+                "id:${sim.subscriptionId}"
+            }
+        }
+        .values
     return merged
         .map {
             SimOptionUi(
