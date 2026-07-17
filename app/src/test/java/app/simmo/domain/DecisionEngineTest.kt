@@ -28,6 +28,7 @@ class DecisionEngineTest {
         passTokens: List<PassToken> = emptyList(),
         handOffAccounts: Set<PhoneAccountRef> = emptySet(),
         handOffApps: Set<String> = emptySet(),
+        contacts: ContactNumberIndex = ContactNumberIndex.EMPTY,
     ) = DecisionSnapshot(
         RuleBook(rules),
         activeSims,
@@ -35,6 +36,13 @@ class DecisionEngineTest {
         passTokens = passTokens,
         handOffAccounts = handOffAccounts,
         handOffApps = handOffApps,
+        contacts = contacts,
+    )
+
+    private fun whatsAppContact(number: String, dataRowId: Long) = buildContactNumberIndex(
+        numbers = listOf(RawContactNumber("mum", "Mum", number)),
+        callActions = listOf(RawCallAction(ContactCallApp.WHATSAPP, number, dataRowId)),
+        defaultRegion = "AU",
     )
 
     private fun call(
@@ -54,6 +62,54 @@ class DecisionEngineTest {
         assertEquals(
             Verdict.RedirectToAccount(telstra.phoneAccount),
             engine.decide(call(auNumber), snapshot(rules), now),
+        )
+    }
+
+    // --- App-to-app (contact) hand-off ---
+
+    private val whatsApp = RuleAction.HandOff.ViaContactApp(ContactCallApp.WHATSAPP)
+
+    @Test
+    fun `hand off to a contact app routes when the number is a contact on that app`() {
+        val rules = listOf(any(whatsApp), any(RuleAction.SystemDefault))
+        assertEquals(
+            Verdict.ForwardToContactApp(
+                "com.whatsapp",
+                ContactCallApp.WHATSAPP.dataMimeType,
+                7L,
+            ),
+            engine.decide(call(auNumber), snapshot(rules, contacts = whatsAppContact(auNumber, 7L)), now),
+        )
+    }
+
+    @Test
+    fun `hand off to a contact app skips when the number is not that contact`() {
+        val rules = listOf(any(whatsApp), any(RuleAction.SystemDefault))
+        assertEquals(
+            Verdict.Proceed(ProceedReason.SYSTEM_DEFAULT),
+            engine.decide(call(auNumber), snapshot(rules, contacts = whatsAppContact(usNumber, 7L)), now),
+        )
+    }
+
+    @Test
+    fun `hand off to a contact app skips with no contact index at all`() {
+        val rules = listOf(any(whatsApp), any(RuleAction.SystemDefault))
+        assertEquals(
+            Verdict.Proceed(ProceedReason.SYSTEM_DEFAULT),
+            engine.decide(call(auNumber), snapshot(rules), now),
+        )
+    }
+
+    @Test
+    fun `hand off to a contact app is skipped in a non-interactive context`() {
+        val rules = listOf(any(whatsApp), any(RuleAction.SystemDefault))
+        assertEquals(
+            Verdict.Proceed(ProceedReason.SYSTEM_DEFAULT),
+            engine.decide(
+                call(auNumber, interactive = false),
+                snapshot(rules, contacts = whatsAppContact(auNumber, 7L)),
+                now,
+            ),
         )
     }
 

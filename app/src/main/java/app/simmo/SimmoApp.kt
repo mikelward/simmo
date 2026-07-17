@@ -5,6 +5,8 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.database.ContentObserver
+import android.provider.ContactsContract
 import android.telephony.SubscriptionManager
 import android.telephony.TelephonyManager
 import androidx.core.content.ContextCompat
@@ -17,6 +19,7 @@ import app.simmo.notify.SimNotifications
 import app.simmo.store.InstallMarker
 import app.simmo.store.SimmoStateHolder
 import app.simmo.store.simmoStateStore
+import app.simmo.telecom.ContactsReader
 import app.simmo.telecom.HeldCallStore
 import app.simmo.telecom.PassTokenStore
 import app.simmo.telecom.RedirectionCoordinator
@@ -24,10 +27,15 @@ import app.simmo.telecom.SnapshotAssembler
 import app.simmo.telecom.TelephonyReader
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.asExecutor
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 /**
@@ -56,6 +64,10 @@ class SimmoApp : Application() {
     @Volatile
     private var metadataWarm = false
 
+    /** Trailing-edge debounce for the contacts-change observer; latest wins. */
+    @Volatile
+    private var contactRefreshJob: Job? = null
+
     lateinit var assembler: SnapshotAssembler
         private set
     lateinit var coordinator: RedirectionCoordinator
@@ -81,6 +93,7 @@ class SimmoApp : Application() {
         val reader = TelephonyReader(this)
         assembler = SnapshotAssembler(
             reader = reader,
+            contactsReader = ContactsReader(contentResolver),
             stateHolder = { stateHolderFlow.value },
             tokens = passTokens,
             nowMillis = System::currentTimeMillis,
@@ -95,8 +108,20 @@ class SimmoApp : Application() {
             // Blocking file read, deliberately off the main thread; until it
             // completes the snapshot is null and calls proceed unmodified.
             val installId = InstallMarker.get(this@SimmoApp)
-            stateHolderFlow.value = SimmoStateHolder(simmoStateStore, appScope, installId)
+            val holder = SimmoStateHolder(simmoStateStore, appScope, installId)
+            stateHolderFlow.value = holder
             recordSims()
+            // Publishing the holder only *starts* the async DataStore read
+            // (its `state` begins at null), so `current.defaultRegionOverride`
+            // isn't available yet. Rebuild the contact index once the state has
+            // actually loaded, and again whenever the override changes (e.g. in
+            // settings) — national-format contact numbers must be normalized
+            // against the effective region, else hand-off rules skip them.
+            holder.state
+                .filterNotNull()
+                .map { it.defaultRegionOverride }
+                .distinctUntilChanged()
+                .collect { assembler.refreshContacts() }
         }
         appScope.launch {
             detector.warmUp()
@@ -127,6 +152,33 @@ class SimmoApp : Application() {
             IntentFilter(TelephonyManager.ACTION_NETWORK_COUNTRY_CHANGED),
             ContextCompat.RECEIVER_NOT_EXPORTED,
         )
+
+        // Contacts can change while Simmo stays resident (a WhatsApp contact
+        // added, removed, or its call-action row re-synced). Without tracking
+        // that, the warm index would keep returning a stale — possibly deleted —
+        // Data row for a hand-off, so the service would cancel the carrier call
+        // and open WhatsApp on a dead row. Rebuild on change, debounced because
+        // a single account sync fires a burst of notifications. Delivered on a
+        // binder thread (null handler), so no main-thread work. Registered
+        // unconditionally: without READ_CONTACTS the rebuild degrades to empty.
+        contentResolver.registerContentObserver(
+            ContactsContract.AUTHORITY_URI,
+            /* notifyForDescendants = */ true,
+            object : ContentObserver(null) {
+                override fun onChange(selfChange: Boolean) {
+                    // Drop the possibly-stale index *now* so a call placed during
+                    // the debounce can't route to a just-deleted Data row (it
+                    // degrades to "proceed unmodified"); debounce only the
+                    // expensive repopulation.
+                    assembler.clearContacts()
+                    contactRefreshJob?.cancel()
+                    contactRefreshJob = appScope.launch {
+                        delay(CONTACT_REFRESH_DEBOUNCE_MILLIS)
+                        assembler.refreshContacts()
+                    }
+                }
+            },
+        )
     }
 
     /**
@@ -139,8 +191,26 @@ class SimmoApp : Application() {
         appScope.launch {
             assembler.refresh()
             recordSims()
+            // Rebuild the contact index after the region is set; it feeds
+            // app-to-app hand-off and degrades to empty without READ_CONTACTS.
+            assembler.refreshContacts()
         }
     }
+
+    /**
+     * Rebuilds the contact index off the main thread — called after READ_CONTACTS
+     * is granted (the startup build ran before the grant and read nothing).
+     */
+    fun refreshContacts() {
+        appScope.launch { assembler.refreshContacts() }
+    }
+
+    /**
+     * Immediately drops the warm contact index — called when READ_CONTACTS is
+     * revoked so saved hand-off rules stop matching cached rows at once (a cheap
+     * volatile write; no coroutine needed).
+     */
+    fun clearContacts() = assembler.clearContacts()
 
     private suspend fun recordSims() {
         val active = assembler.activeSims()
@@ -183,5 +253,10 @@ class SimmoApp : Application() {
             simLabel = sim.displayName.ifBlank { sim.carrierName },
             nowMillis = now,
         )
+    }
+
+    private companion object {
+        /** A contacts account sync fires a burst; wait for it to settle. */
+        const val CONTACT_REFRESH_DEBOUNCE_MILLIS = 2_000L
     }
 }

@@ -12,11 +12,21 @@
          "new SIM seen". Optional; everything degrades to the in-app surfaces. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
+    <!-- Resolve a dialed number to a contact for app-to-app hand-off (e.g.
+         WhatsApp); optional, requested at runtime when such a rule is created. -->
+    <uses-permission android:name="android.permission.READ_CONTACTS" />
+
     <!-- Simmo routes carrier calls, but must still install on devices without a
          radio so rules can be reviewed there. -->
     <uses-feature
         android:name="android.hardware.telephony"
         android:required="false" />
+
+    <!-- Android 11+ package visibility: see whether app-to-app hand-off targets
+         are installed (to offer them in the editor) and launch their call. -->
+    <queries>
+        <package android:name="com.whatsapp" />
+    </queries>
 
     <application
         android:name=".SimmoApp"

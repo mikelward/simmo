@@ -50,9 +50,14 @@ class ContactsReader(
                 val idCol = cursor.getColumnIndexOrThrow(ContactsContract.Data._ID)
                 val numberCol = cursor.getColumnIndexOrThrow(ContactsContract.Data.DATA1)
                 while (cursor.moveToNext()) {
-                    // Some apps store the number as a JID ("61…@s.whatsapp.net"); keep
-                    // just the dialable part so it can normalize to E.164.
-                    val number = cursor.getString(numberCol)?.substringBefore('@') ?: continue
+                    val raw = cursor.getString(numberCol) ?: continue
+                    // Some apps store the number as a JID ("61412345678@s.whatsapp.net"):
+                    // the part before '@' is the full international number without the
+                    // leading '+'. Mark it international, else "61412345678" would parse
+                    // as an (invalid) national number against the region and be dropped,
+                    // so the contact never gets a call action. A plain stored number
+                    // (no '@') keeps normalizing against the region as before.
+                    val number = if ('@' in raw) "+${raw.substringBefore('@')}" else raw
                     actions += RawCallAction(app, number, cursor.getLong(idCol))
                 }
             }

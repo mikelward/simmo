@@ -176,17 +176,22 @@ can't dial an arbitrary number and are out of scope.
 
 - [ ] Verify the MVP intents on a real device (the `docs/handoff-intents.md` checklist)
       before building — auto-dial vs pre-fill vs browser is unconfirmed in the sandbox.
-- [ ] Consider WhatsApp (and other app-to-app apps) hand-off: when the dialed number
-      belongs to a contact reachable on the app, launch its by-contact call intent (e.g.
-      WhatsApp's `vnd.com.whatsapp.voip.call` contacts-data row). Needs `READ_CONTACTS` +
-      a number→contact reverse lookup (shareable with the same-contact-number-correction
-      index) and is only offered when the number is actually a user of that app. Many
-      users' contacts are on WhatsApp, so it's worth having despite the contact-only limit.
-  - [x] Number→contact reverse-lookup foundation: `ContactNumberIndex` (dialed number →
-        contact + per-app `ContactsContract.Data` call-action row ids, keyed by E.164) and
-        the `ContactsReader` that builds it off the main thread, degrading to empty without
-        `READ_CONTACTS`. Pure + Robolectric tested. Still to wire: request `READ_CONTACTS`,
-        keep the index warm in the snapshot, and the WhatsApp launch (device-verified).
+- [x] WhatsApp (app-to-app) hand-off, end to end: a "Hand off to WhatsApp" rule action
+      (`RuleAction.HandOff.ViaContactApp`) that, when the dialed number is a WhatsApp
+      contact, cancels the carrier call and `ACTION_VIEW`s the contact's voip Data row
+      (resolve-before-cancel so a missing target never strands the call); it skips
+      otherwise and in non-interactive contexts. The warm `ContactNumberIndex` is wired
+      into the snapshot, `READ_CONTACTS` is declared + requested when the action is
+      chosen, and the editor offers WhatsApp only when it's installed (`<queries>` +
+      PackageManager). Domain/decision/editor unit-tested.
+  - [x] Number→contact reverse-lookup foundation: `ContactNumberIndex` + `ContactsReader`,
+        pure + Robolectric tested.
+  - [ ] **Device QA owed** (docs/handoff-intents.md checklist): confirm `ACTION_VIEW` on
+        the voip Data row actually places a WhatsApp call, the exact `DATA1` column, the
+        JID handling, and that background-activity-launch rules don't swallow the
+        `startActivity` from the redirection service.
+  - [ ] Extend to other app-to-app apps if/when a comparable by-contact call intent is
+        found (Signal/Telegram had none last checked — see docs/handoff-intents.md).
 - [ ] Reachable-app discovery off the decision path: resolve each candidate intent and
       cache the vetted template + mechanism label in the warm snapshot (`handOffApps`).
 - [ ] Cancel-and-forward action: rule editor offers only reachable apps with honest copy

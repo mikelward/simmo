@@ -3,16 +3,24 @@ package app.simmo.domain
 import com.google.i18n.phonenumbers.NumberParseException
 import com.google.i18n.phonenumbers.PhoneNumberUtil
 import com.google.i18n.phonenumbers.PhoneNumberUtil.PhoneNumberFormat
+import kotlinx.serialization.Serializable
 
 /**
  * An app that can place a call to a *contact* (not an arbitrary number) via a
  * per-contact intent — the app-to-app hand-off case (SPEC "Hand-off to another
- * app"; `docs/handoff-intents.md`). Each maps to the `ContactsContract.Data`
- * MIME type the app registers for a callable contact; the platform reader keys
- * off it. Extend as more app-to-app targets are verified.
+ * app"; `docs/handoff-intents.md`). [packageName] targets the launch intent and
+ * [dataMimeType] is the `ContactsContract.Data` MIME type the app registers for
+ * a callable contact (the platform reader keys off it); [label] is the
+ * user-facing name. Serializable because a rule's action stores which app.
+ * Extend as more app-to-app targets are verified.
  */
-enum class ContactCallApp(val dataMimeType: String) {
-    WHATSAPP("vnd.android.cursor.item/vnd.com.whatsapp.voip.call"),
+@Serializable
+enum class ContactCallApp(
+    val packageName: String,
+    val dataMimeType: String,
+    val label: String,
+) {
+    WHATSAPP("com.whatsapp", "vnd.android.cursor.item/vnd.com.whatsapp.voip.call", "WhatsApp"),
 }
 
 /**

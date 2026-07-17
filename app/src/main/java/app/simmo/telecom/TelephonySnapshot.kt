@@ -9,6 +9,7 @@ import android.telephony.SubscriptionManager
 import android.telephony.TelephonyManager
 import androidx.core.content.ContextCompat
 import app.simmo.domain.ActiveSim
+import app.simmo.domain.ContactNumberIndex
 import app.simmo.domain.DecisionSnapshot
 import app.simmo.domain.PassToken
 import app.simmo.domain.PhoneAccountRef
@@ -17,6 +18,8 @@ import java.util.concurrent.CopyOnWriteArrayList
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /**
  * Reads the telephony side of the decision snapshot. All methods do IPC and
@@ -128,6 +131,7 @@ class PassTokenStore {
  */
 class SnapshotAssembler(
     private val reader: TelephonyReader,
+    private val contactsReader: ContactsReader,
     /** Provider because the holder is created asynchronously at process start. */
     private val stateHolder: () -> SimmoStateHolder?,
     private val tokens: PassTokenStore,
@@ -139,10 +143,71 @@ class SnapshotAssembler(
     @Volatile
     private var networkRegion: String = ""
 
+    /** Warm contact reverse-lookup for app-to-app hand-off; empty until read. */
+    @Volatile
+    private var contacts: ContactNumberIndex = ContactNumberIndex.EMPTY
+
+    /**
+     * Serializes contact refreshes. At startup two callers race to build the
+     * index — the telephony refresh (before the persisted region override has
+     * loaded) and the state-load launch (after it publishes the holder). Without
+     * this, the earlier, wrong-region read could finish last and overwrite the
+     * correct index. The lock makes each refresh read the region and write the
+     * result atomically, so whichever runs last reads the freshest region — and
+     * the holder is always published before the last acquirer reads it.
+     */
+    private val contactsMutex = Mutex()
+
+    /**
+     * Guards the contact-index publish against a racing [clearContacts]. A
+     * refresh captures this before its (slow) read and only publishes if it
+     * hasn't changed since — so an in-flight, pre-change read can't re-publish
+     * rows a [clearContacts] just dropped. Bumped under [contactsWriteLock],
+     * which also makes the capture and the guarded write atomic w.r.t. a clear.
+     */
+    @Volatile
+    private var contactsGeneration = 0
+    private val contactsWriteLock = Any()
+
     /** Blocking IPC — call from a background dispatcher only. */
     fun refresh() {
         simsFlow.value = reader.readSimsAndAccounts()
         networkRegion = reader.readNetworkRegion()
+    }
+
+    /**
+     * Rebuilds the contact index. Blocking contacts IPC — call from a background
+     * dispatcher only, and after [refresh] so the current region is set (it
+     * drives normalization of national-format contact numbers). Empty without
+     * READ_CONTACTS. Serialized by [contactsMutex] so concurrent refreshes can't
+     * overwrite each other with a stale-region result; and the publish is
+     * dropped if a [clearContacts] ran during the read (its rows would be stale).
+     */
+    suspend fun refreshContacts() = contactsMutex.withLock {
+        val generation = synchronized(contactsWriteLock) { contactsGeneration }
+        val fresh = contactsReader.read(stateHolder()?.current?.defaultRegionOverride ?: networkRegion)
+        synchronized(contactsWriteLock) {
+            // A clear during the read bumped the generation; its empty index is
+            // the safe truth and this read predates the change — drop it and let
+            // the next (debounced) refresh republish post-change rows.
+            if (generation == contactsGeneration) contacts = fresh
+        }
+    }
+
+    /**
+     * Immediately drops the warm index (no IPC — safe to call from any thread).
+     * A decision then sees no contacts, so app-to-app hand-off rules skip to
+     * "proceed unmodified" rather than routing to a row that may have just been
+     * deleted. Used to make the window safe before a debounced [refreshContacts]
+     * repopulates it, and to clear on permission revocation. Bumping the
+     * generation invalidates any read already in flight so it can't republish
+     * the pre-clear rows over this empty index.
+     */
+    fun clearContacts() {
+        synchronized(contactsWriteLock) {
+            contactsGeneration++
+            contacts = ContactNumberIndex.EMPTY
+        }
     }
 
     fun activeSims() = simsFlow.value.activeSims
@@ -161,9 +226,11 @@ class SnapshotAssembler(
             activeSims = simsFlow.value.activeSims,
             defaultRegion = state.defaultRegionOverride ?: networkRegion,
             passTokens = tokens.currentTokens(nowMillis()),
-            // Hand-off target discovery lands with Phase 5 (TODO.md).
+            // Phone-account / dial-intent hand-off target discovery lands later
+            // (TODO.md Phase 5); the contact index backs app-to-app hand-off.
             handOffAccounts = emptySet(),
             handOffApps = emptySet(),
+            contacts = contacts,
         )
     }
 }

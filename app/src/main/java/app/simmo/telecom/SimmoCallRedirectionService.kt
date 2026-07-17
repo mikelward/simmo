@@ -1,9 +1,11 @@
 package app.simmo.telecom
 
+import android.content.ContentUris
 import android.content.Intent
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
+import android.provider.ContactsContract
 import android.telecom.CallRedirectionService
 import android.telecom.PhoneAccountHandle
 import android.util.Log
@@ -89,6 +91,25 @@ class SimmoCallRedirectionService : CallRedirectionService() {
                             .setPackage(verdict.packageName)
                             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
                     )
+                }
+
+                is Verdict.ForwardToContactApp -> respond {
+                    // Place the call to the contact via the app (e.g. WhatsApp)
+                    // by ACTION_VIEW-ing its Data row. Resolve first, then cancel:
+                    // if the app can't take it (uninstalled since the snapshot),
+                    // never strand the call — proceed unmodified.
+                    val intent = Intent(
+                        Intent.ACTION_VIEW,
+                        ContentUris.withAppendedId(ContactsContract.Data.CONTENT_URI, verdict.dataRowId),
+                    )
+                        .setPackage(verdict.packageName)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    if (intent.resolveActivity(packageManager) != null) {
+                        cancelCall()
+                        startActivity(intent)
+                    } else {
+                        placeCallUnmodified()
+                    }
                 }
 
                 // The chooser re-places the call and mints the pass token

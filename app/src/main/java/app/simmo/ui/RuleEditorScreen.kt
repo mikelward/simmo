@@ -1,6 +1,9 @@
 package app.simmo.ui
 
+import android.Manifest
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -41,6 +44,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.simmo.R
+import app.simmo.domain.ContactCallApp
 import app.simmo.domain.Rule
 import app.simmo.domain.RuleAction
 import app.simmo.domain.RuleMatcher
@@ -90,11 +94,20 @@ fun RuleEditorScreen(
 ) {
     val simOptions by viewModel.simOptions.collectAsStateWithLifecycle()
     val countryOptions by viewModel.countryOptions.collectAsStateWithLifecycle()
+    val handOffApps by viewModel.handOffApps.collectAsStateWithLifecycle()
+    // App-to-app hand-off resolves the dialed number to a contact, which needs
+    // READ_CONTACTS. Request it when the user picks such an action; a grant
+    // refreshes the warm contact index so the rule can act.
+    val contactsLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { granted -> if (granted) viewModel.onContactsAccessGranted() }
     RuleEditorContent(
         target = target,
         simOptions = simOptions,
         countryOptions = countryOptions,
         groupOptions = viewModel.groupOptions,
+        handOffApps = handOffApps,
+        onRequestContactsAccess = { contactsLauncher.launch(Manifest.permission.READ_CONTACTS) },
         onSave = { draft ->
             val rule = Rule(draft.matcher, draft.action)
             when (target) {
@@ -123,6 +136,10 @@ internal fun RuleEditorContent(
     onDelete: (() -> Unit)?,
     onCancel: () -> Unit,
     groupOptions: List<CountryGroupOptionUi> = emptyList(),
+    /** Installed app-to-app hand-off targets; each is offered as an action. */
+    handOffApps: Set<ContactCallApp> = emptySet(),
+    /** Invoked when a contact-app action is picked, to request READ_CONTACTS. */
+    onRequestContactsAccess: () -> Unit = {},
 ) {
     // rememberSaveable so an in-progress edit survives rotation / recreation.
     val initial = (target as? EditorTarget.Existing)?.rule
@@ -152,7 +169,7 @@ internal fun RuleEditorContent(
     // which lands with Phase 5): kept verbatim so saving an edit to its
     // country never silently rewrites the action. Null for new rules and
     // editor-representable ones.
-    val keepAction = initial?.action?.takeIf { it is RuleAction.HandOff }
+    val keepAction = initial?.action?.takeIf { it is RuleAction.HandOff && ActionChoice.of(it) == null }
     // Null means "keep the unsupported original action" (only reachable when
     // keepAction is non-null); a concrete choice replaces it. A new rule
     // opened from the new-SIM prompt starts on that SIM's action.
@@ -308,6 +325,21 @@ internal fun RuleEditorContent(
                         text = stringResource(R.string.rule_action_matching_sim),
                         onSelect = { actionChoice = ActionChoice.MATCHING_SIM },
                     )
+                }
+                // App-to-app hand-off, offered only for installed apps. Applies
+                // at call time only when the dialed number is a contact on the
+                // app; otherwise the rule skips to the next.
+                if (ContactCallApp.WHATSAPP in handOffApps) {
+                    item {
+                        ChoiceRow(
+                            selected = actionChoice == ActionChoice.HANDOFF_WHATSAPP,
+                            text = stringResource(R.string.rule_action_hand_off, ContactCallApp.WHATSAPP.label),
+                            onSelect = {
+                                actionChoice = ActionChoice.HANDOFF_WHATSAPP
+                                onRequestContactsAccess()
+                            },
+                        )
+                    }
                 }
                 item {
                     ChoiceRow(
@@ -517,6 +549,7 @@ private fun GroupRow(
 internal enum class ActionChoice {
     USE_SIM,
     MATCHING_SIM,
+    HANDOFF_WHATSAPP,
     ASK,
     SYSTEM_DEFAULT,
     ;
@@ -524,6 +557,7 @@ internal enum class ActionChoice {
     fun toAction(simRef: SimRef?): RuleAction = when (this) {
         USE_SIM -> RuleAction.UseSim(simRef!!)
         MATCHING_SIM -> RuleAction.UseMatchingCountrySim
+        HANDOFF_WHATSAPP -> RuleAction.HandOff.ViaContactApp(ContactCallApp.WHATSAPP)
         ASK -> RuleAction.Ask
         SYSTEM_DEFAULT -> RuleAction.SystemDefault
     }
@@ -531,8 +565,9 @@ internal enum class ActionChoice {
     companion object {
         /**
          * The editor control for [action], or null when the editor can't
-         * represent it (hand-off) and must preserve the original on save.
-         * A new rule (null [action]) defaults to the matching-country SIM.
+         * represent it (phone-account / dial-intent hand-off) and must preserve
+         * the original on save. A new rule (null [action]) defaults to the
+         * matching-country SIM.
          */
         fun of(action: RuleAction?): ActionChoice? = when (action) {
             is RuleAction.UseSim -> USE_SIM
@@ -540,6 +575,8 @@ internal enum class ActionChoice {
             RuleAction.Ask -> ASK
             RuleAction.SystemDefault -> SYSTEM_DEFAULT
             null -> MATCHING_SIM
+            is RuleAction.HandOff.ViaContactApp ->
+                if (action.app == ContactCallApp.WHATSAPP) HANDOFF_WHATSAPP else null
             is RuleAction.HandOff -> null
         }
     }

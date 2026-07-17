@@ -49,6 +49,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             MaterialTheme {
                 var phoneGranted by remember { mutableStateOf(isPhonePermissionGranted()) }
+                var contactsGranted by remember { mutableStateOf(isContactsPermissionGranted()) }
                 var ready by remember {
                     mutableStateOf(isRedirectionRoleHeld() && isPhonePermissionGranted())
                 }
@@ -56,7 +57,7 @@ class MainActivity : ComponentActivity() {
                 // Settings, or granted there mid-onboarding): re-check on
                 // every resume so the screen never shows a stale state. A
                 // grant made in Settings bypasses the permission launcher, so
-                // the telephony refresh must also run on that transition.
+                // the refreshes must also run on that transition.
                 OnResume {
                     val nowGranted = isPhonePermissionGranted()
                     // Any transition invalidates the cached SIM snapshot: a
@@ -67,6 +68,19 @@ class MainActivity : ComponentActivity() {
                         (application as SimmoApp).refreshTelephony()
                     }
                     phoneGranted = nowGranted
+                    // READ_CONTACTS can likewise change in Settings (granted
+                    // after "Don't ask again", or revoked) while the process
+                    // survives, bypassing the in-app launcher. On grant, rebuild
+                    // the warm index so saved WhatsApp hand-off rules start
+                    // matching at once; on revocation, clear it so they stop
+                    // matching cached rows instead of waiting for an unrelated
+                    // refresh.
+                    val contactsNowGranted = isContactsPermissionGranted()
+                    if (contactsNowGranted != contactsGranted) {
+                        val app = application as SimmoApp
+                        if (contactsNowGranted) app.refreshContacts() else app.clearContacts()
+                    }
+                    contactsGranted = contactsNowGranted
                     ready = isRedirectionRoleHeld() && nowGranted
                 }
                 if (ready) {
@@ -133,6 +147,10 @@ class MainActivity : ComponentActivity() {
     private fun isNotificationsGranted(): Boolean =
         android.os.Build.VERSION.SDK_INT < 33 ||
             ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) ==
+            PackageManager.PERMISSION_GRANTED
+
+    private fun isContactsPermissionGranted(): Boolean =
+        ContextCompat.checkSelfPermission(this, Manifest.permission.READ_CONTACTS) ==
             PackageManager.PERMISSION_GRANTED
 }
 

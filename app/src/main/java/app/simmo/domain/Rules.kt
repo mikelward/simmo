@@ -99,6 +99,17 @@ sealed interface RuleAction {
         @Serializable
         @SerialName("handOffIntent")
         data class ViaDialIntent(val packageName: String) : HandOff
+
+        /**
+         * Cancel and place the call to a *contact* via the app's per-contact
+         * call intent (e.g. WhatsApp), when the dialed number belongs to a
+         * contact reachable on that app. Applies only when the dialed number is
+         * such a contact (resolved from the warm contact index) and only in an
+         * interactive context; otherwise the rule is skipped.
+         */
+        @Serializable
+        @SerialName("handOffContactApp")
+        data class ViaContactApp(val app: ContactCallApp) : HandOff
     }
 
     /** Show Simmo's chooser for this call. */
