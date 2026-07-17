@@ -272,8 +272,15 @@ UI is forbidden).
   that feature.
 - `POST_NOTIFICATIONS` — the "your SIM is now active, place the call?" nudge.
 - **No `INTERNET` permission.** Everything (parsing, rules, registry) is on-device;
-  dialed numbers never leave the phone. This is a hard product commitment: the app
-  works fully offline and is auditable as such from its manifest.
+  dialed numbers never leave the phone (hand-off passes the number to the app the
+  user chose, on-device). The app works fully offline and is auditable as such from
+  its manifest. *Under consideration* (maintainer, 2026-07): crash reporting (e.g.
+  Crashlytics) and usage analytics, which would add the `INTERNET` permission and
+  revise this stance. Candidate analytics signals: SIM name × destination country
+  routing counts and call completion/failure rates — never contact names, contact
+  numbers, or dialed numbers themselves. `docs/PRIVACY.md` already flags this as a
+  possible future change and must be updated in the same release as any such
+  addition.
 - **Backups are on** (maintainer decision): rules, the SIM registry, and settings are
   included in Android backups and device-to-device transfers via explicit extraction
   rules scoped to exactly Simmo's own state files, so a phone upgrade keeps the rule
