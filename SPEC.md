@@ -108,7 +108,11 @@ want prompting insert an Ask rule wherever it should take over.
   says which rule wanted which disabled SIM and offers the enable flow (see
   "Disabled-SIM assist").
 - When a new SIM is first seen, Simmo prompts the user to add rules for it; newly
-  added rules are suggested above any rules that reference disabled SIMs.
+  added rules are suggested above any rules that reference disabled SIMs. The
+  prompt is an in-app card and — when notifications are allowed — a one-time
+  notification, because first activation is the only moment a newly installed
+  eSIM becomes visible to apps at all. A first-ever capture (fresh install)
+  never notifies about the SIMs the user already had.
 
 ### Country detection
 
@@ -158,8 +162,12 @@ require carrier privileges or system permissions — so Simmo:
    one-tap jump to the system SIM management screen, and offers the active SIMs /
    hand-off apps as alternatives.
 3. Simmo listens for subscription changes; when the wanted SIM becomes active it offers
-   to place the held call (one tap — the call is never auto-placed, since enabling a SIM
-   can take a moment and the user may have moved on).
+   to place the held call via notification ("Telstra is now active — place your call?"),
+   which reopens the chooser for that call. The call is never auto-placed, since
+   enabling a SIM can take a moment and the user may have moved on; the held call is
+   kept in memory only, expires after a few minutes, and is dropped as soon as any
+   call is placed from the chooser. An ambiguous re-binding (two same-named active
+   SIMs) never triggers the offer.
 
 On devices with Multiple Enabled Profiles (recent Pixels), enabling one profile may not
 require disabling another; where the platform does swap profiles, that trade is made by

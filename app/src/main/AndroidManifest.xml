@@ -8,6 +8,10 @@
          at runtime on first use. -->
     <uses-permission android:name="android.permission.CALL_PHONE" />
 
+    <!-- The SIM-assist nudges: "your SIM is now active, place the call?" and
+         "new SIM seen". Optional; everything degrades to the in-app surfaces. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
     <!-- Simmo routes carrier calls, but must still install on devices without a
          radio so rules can be reviewed there. -->
     <uses-feature

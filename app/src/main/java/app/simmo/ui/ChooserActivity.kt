@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.telecom.TelecomManager
@@ -24,6 +25,7 @@ import androidx.compose.runtime.setValue
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.simmo.SimmoApp
+import app.simmo.domain.HeldCall
 import app.simmo.domain.PassToken
 import app.simmo.domain.Rule
 import app.simmo.domain.RuleAction
@@ -57,6 +59,19 @@ class ChooserActivity : ComponentActivity() {
         val dialedNumber = handle.schemeSpecificPart.orEmpty()
         val country = app.detectCountry(dialedNumber)
         val skippedSims = decodeSkippedSims(intent.getStringExtra(EXTRA_SKIPPED_SIMS))
+        if (skippedSims.isNotEmpty()) {
+            // A rule wanted a disabled SIM: park the call so that if the user
+            // wanders off to enable it, the "SIM is now active — place the
+            // call?" notification can offer this call back (SPEC
+            // "Disabled-SIM assist" step 3). Cleared when any call is placed.
+            app.heldCalls.park(
+                HeldCall(
+                    handleUri = handle.toString(),
+                    wantedSims = skippedSims,
+                    parkedAtMillis = System.currentTimeMillis(),
+                ),
+            )
+        }
         setContent {
             MaterialTheme {
                 // Rebuilt from the live SIM flow (its current value is warm,
@@ -88,6 +103,12 @@ class ChooserActivity : ComponentActivity() {
                         finish()
                     }
                 }
+                // The SIM-settings jump is the moment the held-call offer
+                // becomes relevant, so it's where POST_NOTIFICATIONS is asked
+                // for (once); settings open either way.
+                val notificationLauncher = rememberLauncherForActivityResult(
+                    ActivityResultContracts.RequestPermission(),
+                ) { openSimSettings() }
                 ChooserContent(
                     state = state,
                     onPlace = { target, rememberRule ->
@@ -99,7 +120,13 @@ class ChooserActivity : ComponentActivity() {
                             permissionLauncher.launch(Manifest.permission.CALL_PHONE)
                         }
                     },
-                    onOpenSimSettings = ::openSimSettings,
+                    onOpenSimSettings = {
+                        if (needsNotificationPermission()) {
+                            notificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                        } else {
+                            openSimSettings()
+                        }
+                    },
                     // The carrier call was canceled before this screen opened;
                     // canceling here just abandons the call, per SPEC.
                     onCancel = { finish() },
@@ -112,6 +139,11 @@ class ChooserActivity : ComponentActivity() {
 
     private fun hasCallPermission(): Boolean =
         ContextCompat.checkSelfPermission(this, Manifest.permission.CALL_PHONE) ==
+            PackageManager.PERMISSION_GRANTED
+
+    private fun needsNotificationPermission(): Boolean =
+        Build.VERSION.SDK_INT >= 33 &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) !=
             PackageManager.PERMISSION_GRANTED
 
     /**
@@ -145,6 +177,9 @@ class ChooserActivity : ComponentActivity() {
         rememberRegion: String?,
     ) {
         val app = application as SimmoApp
+        // The user resolved this call attempt; a later SIM activation must
+        // not re-offer it.
+        app.heldCalls.clear()
         if (rememberRule && rememberRegion != null) {
             // On appScope: the write must outlive this finishing activity.
             app.appScope.launch {

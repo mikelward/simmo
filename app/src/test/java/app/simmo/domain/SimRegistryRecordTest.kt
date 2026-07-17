@@ -154,6 +154,40 @@ class SimRegistryRecordTest {
     }
 
     @Test
+    fun `new-sim notifications fire once, only for active unanswered prompts`() {
+        val registry = listOf(
+            // Unanswered, not yet notified, active: pending.
+            RegisteredSim(1, "Telstra", "Telstra personal", 100L, needsRulePrompt = true),
+            // Already notified: never again.
+            RegisteredSim(2, "T-Mobile", "T-Mobile US", 100L, needsRulePrompt = true, newSimNotified = true),
+            // Prompt answered: nothing to say.
+            RegisteredSim(3, "Optus", "Optus AU", 100L, needsRulePrompt = false),
+            // Unanswered but the SIM vanished again: held back.
+            RegisteredSim(4, "Vodafone", "Voda AU", 100L, needsRulePrompt = true),
+        )
+        val active = listOf(
+            telstraActive,
+            tmobileActive,
+            ActiveSim(3, "Optus", "Optus AU", PhoneAccountRef("a3")),
+        )
+        assertEquals(
+            listOf(registry[0]),
+            registry.pendingNewSimNotifications(active),
+        )
+    }
+
+    @Test
+    fun `marking notified sticks and survives refreshes`() {
+        val pending = RegisteredSim(1, "Telstra", "Telstra personal", 100L, needsRulePrompt = true)
+        val marked = listOf(pending).withNewSimNotified(listOf(pending.ref()))
+        assertEquals(true, marked.single().newSimNotified)
+        // recordSeen copies entries, so the flag rides through the constant
+        // subscription-change refreshes without re-nagging.
+        val refreshed = marked.recordSeen(listOf(telstraActive), nowMillis = 900L)
+        assertEquals(true, refreshed.single().newSimNotified)
+    }
+
+    @Test
     fun `no active sims leaves the registry untouched`() {
         val registry = listOf(RegisteredSim(1, "Telstra", "Telstra personal", 100L))
         assertEquals(registry, registry.recordSeen(emptyList(), nowMillis = 900L))

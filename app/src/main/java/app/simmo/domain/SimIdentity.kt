@@ -61,6 +61,12 @@ data class RegisteredSim(
      * stored before this field existed never prompt retroactively.
      */
     val needsRulePrompt: Boolean = false,
+    /**
+     * Whether the one-time "new SIM" notification for this entry has been
+     * posted (or deliberately suppressed). Persisted so a subscription
+     * refresh — they happen constantly — can never re-nag.
+     */
+    val newSimNotified: Boolean = false,
 ) {
     fun ref(): SimRef = SimRef(subscriptionId, carrierName, displayName)
 }
@@ -159,6 +165,26 @@ private fun RegisteredSim.matchesRef(ref: SimRef): Boolean =
 /** Marks the prompt for [ref]'s SIM answered (rule added or dismissed). */
 fun List<RegisteredSim>.withRulePromptCleared(ref: SimRef): List<RegisteredSim> = map { entry ->
     if (entry.matchesRef(ref) && entry.needsRulePrompt) entry.copy(needsRulePrompt = false) else entry
+}
+
+/**
+ * The registry entries whose "new SIM" notification should post now: the
+ * prompt is unanswered, the notification hasn't fired, and the SIM is
+ * actually active (a notification for a SIM that vanished again would only
+ * confuse). Pure so the once-only rule is testable.
+ */
+fun List<RegisteredSim>.pendingNewSimNotifications(activeSims: List<ActiveSim>): List<RegisteredSim> {
+    val activeIds = activeSims.map { it.subscriptionId }.toSet()
+    return filter { it.needsRulePrompt && !it.newSimNotified && it.subscriptionId in activeIds }
+}
+
+/** Marks the "new SIM" notification for [refs] posted (or suppressed). */
+fun List<RegisteredSim>.withNewSimNotified(refs: List<SimRef>): List<RegisteredSim> = map { entry ->
+    if (!entry.newSimNotified && refs.any { entry.matchesRef(it) }) {
+        entry.copy(newSimNotified = true)
+    } else {
+        entry
+    }
 }
 
 /**
