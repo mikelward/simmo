@@ -98,9 +98,11 @@ small stack), fully unit-tested, with `./gradlew test` and `./gradlew lint` gree
       Union" and on any member-country search. Revisit membership at least
       yearly (last reviewed 2026-07; Montenegro/Albania may join the EU roaming
       area soon — a group is only added/changed when the *label* set changes).
-- [x] NANP groups: "USA" (US + PR/VI/GU/AS/MP — every US plan rates territory
-      calls as domestic, so they live under the plain USA name), "North America"
-      (USA group + Canada + Mexico, the postpaid plan tier; separate because many
+- [x] NANP groups: "USA + territories" (US + PR/VI/GU/AS/MP; territory inclusion
+      is explicit in the name because some prepaid tiers bill the Pacific
+      territories internationally — flagged by Codex — and states-only remains
+      the plain "United States" country entry), "North America" (that group +
+      Canada + Mexico, the postpaid plan tier; separate because many
       prepaid/MVNO tiers are domestic-only), and "Caribbean +1" (the 18 non-US
       NANP countries that dial like domestic calls but bill internationally),
       enabling the guard rule "Caribbean +1 → Ask" placed above a USA rule.

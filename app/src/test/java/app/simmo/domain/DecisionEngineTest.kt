@@ -145,7 +145,7 @@ class DecisionEngineTest {
         // keeps a Puerto Rico call on the "domestic" rule.
         val rules = listOf(
             Rule(
-                RuleMatcher.Countries(groupIds = listOf(CountryGroups.USA)),
+                RuleMatcher.Countries(groupIds = listOf(CountryGroups.USA_TERRITORIES)),
                 RuleAction.UseSim(tmobile.ref()),
             ),
         )
@@ -167,7 +167,7 @@ class DecisionEngineTest {
         val rules = listOf(
             Rule(RuleMatcher.Countries(groupIds = listOf(CountryGroups.CARIBBEAN_NANP)), RuleAction.Ask),
             Rule(
-                RuleMatcher.Countries(groupIds = listOf(CountryGroups.USA)),
+                RuleMatcher.Countries(groupIds = listOf(CountryGroups.USA_TERRITORIES)),
                 RuleAction.UseSim(tmobile.ref()),
             ),
         )

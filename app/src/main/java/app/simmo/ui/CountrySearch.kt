@@ -130,7 +130,7 @@ internal fun rankCountries(options: List<CountryOptionUi>, query: String): List<
  */
 internal val countryGroupAliases: Map<String, List<String>> = mapOf(
     CountryGroups.EU_EEA to listOf("EU", "EEA", "Europe", "European Union"),
-    CountryGroups.USA to listOf("USA", "United States", "US territories", "America", "Domestic"),
+    CountryGroups.USA_TERRITORIES to listOf("USA", "United States", "US territories", "America", "Domestic"),
     CountryGroups.NORTH_AMERICA to listOf("North America", "NA", "USMCA", "NAFTA"),
     CountryGroups.CARIBBEAN_NANP to listOf("Caribbean", "West Indies", "NANP"),
 )

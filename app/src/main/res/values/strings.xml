@@ -86,9 +86,9 @@
     <!-- TODO: translate -->
     <string name="group_eu_eea_description" tools:ignore="MissingTranslation">European Union and EEA countries</string>
     <!-- TODO: translate -->
-    <string name="group_usa" tools:ignore="MissingTranslation">USA</string>
+    <string name="group_usa_territories" tools:ignore="MissingTranslation">USA + territories</string>
     <!-- TODO: translate -->
-    <string name="group_usa_description" tools:ignore="MissingTranslation">Including US territories like Puerto Rico and Guam</string>
+    <string name="group_usa_territories_description" tools:ignore="MissingTranslation">Adds Puerto Rico, US Virgin Islands, Guam, American Samoa, and Northern Marianas</string>
     <!-- TODO: translate -->
     <string name="group_north_america" tools:ignore="MissingTranslation">North America</string>
     <!-- TODO: translate -->

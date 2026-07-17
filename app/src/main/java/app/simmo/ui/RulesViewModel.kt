@@ -327,7 +327,7 @@ private fun allCountryOptions(): List<CountryOptionUi> {
 
 private fun groupLabelRes(groupId: String): Int = when (groupId) {
     CountryGroups.EU_EEA -> app.simmo.R.string.group_eu_eea
-    CountryGroups.USA -> app.simmo.R.string.group_usa
+    CountryGroups.USA_TERRITORIES -> app.simmo.R.string.group_usa_territories
     CountryGroups.NORTH_AMERICA -> app.simmo.R.string.group_north_america
     CountryGroups.CARIBBEAN_NANP -> app.simmo.R.string.group_caribbean_nanp
     else -> error("Unknown country group: $groupId")
@@ -335,7 +335,7 @@ private fun groupLabelRes(groupId: String): Int = when (groupId) {
 
 private fun groupDescriptionRes(groupId: String): Int = when (groupId) {
     CountryGroups.EU_EEA -> app.simmo.R.string.group_eu_eea_description
-    CountryGroups.USA -> app.simmo.R.string.group_usa_description
+    CountryGroups.USA_TERRITORIES -> app.simmo.R.string.group_usa_territories_description
     CountryGroups.NORTH_AMERICA -> app.simmo.R.string.group_north_america_description
     CountryGroups.CARIBBEAN_NANP -> app.simmo.R.string.group_caribbean_nanp_description
     else -> error("Unknown country group: $groupId")

@@ -14,8 +14,12 @@ object CountryGroups {
     /** The European Union and the EEA (which adds Iceland, Liechtenstein, Norway). */
     const val EU_EEA = "eu_eea"
 
-    /** The USA — including its territories, which every US plan rates as domestic calls. */
-    const val USA = "usa"
+    /**
+     * The USA including all its territories. The states-only option is the
+     * plain "United States" country entry (libphonenumber's US region is the
+     * 50 states + D.C.), so no group exists for it.
+     */
+    const val USA_TERRITORIES = "usa_territories"
 
     /** North America: the USA (with territories), Canada, and Mexico. */
     const val NORTH_AMERICA = "north_america"
@@ -50,25 +54,29 @@ object CountryGroups {
     )
 
     /**
-     * The USA as plans treat it: the states plus the US territories, which
-     * every domestic calling plan rates as domestic because they're inside
-     * the NANP — but which libphonenumber splits off as their own regions,
-     * so a plain "US" country rule silently misses a call to Puerto Rico.
-     * The Caribbean +1 countries are NOT the same thing; they dial like
-     * domestic but bill internationally ([caribbeanNanp]).
+     * The USA with every territory. Each territory is its own libphonenumber
+     * region within +1, so a plain "US" country rule misses them all. The
+     * territory inclusion is explicit in the group's name ("USA +
+     * territories") because it isn't uniformly free: PR/VI rate as domestic
+     * on every plan, but some prepaid tiers bill the Pacific territories
+     * (GU/AS/MP) internationally (flagged by Codex on PR #17) — a user whose
+     * plan excludes them picks the plain United States country entry and
+     * hand-adds PR/VI instead. The Caribbean +1 countries are a different
+     * thing again; they dial like domestic but bill internationally
+     * everywhere ([caribbeanNanp]).
      */
-    private val usa: List<String> = listOf(
+    private val usaTerritories: List<String> = listOf(
         "US",
         // US territories, each its own region within +1.
         "PR", "VI", "GU", "AS", "MP",
     )
 
     /**
-     * [usa] plus Canada and Mexico — the mainstream postpaid "North America"
-     * plan footprint. Kept separate from [usa] because CA/MX inclusion is a
-     * plan tier: many prepaid/MVNO tiers are domestic-only.
+     * [usaTerritories] plus Canada and Mexico — the mainstream postpaid
+     * "North America" plan footprint. Kept separate because CA/MX inclusion
+     * is a plan tier: many prepaid/MVNO tiers are domestic-only.
      */
-    private val northAmerica: List<String> = usa + listOf("CA", "MX")
+    private val northAmerica: List<String> = usaTerritories + listOf("CA", "MX")
 
     /**
      * The rest of the North American Numbering Plan: Caribbean countries that
@@ -83,7 +91,7 @@ object CountryGroups {
 
     private val membersById: Map<String, List<String>> = mapOf(
         EU_EEA to euEea,
-        USA to usa,
+        USA_TERRITORIES to usaTerritories,
         NORTH_AMERICA to northAmerica,
         CARIBBEAN_NANP to caribbeanNanp,
     )
@@ -92,5 +100,5 @@ object CountryGroups {
     fun members(groupId: String): List<String> = membersById[groupId].orEmpty()
 
     /** Every group this version offers, in picker display order. */
-    fun allIds(): List<String> = listOf(EU_EEA, USA, NORTH_AMERICA, CARIBBEAN_NANP)
+    fun allIds(): List<String> = listOf(EU_EEA, USA_TERRITORIES, NORTH_AMERICA, CARIBBEAN_NANP)
 }
