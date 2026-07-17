@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.MaterialTheme
@@ -33,7 +34,14 @@ fun RulesScreen(viewModel: RulesViewModel) {
 @Composable
 internal fun RulesScreenContent(rows: List<RuleRowUi>) {
     Surface(modifier = Modifier.fillMaxSize()) {
-        Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+        // The activity is edge-to-edge; keep the list clear of the status bar
+        // and display cutout.
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .safeDrawingPadding()
+                .padding(16.dp),
+        ) {
             Text(
                 text = stringResource(R.string.rules_title),
                 style = MaterialTheme.typography.headlineMedium,
