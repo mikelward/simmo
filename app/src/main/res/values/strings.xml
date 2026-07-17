@@ -69,4 +69,14 @@
     <string name="new_sim_prompt_add" tools:ignore="MissingTranslation">Add rule</string>
     <!-- TODO: translate -->
     <string name="new_sim_prompt_dismiss" tools:ignore="MissingTranslation">Not now</string>
+    <!-- TODO: translate -->
+    <string name="chooser_title" tools:ignore="MissingTranslation">Place this call with…</string>
+    <!-- TODO: translate -->
+    <string name="chooser_skipped_sim" tools:ignore="MissingTranslation">Your rule wanted %1$s, but that SIM is disabled.</string>
+    <!-- TODO: translate -->
+    <string name="chooser_remember" tools:ignore="MissingTranslation">Remember for %1$s</string>
+    <!-- TODO: translate -->
+    <string name="chooser_no_sims" tools:ignore="MissingTranslation">No active SIM can place this call.</string>
+    <!-- TODO: translate -->
+    <string name="chooser_cancel" tools:ignore="MissingTranslation">Cancel call</string>
 </resources>

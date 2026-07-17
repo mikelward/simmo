@@ -4,6 +4,10 @@
     <!-- Enumerate subscriptions and phone accounts for the snapshot. -->
     <uses-permission android:name="android.permission.READ_PHONE_STATE" />
 
+    <!-- Re-place calls from the chooser (TelecomManager.placeCall); requested
+         at runtime on first use. -->
+    <uses-permission android:name="android.permission.CALL_PHONE" />
+
     <!-- Simmo routes carrier calls, but must still install on devices without a
          radio so rules can be reviewed there. -->
     <uses-feature
@@ -28,6 +32,13 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- The Ask chooser, launched by the redirection service mid-call-
+             attempt; not part of recents or the launcher. -->
+        <activity
+            android:name=".ui.ChooserActivity"
+            android:excludeFromRecents="true"
+            android:exported="false" />
 
         <!-- The interception hook: the platform binds here for every outgoing
              carrier call while Simmo holds ROLE_CALL_REDIRECTION. -->
