@@ -64,7 +64,7 @@ private fun RuleRow(row: RuleRowUi) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .alpha(if (row.enabled) 1f else 0.4f),
+            .alpha(if (row.pause == null) 1f else 0.4f),
     ) {
         Text(
             text = row.matcherCountryLabel ?: stringResource(R.string.rule_matcher_any),
@@ -80,9 +80,14 @@ private fun RuleRow(row: RuleRowUi) {
             },
             style = MaterialTheme.typography.bodyMedium,
         )
-        if (!row.enabled) {
-            Text(
+        when (row.pause) {
+            null -> Unit
+            RulePause.SIM_DISABLED -> Text(
                 text = stringResource(R.string.rule_sim_disabled),
+                style = MaterialTheme.typography.labelMedium,
+            )
+            RulePause.SIM_AMBIGUOUS -> Text(
+                text = stringResource(R.string.rule_sim_ambiguous),
                 style = MaterialTheme.typography.labelMedium,
             )
         }

@@ -23,13 +23,22 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.stateIn
 
+/** Why a rule cannot act right now — each points at a different recovery. */
+enum class RulePause {
+    /** The SIM is installed but disabled; re-enable it in SIM settings. */
+    SIM_DISABLED,
+
+    /** The stored ref can't re-bind unambiguously; the rule needs re-linking. */
+    SIM_AMBIGUOUS,
+}
+
 /** One row of the rules list, ready to render (SPEC "Rules"). */
 data class RuleRowUi(
     /** e.g. "+61 Australia"; null means the rule matches any destination. */
     val matcherCountryLabel: String?,
     val action: ActionUi,
-    /** False when the rule cannot act right now (disabled SIM) — shown greyed. */
-    val enabled: Boolean,
+    /** Non-null when the rule is skipped during evaluation — shown greyed. */
+    val pause: RulePause? = null,
 )
 
 sealed interface ActionUi {
@@ -72,21 +81,25 @@ internal fun Rule.toRow(activeSims: List<ActiveSim>): RuleRowUi {
         is RuleAction.UseSim -> RuleRowUi(
             matcherCountryLabel = matcherLabel,
             action = ActionUi.UseSim(a.sim.displayName.ifBlank { a.sim.carrierName }),
-            enabled = resolveSim(a.sim, activeSims) is SimResolution.Active,
+            pause = when (resolveSim(a.sim, activeSims)) {
+                is SimResolution.Active -> null
+                SimResolution.Inactive -> RulePause.SIM_DISABLED
+                is SimResolution.Ambiguous -> RulePause.SIM_AMBIGUOUS
+            },
         )
 
         RuleAction.UseMatchingCountrySim ->
-            RuleRowUi(matcherLabel, ActionUi.MatchingCountrySim, enabled = true)
+            RuleRowUi(matcherLabel, ActionUi.MatchingCountrySim)
 
         is RuleAction.HandOff.ViaPhoneAccount ->
-            RuleRowUi(matcherLabel, ActionUi.HandOffApp(a.account.id), enabled = true)
+            RuleRowUi(matcherLabel, ActionUi.HandOffApp(a.account.id))
 
         is RuleAction.HandOff.ViaDialIntent ->
-            RuleRowUi(matcherLabel, ActionUi.HandOffApp(a.packageName), enabled = true)
+            RuleRowUi(matcherLabel, ActionUi.HandOffApp(a.packageName))
 
-        RuleAction.Ask -> RuleRowUi(matcherLabel, ActionUi.Ask, enabled = true)
+        RuleAction.Ask -> RuleRowUi(matcherLabel, ActionUi.Ask)
 
-        RuleAction.SystemDefault -> RuleRowUi(matcherLabel, ActionUi.SystemDefault, enabled = true)
+        RuleAction.SystemDefault -> RuleRowUi(matcherLabel, ActionUi.SystemDefault)
     }
 }
 

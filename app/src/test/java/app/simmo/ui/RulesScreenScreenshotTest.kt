@@ -33,12 +33,13 @@ class RulesScreenScreenshotTest {
             MaterialTheme {
                 RulesScreenContent(
                     rows = listOf(
-                        RuleRowUi("+61 Australia", ActionUi.UseSim("Telstra"), enabled = true),
-                        RuleRowUi("+1 United States", ActionUi.UseSim("T-Mobile"), enabled = true),
-                        RuleRowUi("+44 United Kingdom", ActionUi.UseSim("Vodafone UK"), enabled = false),
-                        RuleRowUi("+64 New Zealand", ActionUi.Ask, enabled = true),
-                        RuleRowUi(null, ActionUi.MatchingCountrySim, enabled = true),
-                        RuleRowUi(null, ActionUi.SystemDefault, enabled = true),
+                        RuleRowUi("+61 Australia", ActionUi.UseSim("Telstra")),
+                        RuleRowUi("+1 United States", ActionUi.UseSim("T-Mobile")),
+                        RuleRowUi("+44 United Kingdom", ActionUi.UseSim("Vodafone UK"), pause = RulePause.SIM_DISABLED),
+                        RuleRowUi("+81 Japan", ActionUi.UseSim("Docomo"), pause = RulePause.SIM_AMBIGUOUS),
+                        RuleRowUi("+64 New Zealand", ActionUi.Ask),
+                        RuleRowUi(null, ActionUi.MatchingCountrySim),
+                        RuleRowUi(null, ActionUi.SystemDefault),
                     ),
                 )
             }
