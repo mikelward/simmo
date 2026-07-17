@@ -14,6 +14,8 @@ class DecisionEngineTest {
     private val auNumber = "+61 412 345 678"
     private val usNumber = "+1 212 555 0123"
 
+    private fun ActiveSim.ref() = SimRef(subscriptionId, carrierName, displayName)
+
     private fun snapshot(
         rules: RuleBook = RuleBook(),
         activeSims: List<ActiveSim> = listOf(telstra, tmobile),
@@ -28,8 +30,8 @@ class DecisionEngineTest {
 
     private val countryRules = RuleBook(
         countryRules = mapOf(
-            "AU" to RuleAction.UseSim(telstra.let { SimRef(it.subscriptionId, it.carrierName) }),
-            "US" to RuleAction.UseSim(tmobile.let { SimRef(it.subscriptionId, it.carrierName) }),
+            "AU" to RuleAction.UseSim(telstra.ref()),
+            "US" to RuleAction.UseSim(tmobile.ref()),
         ),
     )
 
@@ -67,7 +69,7 @@ class DecisionEngineTest {
 
     @Test
     fun `configured fallback action applies to unmatched countries`() {
-        val rules = countryRules.copy(fallback = RuleAction.UseSim(SimRef(2, "T-Mobile")))
+        val rules = countryRules.copy(fallback = RuleAction.UseSim(tmobile.ref()))
         assertEquals(
             Verdict.RedirectToAccount(tmobile.phoneAccount),
             engine.decide(call("+44 20 7946 0958", currentAccount = telstra.phoneAccount), snapshot(rules), now),
@@ -76,7 +78,7 @@ class DecisionEngineTest {
 
     @Test
     fun `emergency numbers always proceed, even with a matching country rule`() {
-        val rules = RuleBook(countryRules = mapOf("AU" to RuleAction.UseSim(SimRef(1, "Telstra"))))
+        val rules = RuleBook(countryRules = mapOf("AU" to RuleAction.UseSim(telstra.ref())))
         assertEquals(
             Verdict.Proceed(ProceedReason.EMERGENCY),
             engine.decide(call("000", currentAccount = tmobile.phoneAccount), snapshot(rules), now),
@@ -85,7 +87,7 @@ class DecisionEngineTest {
 
     @Test
     fun `rule targeting an inactive sim opens the enable flow`() {
-        val vodafoneRef = SimRef(7, "Vodafone")
+        val vodafoneRef = SimRef(7, "Vodafone", "Voda AU")
         val rules = RuleBook(countryRules = mapOf("AU" to RuleAction.UseSim(vodafoneRef)))
         assertEquals(
             Verdict.OpenChooser(ChooserMode.EnableSim(vodafoneRef)),
@@ -96,7 +98,7 @@ class DecisionEngineTest {
     @Test
     fun `ambiguous carrier re-binding asks which sim was meant`() {
         val telstra2 = ActiveSim(3, "Telstra", "Telstra work", PhoneAccountRef("acct-telstra-2"))
-        val staleRef = SimRef(99, "Telstra")
+        val staleRef = SimRef(99, "Telstra", "Telstra old")
         val rules = RuleBook(countryRules = mapOf("AU" to RuleAction.UseSim(staleRef)))
         assertEquals(
             Verdict.OpenChooser(ChooserMode.PickAmong(staleRef, listOf(telstra, telstra2))),
@@ -134,7 +136,7 @@ class DecisionEngineTest {
             degraded,
             engine.decide(call("+44 20 7946 0958", interactive = false), snapshot(countryRules), now),
         )
-        val inactiveRule = RuleBook(countryRules = mapOf("AU" to RuleAction.UseSim(SimRef(7, "Vodafone"))))
+        val inactiveRule = RuleBook(countryRules = mapOf("AU" to RuleAction.UseSim(SimRef(7, "Vodafone", "Voda AU"))))
         assertEquals(
             degraded,
             engine.decide(call(auNumber, interactive = false), snapshot(inactiveRule), now),

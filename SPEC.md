@@ -118,8 +118,10 @@ identified by (in matching priority order):
 
 1. **Subscription ID** — stable per profile on a device; primary key while it's valid.
 2. **Carrier + display name** — human-meaningful fallback: if the subscription ID is
-   gone (profile deleted and re-downloaded), a registry entry or rule re-binds to an
-   active subscription whose carrier name matches (e.g. "Telstra").
+   gone (profile deleted and re-downloaded), a registry entry or rule re-binds to the
+   active subscription whose carrier *and* display name both match (e.g. "Telstra" /
+   "Telstra personal"). A carrier-only match is never bound silently — a different
+   same-carrier SIM could bill the wrong plan — it goes to the chooser to re-learn.
 
 Physical slot index is never part of rule identity. The ICCID is not readable without
 carrier privileges, so it cannot be used. When a rule can't be re-bound automatically
