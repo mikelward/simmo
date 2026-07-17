@@ -27,3 +27,4 @@ app/build
 # JVM fatal-error / replay crash dumps from forked test workers
 hs_err_pid*.log
 replay_pid*.log
+venv/

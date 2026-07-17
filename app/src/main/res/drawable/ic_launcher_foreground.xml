@@ -1,16 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Placeholder launcher art: a SIM-card outline with a notched corner. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
+
+    <!-- Background shape (adaptive icons handle their own background, but the prompt implies we have a background gradient. Adaptive icons usually split these.
+         We'll put the gradient in the background XML and just the foreground SIM cards here.) -->
+
+    <!-- Back SIM card (slightly softer, light blue) -->
+    <path
+        android:fillColor="#81D4FA"
+        android:pathData="M 42 22 L 62 22 L 72 32 L 72 68 C 72 71.3 69.3 74 66 74 L 38 74 C 34.7 74 32 71.3 32 68 L 32 28 C 32 24.7 34.7 22 38 22 Z" />
+
+    <!-- Front SIM card (bright cyan with checkmark) -->
+    <path
+        android:fillColor="#00BCD4"
+        android:pathData="M 46 36 L 70 36 L 82 48 L 82 82 C 82 85.3 79.3 88 76 88 L 42 88 C 38.7 88 36 85.3 36 82 L 36 42 C 36 38.7 38.7 36 42 36 Z" />
+
+    <!-- Checkmark -->
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M40,30 L60,30 L70,40 L70,78 L40,78 Z" />
-    <path
-        android:fillColor="#0B5D4E"
-        android:pathData="M46,52 L64,52 L64,70 L46,70 Z M52,52 L52,70 M58,52 L58,70 M46,58 L64,58 M46,64 L64,64"
-        android:strokeColor="#0B5D4E"
-        android:strokeWidth="2" />
+        android:pathData="M 52 70 L 44 62 L 48 58 L 52 62 L 66 48 L 70 52 Z" />
 </vector>
