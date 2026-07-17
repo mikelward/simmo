@@ -85,4 +85,16 @@
     <string name="group_eu_eea" tools:ignore="MissingTranslation">EU/EEA</string>
     <!-- TODO: translate -->
     <string name="group_eu_eea_description" tools:ignore="MissingTranslation">European Union and EEA countries</string>
+    <!-- TODO: translate -->
+    <string name="group_usa" tools:ignore="MissingTranslation">USA</string>
+    <!-- TODO: translate -->
+    <string name="group_usa_description" tools:ignore="MissingTranslation">Including US territories like Puerto Rico and Guam</string>
+    <!-- TODO: translate -->
+    <string name="group_north_america" tools:ignore="MissingTranslation">North America</string>
+    <!-- TODO: translate -->
+    <string name="group_north_america_description" tools:ignore="MissingTranslation">USA (with its territories), Canada, and Mexico</string>
+    <!-- TODO: translate -->
+    <string name="group_caribbean_nanp" tools:ignore="MissingTranslation">Caribbean +1</string>
+    <!-- TODO: translate -->
+    <string name="group_caribbean_nanp_description" tools:ignore="MissingTranslation">Caribbean countries that dial like +1 but bill internationally</string>
 </resources>

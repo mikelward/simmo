@@ -14,6 +14,15 @@ object CountryGroups {
     /** The European Union and the EEA (which adds Iceland, Liechtenstein, Norway). */
     const val EU_EEA = "eu_eea"
 
+    /** The USA — including its territories, which every US plan rates as domestic calls. */
+    const val USA = "usa"
+
+    /** North America: the USA (with territories), Canada, and Mexico. */
+    const val NORTH_AMERICA = "north_america"
+
+    /** The Caribbean countries sharing the +1 dialing code (the non-US NANP). */
+    const val CARIBBEAN_NANP = "caribbean_nanp"
+
     /**
      * EU/EEA membership, as libphonenumber regions (last reviewed 2026-07):
      * the EU-27 and the three EEA EFTA states, plus the EU territories that
@@ -40,11 +49,48 @@ object CountryGroups {
         "SJ",
     )
 
-    private val membersById: Map<String, List<String>> = mapOf(EU_EEA to euEea)
+    /**
+     * The USA as plans treat it: the states plus the US territories, which
+     * every domestic calling plan rates as domestic because they're inside
+     * the NANP — but which libphonenumber splits off as their own regions,
+     * so a plain "US" country rule silently misses a call to Puerto Rico.
+     * The Caribbean +1 countries are NOT the same thing; they dial like
+     * domestic but bill internationally ([caribbeanNanp]).
+     */
+    private val usa: List<String> = listOf(
+        "US",
+        // US territories, each its own region within +1.
+        "PR", "VI", "GU", "AS", "MP",
+    )
+
+    /**
+     * [usa] plus Canada and Mexico — the mainstream postpaid "North America"
+     * plan footprint. Kept separate from [usa] because CA/MX inclusion is a
+     * plan tier: many prepaid/MVNO tiers are domestic-only.
+     */
+    private val northAmerica: List<String> = usa + listOf("CA", "MX")
+
+    /**
+     * The rest of the North American Numbering Plan: Caribbean countries that
+     * dial like a domestic +1 call but bill internationally — the classic
+     * accidental-expensive-call surface. As a group it enables the guard
+     * shape "Caribbean +1 → Ask" placed above a US rule.
+     */
+    private val caribbeanNanp: List<String> = listOf(
+        "AG", "AI", "BB", "BM", "BS", "DM", "DO", "GD", "JM", "KN",
+        "KY", "LC", "MS", "SX", "TC", "TT", "VC", "VG",
+    )
+
+    private val membersById: Map<String, List<String>> = mapOf(
+        EU_EEA to euEea,
+        USA to usa,
+        NORTH_AMERICA to northAmerica,
+        CARIBBEAN_NANP to caribbeanNanp,
+    )
 
     /** Member regions of [groupId]; empty for ids this version doesn't know. */
     fun members(groupId: String): List<String> = membersById[groupId].orEmpty()
 
     /** Every group this version offers, in picker display order. */
-    fun allIds(): List<String> = listOf(EU_EEA)
+    fun allIds(): List<String> = listOf(EU_EEA, USA, NORTH_AMERICA, CARIBBEAN_NANP)
 }

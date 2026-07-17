@@ -30,13 +30,48 @@ class CountryGroupsTest {
     }
 
     @Test
+    fun `usa group is the states plus the territories, nothing else`() {
+        // Every US plan rates calls to the territories as domestic (they're
+        // inside the NANP), so they belong under the plain "USA" name; CA/MX
+        // inclusion is a plan tier and lives in the North America group.
+        val usa = CountryGroups.members(CountryGroups.USA)
+        assertEquals(listOf("US", "PR", "VI", "GU", "AS", "MP"), usa)
+        assertFalse("CA" in usa)
+        assertFalse("MX" in usa)
+    }
+
+    @Test
+    fun `north america is the usa group plus canada and mexico`() {
+        assertEquals(
+            CountryGroups.members(CountryGroups.USA) + listOf("CA", "MX"),
+            CountryGroups.members(CountryGroups.NORTH_AMERICA),
+        )
+    }
+
+    @Test
+    fun `caribbean group is the plus-one world minus the usa group`() {
+        val caribbean = CountryGroups.members(CountryGroups.CARIBBEAN_NANP)
+        assertEquals(18, caribbean.size)
+        for (member in listOf("JM", "DO", "BS", "TC", "TT", "SX")) {
+            assertTrue(member, member in caribbean)
+        }
+        // No overlap with the domestic sets: the guard group never swallows
+        // the countries a USA or North America rule should keep matching.
+        val northAmerica = CountryGroups.members(CountryGroups.NORTH_AMERICA)
+        assertTrue(caribbean.intersect(northAmerica.toSet()).isEmpty())
+    }
+
+    @Test
     fun `members are real dialable regions, uppercase, without duplicates`() {
         val supported = PhoneNumberUtil.getInstance().supportedRegions
-        for (member in euEea) {
-            assertEquals(member, member.uppercase(), member)
-            assertTrue("$member not a libphonenumber region", member in supported)
+        for (id in CountryGroups.allIds()) {
+            val members = CountryGroups.members(id)
+            for (member in members) {
+                assertEquals(member, member.uppercase(), member)
+                assertTrue("$member not a libphonenumber region", member in supported)
+            }
+            assertEquals(members.size, members.distinct().size)
         }
-        assertEquals(euEea.size, euEea.distinct().size)
     }
 
     @Test

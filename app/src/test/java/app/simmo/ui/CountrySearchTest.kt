@@ -128,4 +128,48 @@ class CountrySearchTest {
             matchingGroups(listOf(euEeaGroup), "  ", matchedCountries = emptyList()),
         )
     }
+
+    @Test
+    fun `the nanp groups are found by their aliases`() {
+        val usa = groupOption(app.simmo.domain.CountryGroups.USA, "USA")
+        val caribbean = groupOption(app.simmo.domain.CountryGroups.CARIBBEAN_NANP, "Caribbean +1")
+        for (query in listOf("USA", "United States", "America", "us territories", "domestic")) {
+            assertEquals("query=$query", listOf(usa), matchingGroups(listOf(usa, caribbean), query, emptyList()))
+        }
+        for (query in listOf("Caribbean", "caribbean", "West Indies", "NANP")) {
+            assertEquals("query=$query", listOf(caribbean), matchingGroups(listOf(usa, caribbean), query, emptyList()))
+        }
+    }
+
+    @Test
+    fun `north america is found by its aliases`() {
+        val northAmerica = groupOption(app.simmo.domain.CountryGroups.NORTH_AMERICA, "North America")
+        val caribbean = groupOption(app.simmo.domain.CountryGroups.CARIBBEAN_NANP, "Caribbean +1")
+        // "NA" legitimately also matches Caribbean's NANP alias, so assert
+        // presence rather than an exact single result.
+        for (query in listOf("North America", "north america", "NA", "USMCA", "NAFTA")) {
+            assertTrue(
+                "query=$query",
+                northAmerica in matchingGroups(listOf(northAmerica, caribbean), query, emptyList()),
+            )
+        }
+    }
+
+    @Test
+    fun `searching a caribbean country surfaces the guard group`() {
+        val caribbean = groupOption(app.simmo.domain.CountryGroups.CARIBBEAN_NANP, "Caribbean +1")
+        val jamaica = option("JM", "Jamaica", 1)
+        assertEquals(
+            listOf(caribbean),
+            matchingGroups(listOf(caribbean), "jamaica", rankCountries(listOf(jamaica, us), "jamaica")),
+        )
+    }
+
+    private fun groupOption(id: String, label: String) = CountryGroupOptionUi(
+        id = id,
+        label = label,
+        description = "",
+        memberRegions = app.simmo.domain.CountryGroups.members(id).toSet(),
+        searchTerms = countryGroupSearchTerms(id, label),
+    )
 }

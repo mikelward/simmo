@@ -140,6 +140,48 @@ class DecisionEngineTest {
     }
 
     @Test
+    fun `usa group treats territory calls as domestic`() {
+        // libphonenumber resolves +1 787 to PR, not US — the group is what
+        // keeps a Puerto Rico call on the "domestic" rule.
+        val rules = listOf(
+            Rule(
+                RuleMatcher.Countries(groupIds = listOf(CountryGroups.USA)),
+                RuleAction.UseSim(tmobile.ref()),
+            ),
+        )
+        assertEquals(
+            Verdict.RedirectToAccount(tmobile.phoneAccount),
+            engine.decide(
+                call("+1 787 555 0123", currentAccount = telstra.phoneAccount),
+                snapshot(rules),
+                now,
+            ),
+        )
+    }
+
+    @Test
+    fun `caribbean guard catches look-alike domestic calls`() {
+        // The guard shape the group exists for: "Caribbean +1 → Ask" placed
+        // above the US rule. A Jamaican number dials like a domestic call but
+        // hits the guard; a real US call falls through to its own rule.
+        val rules = listOf(
+            Rule(RuleMatcher.Countries(groupIds = listOf(CountryGroups.CARIBBEAN_NANP)), RuleAction.Ask),
+            Rule(
+                RuleMatcher.Countries(groupIds = listOf(CountryGroups.USA)),
+                RuleAction.UseSim(tmobile.ref()),
+            ),
+        )
+        assertEquals(
+            Verdict.OpenChooser(),
+            engine.decide(call("+1 876 555 0123"), snapshot(rules), now),
+        )
+        assertEquals(
+            Verdict.Proceed(ProceedReason.ALREADY_ON_TARGET),
+            engine.decide(call(usNumber, currentAccount = tmobile.phoneAccount), snapshot(rules), now),
+        )
+    }
+
+    @Test
     fun `unknown group ids contribute nothing and never error`() {
         val rules = listOf(
             Rule(RuleMatcher.Countries(groupIds = listOf("from_the_future")), RuleAction.UseSim(telstra.ref())),
