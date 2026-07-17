@@ -90,30 +90,35 @@ private fun String.matchesIgnoringCaseAndSpace(other: String): Boolean =
     trim().equals(other.trim(), ignoreCase = true)
 
 /**
- * Registry capture (SPEC "Disabled-SIM assist"): every currently active SIM is
- * upserted by subscription ID with fresh names and last-seen time; entries for
- * SIMs not currently active are kept so rules can still target them.
+ * Registry capture (SPEC "Disabled-SIM assist"): active SIMs refresh their
+ * registry row by subscription ID; a row whose ID is no longer live (the
+ * profile was deleted and re-downloaded, or a restore invalidated it) re-binds
+ * by carrier + display name to an unclaimed active SIM when that match is
+ * unique — same identity ladder as [resolveSim] — instead of leaving a
+ * duplicate row behind. Rows for SIMs not currently active are kept so rules
+ * can still target them; genuinely new SIMs append.
  */
 fun List<RegisteredSim>.recordSeen(active: List<ActiveSim>, nowMillis: Long): List<RegisteredSim> {
-    val seen = active.associateBy { it.subscriptionId }
-    val adopted = mutableSetOf<Int>()
-    val updated = map { entry ->
-        val match = seen[entry.subscriptionId]
-            // A restored entry with an invalidated ID re-adopts the matching
-            // active SIM by name instead of leaving a duplicate row behind.
-            ?: active.firstOrNull {
-                entry.subscriptionId == SimRef.INVALID_SUBSCRIPTION_ID &&
-                    it.carrierName.matchesIgnoringCaseAndSpace(entry.carrierName) &&
-                    it.displayName.matchesIgnoringCaseAndSpace(entry.displayName)
-            }
-        match?.let {
-            adopted += it.subscriptionId
-            RegisteredSim(it.subscriptionId, it.carrierName, it.displayName, nowMillis)
+    val activeById = active.associateBy { it.subscriptionId }
+    val claimed = mutableSetOf<Int>()
+    val refreshed = map { entry ->
+        activeById[entry.subscriptionId]?.let { sim ->
+            claimed += sim.subscriptionId
+            RegisteredSim(sim.subscriptionId, sim.carrierName, sim.displayName, nowMillis)
         } ?: entry
     }
-    val known = updated.map { it.subscriptionId }.toSet() + adopted
-    val new = active.filter { it.subscriptionId !in known }.map {
+    val rebound = refreshed.map { entry ->
+        if (entry.subscriptionId in activeById) return@map entry
+        val match = active.singleOrNull { sim ->
+            sim.subscriptionId !in claimed &&
+                sim.carrierName.matchesIgnoringCaseAndSpace(entry.carrierName) &&
+                sim.displayName.matchesIgnoringCaseAndSpace(entry.displayName)
+        } ?: return@map entry
+        claimed += match.subscriptionId
+        RegisteredSim(match.subscriptionId, match.carrierName, match.displayName, nowMillis)
+    }
+    val new = active.filter { it.subscriptionId !in claimed }.map {
         RegisteredSim(it.subscriptionId, it.carrierName, it.displayName, nowMillis)
     }
-    return updated + new
+    return rebound + new
 }
