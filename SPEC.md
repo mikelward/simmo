@@ -3,7 +3,8 @@
 Simmo picks the right SIM (or calling app) for every outgoing call, automatically,
 based on the country you are calling. Android's built-in dual-SIM support stops at
 "ask every time" or "always use SIM X"; Simmo adds a rules engine on top: *Australian
-numbers go out on Telstra, US numbers on T-Mobile, everything else asks* — including
+numbers go out on Telstra, US numbers on T-Mobile, everything else follows sensible
+defaults* — including
 hand-offs to another calling app (e.g. Google Voice) and help re-enabling a currently
 disabled eSIM profile when a rule needs it.
 
@@ -14,23 +15,57 @@ where several eSIM profiles can be installed at once and swapped in Settings.
 
 ### Rules
 
-A rule maps a **destination** to an **action**:
+Rules are an **ordered list**, evaluated top to bottom for every outgoing call; the
+first *applicable* rule decides the call and evaluation stops. The user drags to
+reorder. A rule pairs a **matcher** with an **action**:
 
-- **Destination**: a country (ISO region, e.g. `AU`, `US`), derived from the dialed
-  number. One rule per country, plus a single **fallback** rule that applies when no
-  country rule matches (including numbers whose country cannot be determined).
+- **Matcher**: a destination country (ISO region, shown with its calling code —
+  "+61 Australia"), or **any destination** (used by the preseeded defaults below).
+  Because the +1 group is split by area code, a US rule does not catch Canadian or
+  Caribbean numbers.
 - **Action**, one of:
   1. **Call with a specific SIM** — identified by the SIM's stable identity (see "SIM
      identity" below), e.g. "Telstra", never by physical slot.
-  2. **Hand off to another calling app** — e.g. Google Voice. Preferred mechanism is
-     redirecting the call to that app's registered phone account; if the app doesn't
-     expose one, Simmo cancels the carrier call and forwards the number to the app via
-     an explicit dial/view intent (see "Hand-off to another app").
-  3. **Ask** — show Simmo's chooser for this call (the fallback rule defaults to Ask).
+  2. **Call with the SIM whose home country matches the destination** — applies only
+     when exactly one active SIM's home country equals the destination country.
+  3. **Hand off to another calling app** — e.g. Google Voice (see "Hand-off to
+     another app").
+  4. **Ask** — show Simmo's chooser for this call.
+  5. **No change** — the call proceeds exactly as the system would have placed it
+     (the user's default calling app / default voice SIM); Simmo doesn't intervene.
 
-Rule evaluation is deterministic and total: exact-country rule if one exists, else the
-fallback rule. If the selected action resolves to the SIM the call was already going to
-be placed on, Simmo passes the call through unmodified — no redirect churn, no UI.
+**Applicability (skip semantics).** A rule that cannot act right now is skipped and
+evaluation continues with the next rule:
+
+- its SIM is currently disabled or can't be re-bound unambiguously (such rules show
+  greyed out in the list and are kept for when the SIM is re-enabled);
+- its hand-off target is no longer reachable;
+- its action needs UI (Ask, dial-intent hand-off) in a non-interactive context;
+- "matching country SIM" finds zero or several matching active SIMs.
+
+If no rule applies, the call proceeds unmodified — a call is never dropped. If the
+selected action resolves to the SIM the call was already going to be placed on, Simmo
+passes the call through unmodified — no redirect churn, no UI.
+
+**Preseeded defaults.** A fresh install seeds two low-priority rules at the bottom of
+the list — ordinary rules, reorderable and deletable:
+
+1. *Any destination → call with the SIM whose home country matches.*
+2. *Any destination → no change.*
+
+So out of the box Simmo only intervenes when a destination unambiguously matches one
+SIM's home country; everything else behaves as if Simmo weren't installed. Users who
+want prompting insert an Ask rule wherever it should take over.
+
+**On SIM change.**
+
+- Disabling a SIM greys out (and skips) the rules that target it; they are kept and
+  apply again when the SIM is re-enabled. The enable-assist surfaces through the
+  chooser: when evaluation skipped a disabled-SIM rule and ends at Ask, the chooser
+  says which rule wanted which disabled SIM and offers the enable flow (see
+  "Disabled-SIM assist").
+- When a new SIM is first seen, Simmo prompts the user to add rules for it; newly
+  added rules are suggested above any rules that reference disabled SIMs.
 
 ### Country detection
 
@@ -42,27 +77,27 @@ The dialed number is parsed offline with libphonenumber:
   by definition a call within the default region, so it matches that country's rule.
 - Countries that share a calling code — the +1 North American Numbering Plan group
   (US, Canada, Caribbean) — are distinguished by area code where the parser's metadata
-  can, falling back to *undetermined* (and therefore the fallback rule) where it can't
-  (see TODO for supplementary mappings under evaluation).
-- Short codes, USSD (`*#...`), and numbers that don't parse map to *undetermined* and
-  match only the fallback rule.
+  can, falling back to *undetermined* where it can't (see TODO for supplementary
+  mappings under evaluation).
+- Short codes, USSD (`*#...`), and numbers that don't parse map to *undetermined*;
+  only any-destination rules match them.
 - **Emergency calls are never touched.** The platform does not consult call-redirection
   services for emergency numbers; Simmo additionally never redirects any number the
   platform flags as emergency, as defense in depth.
 
 ### The chooser (Ask flow)
 
-When a rule (or the fallback) says Ask, Simmo cancels the in-flight call and shows a
+When the winning rule says Ask, Simmo cancels the in-flight call and shows a
 full-screen chooser: the dialed number, its detected country/flag, and the available
 targets — each active SIM, each configured hand-off app, plus "remember this choice for
 <country>" to create a rule inline. Confirming re-places the call on the chosen target.
-Canceling abandons the call.
+Canceling abandons the call. When evaluation skipped disabled-SIM rules on the way to
+Ask, the chooser also surfaces them and offers the enable flow ("Disabled-SIM assist").
 
 If a call arrives when interactive UI is not allowed (e.g. placed from a Bluetooth
-headset or Android Auto — the platform tells us per call), Simmo applies any rule it can
-apply *silently* (SIM redirect); anything that would need UI (Ask, disabled SIM,
-intent-based hand-off) instead lets the call proceed unmodified. A call is never
-silently dropped — the sole, opt-in exception is the hands-free call guard (see
+headset or Android Auto — the platform tells us per call), rules that would need UI
+(Ask, dial-intent hand-off) are skipped and the silent rules still apply. A call is
+never silently dropped — the sole, opt-in exception is the hands-free call guard (see
 "Hands-free and Android Auto safeguards"), which always posts a notification for
 what it blocks.
 
@@ -75,9 +110,10 @@ require carrier privileges or system permissions — so Simmo:
 1. Maintains a **SIM registry**: every subscription Simmo has ever seen active, with its
    stable identity and last-seen time. Rules can reference any registered SIM, active or
    not. Registry entries can be renamed and deleted in settings.
-2. When a matched rule targets an inactive SIM, the chooser opens in "enable" mode: it
-   explains that the rule wants (e.g.) Telstra, offers a one-tap jump to the system SIM
-   management screen, and offers the active SIMs / hand-off apps as alternatives.
+2. A rule targeting an inactive SIM is skipped during evaluation (see "Rules"), but
+   when the chooser opens it explains that the rule wanted (e.g.) Telstra, offers a
+   one-tap jump to the system SIM management screen, and offers the active SIMs /
+   hand-off apps as alternatives.
 3. Simmo listens for subscription changes; when the wanted SIM becomes active it offers
    to place the held call (one tap — the call is never auto-placed, since enabling a SIM
    can take a moment and the user may have moved on).
@@ -260,6 +296,9 @@ redirection service only ever reads the snapshot.
 - Quick Settings tile shape: a shortcut into Simmo's rules, a quick "switch data /
   calling SIM" toggle (which for a non-privileged app can at best deep-link into the
   system SIM screens), or both as separate tiles.
+- Whether the trailing "no change" default should split into two distinct entries —
+  explicitly routing to the default calling app vs. the default voice SIM — rather
+  than one non-intervention rule.
 - Hands-free safeguards: whether the upstream wrong-number choice (Android / Android
   Auto picking a contact's overseas entry over their local one) is fixable at the
   contact level before Simmo is consulted; and how best to identify "driving" for the

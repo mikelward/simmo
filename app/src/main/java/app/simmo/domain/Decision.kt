@@ -11,8 +11,8 @@ data class PlacedCall(
 
 /**
  * Loop guard for re-placed calls (SPEC "Redirect-loop guard"): when the chooser
- * or enable flow re-places a call, the new call matches a live token and passes
- * through unmodified. The platform layer removes the consumed token.
+ * re-places a call, the new call matches a live token and passes through
+ * unmodified. The platform layer removes the consumed token.
  */
 data class PassToken(
     val dialedNumber: String,
@@ -54,33 +54,35 @@ sealed interface Verdict {
     /** Cancel the carrier call and forward the number to the app's dial intent. */
     data class ForwardToApp(val packageName: String) : Verdict
 
-    /** Cancel the carrier call and open Simmo's chooser. */
-    data class OpenChooser(val mode: ChooserMode) : Verdict
+    /**
+     * Cancel the carrier call and open Simmo's chooser. [skippedInactiveSims]
+     * carries the SIMs that higher-priority rules wanted but which are
+     * currently disabled, so the chooser can offer enabling them
+     * (SPEC "Disabled-SIM assist").
+     */
+    data class OpenChooser(val skippedInactiveSims: List<SimRef> = emptyList()) : Verdict
 }
 
 enum class ProceedReason {
     EMERGENCY,
     PASS_TOKEN,
+    /** The winning rule's target is the account the call was already on. */
     ALREADY_ON_TARGET,
-
-    /** The verdict needed UI but the call context forbids it; never drop the call. */
-    NON_INTERACTIVE_DEGRADE,
-}
-
-sealed interface ChooserMode {
-    /** No rule matched (or the rule says Ask): pick a target for this call. */
-    data object Ask : ChooserMode
-
-    /** The rule's SIM is not active: explain and deep-link to SIM settings. */
-    data class EnableSim(val wanted: SimRef) : ChooserMode
-
-    /** Carrier re-binding was ambiguous: pick which active SIM the rule means. */
-    data class PickAmong(val wanted: SimRef, val candidates: List<ActiveSim>) : ChooserMode
+    /** A "no change" rule won: the system places the call as it intended. */
+    SYSTEM_DEFAULT,
+    /** Evaluation exhausted the list with nothing applicable; never drop. */
+    NO_APPLICABLE_RULE,
 }
 
 /**
  * The pure decision function: `(call, snapshot, now) → verdict`. All product
  * routing logic lives here so it is testable without Android.
+ *
+ * Rules are evaluated in order; the first applicable rule wins. A rule that
+ * cannot act right now — disabled/unresolvable SIM, unreachable hand-off
+ * target, UI needed in a non-interactive context, no unambiguous country
+ * match — is skipped and evaluation continues (SPEC "Rules"). If nothing
+ * applies, the call proceeds unmodified.
  */
 class DecisionEngine(private val countryDetector: CountryDetector) {
 
@@ -94,42 +96,55 @@ class DecisionEngine(private val countryDetector: CountryDetector) {
             return Verdict.Proceed(ProceedReason.PASS_TOKEN, consumedToken = it)
         }
 
-        val action = snapshot.rules.actionFor((country as? CountryVerdict.Country)?.regionCode)
-        return when (action) {
-            RuleAction.Ask -> interactiveOnly(call) { Verdict.OpenChooser(ChooserMode.Ask) }
+        val destination = (country as? CountryVerdict.Country)?.regionCode
+        val skippedInactiveSims = mutableListOf<SimRef>()
 
-            // A hand-off target that is no longer reachable (app uninstalled,
-            // account disabled) is never routed to blindly: fall back to the
-            // chooser, or proceed when UI is forbidden — never a failed call.
-            is RuleAction.HandOff.ViaPhoneAccount ->
-                if (action.account in snapshot.handOffAccounts) {
-                    redirectOrPassThrough(call, action.account)
-                } else {
-                    interactiveOnly(call) { Verdict.OpenChooser(ChooserMode.Ask) }
+        for (rule in snapshot.rules.rules) {
+            if (!rule.matcher.matches(destination)) continue
+            when (val action = rule.action) {
+                is RuleAction.UseSim -> when (val resolved = resolveSim(action.sim, snapshot.activeSims)) {
+                    is SimResolution.Active ->
+                        return redirectOrPassThrough(call, resolved.sim.phoneAccount)
+                    // Disabled or ambiguous: skip, but remember disabled SIMs
+                    // so the chooser can offer enabling them.
+                    SimResolution.Inactive -> skippedInactiveSims += action.sim
+                    is SimResolution.Ambiguous -> Unit
                 }
 
-            is RuleAction.HandOff.ViaDialIntent ->
-                interactiveOnly(call) {
-                    if (action.packageName in snapshot.handOffApps) {
-                        Verdict.ForwardToApp(action.packageName)
-                    } else {
-                        Verdict.OpenChooser(ChooserMode.Ask)
+                RuleAction.UseMatchingCountrySim -> {
+                    val matching = destination?.let { region ->
+                        snapshot.activeSims.filter { it.countryIso.equals(region, ignoreCase = true) }
+                    }
+                    if (matching?.size == 1) {
+                        return redirectOrPassThrough(call, matching.single().phoneAccount)
                     }
                 }
 
-            is RuleAction.UseSim -> when (val resolved = resolveSim(action.sim, snapshot.activeSims)) {
-                is SimResolution.Active ->
-                    redirectOrPassThrough(call, resolved.sim.phoneAccount)
-
-                SimResolution.Inactive ->
-                    interactiveOnly(call) { Verdict.OpenChooser(ChooserMode.EnableSim(action.sim)) }
-
-                is SimResolution.Ambiguous ->
-                    interactiveOnly(call) {
-                        Verdict.OpenChooser(ChooserMode.PickAmong(action.sim, resolved.candidates))
+                is RuleAction.HandOff.ViaPhoneAccount ->
+                    if (action.account in snapshot.handOffAccounts) {
+                        return redirectOrPassThrough(call, action.account)
                     }
+
+                is RuleAction.HandOff.ViaDialIntent ->
+                    if (call.interactive && action.packageName in snapshot.handOffApps) {
+                        return Verdict.ForwardToApp(action.packageName)
+                    }
+
+                RuleAction.Ask ->
+                    if (call.interactive) {
+                        return Verdict.OpenChooser(skippedInactiveSims.toList())
+                    }
+
+                RuleAction.SystemDefault ->
+                    return Verdict.Proceed(ProceedReason.SYSTEM_DEFAULT)
             }
         }
+        return Verdict.Proceed(ProceedReason.NO_APPLICABLE_RULE)
+    }
+
+    private fun RuleMatcher.matches(destination: String?): Boolean = when (this) {
+        RuleMatcher.AnyDestination -> true
+        is RuleMatcher.Country -> destination != null && regionCode.equals(destination, ignoreCase = true)
     }
 
     private fun redirectOrPassThrough(call: PlacedCall, target: PhoneAccountRef): Verdict =
@@ -138,10 +153,6 @@ class DecisionEngine(private val countryDetector: CountryDetector) {
         } else {
             Verdict.RedirectToAccount(target)
         }
-
-    /** SPEC "The chooser": anything needing UI degrades to Proceed when UI is forbidden. */
-    private inline fun interactiveOnly(call: PlacedCall, verdict: () -> Verdict): Verdict =
-        if (call.interactive) verdict() else Verdict.Proceed(ProceedReason.NON_INTERACTIVE_DEGRADE)
 
     private fun PassToken.matches(call: PlacedCall, nowMillis: Long): Boolean =
         dialedNumber == call.dialedNumber &&

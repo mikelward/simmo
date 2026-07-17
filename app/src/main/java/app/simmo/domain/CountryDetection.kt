@@ -9,7 +9,7 @@ sealed interface CountryVerdict {
     /** ISO 3166-1 alpha-2 region the number belongs to, e.g. "AU", "US", "CA". */
     data class Country(val regionCode: String) : CountryVerdict
 
-    /** Short codes, USSD, malformed input — matches only the fallback rule. */
+    /** Short codes, USSD, malformed input — only any-destination rules match. */
     data object Undetermined : CountryVerdict
 
     /** Emergency numbers are never touched; the engine short-circuits to Proceed. */
@@ -54,7 +54,7 @@ class PhoneNumberCountryDetector(
         val numberRegion = util.getRegionCodeForNumber(parsed) ?: return CountryVerdict.Undetermined
         // Global service numbers (+800 international toll-free etc.) resolve to
         // libphonenumber's non-geographic "001" entity — not a country, so only
-        // the fallback rule can match them.
+        // any-destination rules can match them.
         if (numberRegion == NON_GEO_ENTITY) return CountryVerdict.Undetermined
         return CountryVerdict.Country(numberRegion)
     }

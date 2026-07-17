@@ -33,6 +33,19 @@ small stack), fully unit-tested, with `./gradlew test` and `./gradlew lint` gree
       decided — backups ON, scoped by explicit extraction rules to Simmo's own state
       files; recorded in SPEC "Permissions and privacy".
 
+## Phase 1b — Ordered rules redesign (maintainer direction)
+
+- [x] Rework the rule model: ordered list, first applicable rule wins, matcher
+      (country / any destination) + action; skip semantics for disabled SIMs,
+      unreachable hand-off targets, UI-needing actions in non-interactive contexts,
+      and ambiguous matches.
+- [x] Preseeded default rules: any destination → SIM with matching home country
+      (unique match only); any destination → no change (system default).
+- [x] Chooser payload carries the disabled-SIM rules skipped during evaluation, so
+      the enable-assist surfaces there instead of blocking rule hits.
+- [ ] Prompt to add rules when a new SIM is first seen; suggest placement above
+      rules that reference disabled SIMs (UI lands with Phase 3).
+
 ## Phase 2 — Telecom integration
 
 - [ ] `CallRedirectionService` implementation wired to the decision function; manifest
@@ -44,7 +57,8 @@ small stack), fully unit-tested, with `./gradlew test` and `./gradlew lint` gree
 - [ ] Onboarding: request `ROLE_CALL_REDIRECTION` via `RoleManager`, `READ_PHONE_STATE`,
       default-region setup; degraded states when role/permission is missing.
 - [ ] Subscription + phone-account snapshot readers and change listeners; SIM registry
-      capture of newly seen subscriptions.
+      capture of newly seen subscriptions, including each SIM's home country
+      (`SubscriptionInfo.countryIso`) for the matching-country default rule.
 - [ ] Re-place path: `TelecomManager.placeCall` with chosen account, pass-token loop
       guard, `CALL_PHONE` request on first use.
 - [ ] Verify on device: 5s deadline comfortably met from cold process; document measured
@@ -53,7 +67,9 @@ small stack), fully unit-tested, with `./gradlew test` and `./gradlew lint` gree
 ## Phase 3 — UI
 
 - [ ] Rules list + rule editor (country picker, action picker limited to registered SIMs
-      and reachable hand-off apps).
+      and reachable hand-off apps); drag to reorder; rules for disabled SIMs greyed out.
+- [ ] New-SIM prompt: nudge to create rules for a newly seen SIM, inserted above rules
+      referencing disabled SIMs.
 - [ ] Chooser activity (Ask flow): number + detected country, targets, "remember for
       <country>", cancel. Re-places on confirm.
 - [ ] SIM registry screen (rename, delete, last-seen).
