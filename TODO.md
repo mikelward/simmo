@@ -146,6 +146,11 @@ can't dial an arbitrary number and are out of scope.
       a number→contact reverse lookup (shareable with the same-contact-number-correction
       index) and is only offered when the number is actually a user of that app. Many
       users' contacts are on WhatsApp, so it's worth having despite the contact-only limit.
+  - [x] Number→contact reverse-lookup foundation: `ContactNumberIndex` (dialed number →
+        contact + per-app `ContactsContract.Data` call-action row ids, keyed by E.164) and
+        the `ContactsReader` that builds it off the main thread, degrading to empty without
+        `READ_CONTACTS`. Pure + Robolectric tested. Still to wire: request `READ_CONTACTS`,
+        keep the index warm in the snapshot, and the WhatsApp launch (device-verified).
 - [ ] Reachable-app discovery off the decision path: resolve each candidate intent and
       cache the vetted template + mechanism label in the warm snapshot (`handOffApps`).
 - [ ] Cancel-and-forward action: rule editor offers only reachable apps with honest copy
