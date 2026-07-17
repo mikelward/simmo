@@ -1,5 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Simmo</string>
-    <string name="scaffold_placeholder">Your call rules will live here.</string>
+    <string name="onboarding_intro">Simmo picks the right SIM for every call you make, using your rules. Two things are needed first.</string>
+    <string name="onboarding_role_label">Let Simmo manage outgoing calls</string>
+    <string name="onboarding_role_button">Allow</string>
+    <string name="onboarding_phone_permission_label">Let Simmo see your SIMs</string>
+    <string name="onboarding_phone_permission_button">Allow</string>
+    <string name="onboarding_granted">Done</string>
+    <string name="onboarding_ready">All set. Your calls now follow your rules.</string>
 </resources>
