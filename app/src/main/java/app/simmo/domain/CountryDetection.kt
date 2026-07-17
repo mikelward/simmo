@@ -52,6 +52,10 @@ class PhoneNumberCountryDetector(
         }
         if (!util.isValidNumber(parsed)) return CountryVerdict.Undetermined
         val numberRegion = util.getRegionCodeForNumber(parsed) ?: return CountryVerdict.Undetermined
+        // Global service numbers (+800 international toll-free etc.) resolve to
+        // libphonenumber's non-geographic "001" entity — not a country, so only
+        // the fallback rule can match them.
+        if (numberRegion == NON_GEO_ENTITY) return CountryVerdict.Undetermined
         return CountryVerdict.Country(numberRegion)
     }
 
@@ -66,5 +70,15 @@ class PhoneNumberCountryDetector(
             util.getExampleNumber(region)
             shortNumbers.isEmergencyNumber("112", region)
         }
+        // Non-geographic entities (+800 etc.) are excluded from supportedRegions
+        // but their metadata still lazy-loads on first validation of such a number.
+        for (callingCode in util.supportedGlobalNetworkCallingCodes) {
+            util.getExampleNumberForNonGeoEntity(callingCode)
+        }
+    }
+
+    private companion object {
+        /** libphonenumber's region code for non-geographic numbering plans. */
+        const val NON_GEO_ENTITY = "001"
     }
 }
