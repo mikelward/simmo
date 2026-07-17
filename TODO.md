@@ -150,9 +150,15 @@ small stack), fully unit-tested, with `./gradlew test` and `./gradlew lint` gree
       in-app toggling is impossible without carrier privileges (SPEC "Enabling SIMs is
       Settings' job"). Still to verify on device: the best deep link per Android version.
 - [ ] Subscription-change watcher + held-call notification ("Telstra is now active —
-      place the call?"); `POST_NOTIFICATIONS` request. Once that plumbing exists,
-      consider a "new SIM seen — add rules?" notification too (today the nudge is
-      only the in-app card, so it waits until the user next opens Simmo).
+      place the call?"); `POST_NOTIFICATIONS` request.
+- [ ] Helper notification on SIM changes (maintainer request): when the active
+      SIMs change — especially when a SIM Simmo has never seen becomes active —
+      post a notification ("New SIM: Optus travel. Add a rule for it?") that
+      deep-links to the rules list / new-SIM prompt. Today the nudge is only the
+      in-app card, so it waits until the user next opens Simmo; the notification
+      matters extra because installed-but-never-activated eSIMs are invisible to
+      apps, making first activation the one moment Simmo can catch a new SIM.
+      Rides the same `POST_NOTIFICATIONS` plumbing as the held-call item.
 - [ ] MEP behavior pass on a dual-eSIM Pixel; document what profile-swap looks like from
       Simmo's point of view in `docs/qa-matrix.md`.
 
