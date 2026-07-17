@@ -60,6 +60,15 @@ class RuleRowMappingTest {
     }
 
     @Test
+    fun `multi-country matcher joins its country labels`() {
+        val row = Rule(
+            RuleMatcher.Countries(listOf("AU", "NZ")),
+            RuleAction.SystemDefault,
+        ).toRow(emptyList())
+        assertEquals("+61 Australia, +64 New Zealand", row.matcherCountryLabel)
+    }
+
+    @Test
     fun `any-destination defaults have no country label`() {
         val row = Rule(RuleMatcher.AnyDestination, RuleAction.SystemDefault).toRow(emptyList())
         assertEquals(null, row.matcherCountryLabel)

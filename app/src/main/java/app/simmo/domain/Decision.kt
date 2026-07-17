@@ -149,6 +149,8 @@ class DecisionEngine(private val countryDetector: CountryDetector) {
     private fun RuleMatcher.matches(destination: String?): Boolean = when (this) {
         RuleMatcher.AnyDestination -> true
         is RuleMatcher.Country -> destination != null && regionCode.equals(destination, ignoreCase = true)
+        is RuleMatcher.Countries ->
+            destination != null && regionCodes.any { it.equals(destination, ignoreCase = true) }
     }
 
     private fun redirectOrPassThrough(call: PlacedCall, target: PhoneAccountRef): Verdict =

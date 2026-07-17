@@ -42,7 +42,9 @@
     <!-- TODO: translate -->
     <string name="editor_when_label" tools:ignore="MissingTranslation">When calling</string>
     <!-- TODO: translate -->
-    <string name="editor_when_country" tools:ignore="MissingTranslation">A specific country</string>
+    <string name="editor_add_country" tools:ignore="MissingTranslation">Add a country or code</string>
+    <!-- TODO: translate -->
+    <string name="editor_remove_country" tools:ignore="MissingTranslation">Remove %1$s</string>
     <!-- TODO: translate -->
     <string name="editor_country_search_hint" tools:ignore="MissingTranslation">Search countries or codes</string>
     <!-- TODO: translate -->

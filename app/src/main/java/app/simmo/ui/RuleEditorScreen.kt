@@ -1,17 +1,25 @@
 package app.simmo.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material3.Button
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -23,10 +31,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -35,6 +45,8 @@ import app.simmo.domain.Rule
 import app.simmo.domain.RuleAction
 import app.simmo.domain.RuleMatcher
 import app.simmo.domain.SimRef
+import app.simmo.domain.countryMatcher
+import app.simmo.domain.regionCodes
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -98,11 +110,12 @@ internal fun RuleEditorContent(
 ) {
     // rememberSaveable so an in-progress edit survives rotation / recreation.
     val initial = (target as? EditorTarget.Existing)?.rule
-    var matchesAny by rememberSaveable {
-        mutableStateOf(initial?.matcher is RuleMatcher.AnyDestination || initial == null)
-    }
-    var region by rememberSaveable {
-        mutableStateOf((initial?.matcher as? RuleMatcher.Country)?.regionCode)
+    val initialRegions = initial?.matcher?.regionCodes().orEmpty()
+    var matchesAny by rememberSaveable { mutableStateOf(initialRegions.isEmpty()) }
+    // The rule's countries, in the order added; kept when toggling to "any"
+    // so switching back doesn't lose them (they're dropped only on save).
+    var regions by rememberSaveable(stateSaver = RegionsSaver) {
+        mutableStateOf(initialRegions)
     }
     // An existing rule whose action the editor can't yet represent (Ask, or a
     // hand-off): kept verbatim so saving an edit to its country never silently
@@ -132,9 +145,12 @@ internal fun RuleEditorContent(
             options = countryOptions,
             query = countryQuery,
             onQueryChange = { countryQuery = it },
-            selectedRegion = region,
-            onSelect = {
-                region = it
+            selectedRegions = regions.map { it.uppercase() }.toSet(),
+            onSelect = { picked ->
+                if (regions.none { it.equals(picked, ignoreCase = true) }) {
+                    regions = regions + picked
+                }
+                matchesAny = false
                 countryQuery = ""
                 showCountryPicker = false
             },
@@ -179,21 +195,24 @@ internal fun RuleEditorContent(
                         onSelect = { matchesAny = true },
                     )
                 }
-                item {
-                    // Tapping opens the searchable country picker rather than
-                    // listing ~240 countries inline; once chosen, the country
-                    // replaces the "A specific country" label in place.
-                    val countryLabel = countryOptions
-                        .firstOrNull { it.regionCode.equals(region, ignoreCase = true) }?.label
-                    ChoiceRow(
-                        selected = !matchesAny,
-                        text = if (!matchesAny && countryLabel != null) countryLabel
-                        else stringResource(R.string.editor_when_country),
-                        onSelect = {
-                            matchesAny = false
-                            showCountryPicker = true
-                        },
+                // Each chosen country is a removable entry; the add row below
+                // opens the searchable picker rather than listing ~240
+                // countries inline. Entries stay visible (dimmed) while "Any
+                // country" is selected, same as the old single-country label
+                // did, so switching back is one tap with nothing lost.
+                items(regions, key = { "region:$it" }) { entry ->
+                    val label = countryOptions
+                        .firstOrNull { it.regionCode.equals(entry, ignoreCase = true) }?.label
+                        ?: entry
+                    SelectedCountryRow(
+                        label = label,
+                        dimmed = matchesAny,
+                        onSelect = { matchesAny = false },
+                        onRemove = { regions = regions.filterNot { it == entry } },
                     )
+                }
+                item {
+                    AddCountryRow(onClick = { showCountryPicker = true })
                 }
 
                 item {
@@ -269,10 +288,10 @@ internal fun RuleEditorContent(
                     onClick = {
                         val matcher =
                             if (matchesAny) RuleMatcher.AnyDestination
-                            else RuleMatcher.Country(region!!)
+                            else countryMatcher(regions)
                         onSave(EditorDraft(matcher, resolveEditorAction(actionChoice, selectedSimRef, keepAction)))
                     },
-                    enabled = isValid(matchesAny, region, actionChoice, selectedSimRef, simOptions),
+                    enabled = isValid(matchesAny, regions, actionChoice, selectedSimRef, simOptions),
                 ) {
                     Text(stringResource(R.string.editor_save))
                 }
@@ -297,6 +316,61 @@ private fun ChoiceRow(selected: Boolean, text: String, onSelect: () -> Unit) {
 }
 
 /**
+ * One country already on the rule: tappable to re-select the countries branch,
+ * with a remove affordance. Indented to align with the radio rows' labels
+ * (48dp radio + 8dp gap); dimmed with the same alpha the rules list uses for
+ * paused rules while "Any country" is the selected branch.
+ */
+@Composable
+private fun SelectedCountryRow(
+    label: String,
+    dimmed: Boolean,
+    onSelect: () -> Unit,
+    onRemove: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .alpha(if (dimmed) 0.4f else 1f)
+            .padding(start = 56.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier
+                .weight(1f)
+                .clickable(onClick = onSelect),
+        )
+        IconButton(onClick = onRemove) {
+            Icon(
+                imageVector = Icons.Filled.Clear,
+                contentDescription = stringResource(R.string.editor_remove_country, label),
+            )
+        }
+    }
+}
+
+/** Opens the searchable country picker; each pick adds one country to the rule. */
+@Composable
+private fun AddCountryRow(onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        // Sized like the radio buttons so the label text columns line up.
+        Box(modifier = Modifier.size(48.dp), contentAlignment = Alignment.Center) {
+            Icon(imageVector = Icons.Filled.Add, contentDescription = null)
+        }
+        Text(stringResource(R.string.editor_add_country), style = MaterialTheme.typography.bodyLarge)
+    }
+}
+
+/**
  * Full-screen searchable country picker (a sub-step of the editor). Filters the
  * ~240-country list by name, dial code, ISO code, or alias as the user types;
  * picking one or pressing back returns to the editor.
@@ -306,7 +380,8 @@ internal fun CountryPickerContent(
     options: List<CountryOptionUi>,
     query: String,
     onQueryChange: (String) -> Unit,
-    selectedRegion: String?,
+    /** Uppercase ISO regions already on the rule; shown pre-selected. */
+    selectedRegions: Set<String>,
     onSelect: (String) -> Unit,
     onBack: () -> Unit,
 ) {
@@ -333,7 +408,7 @@ internal fun CountryPickerContent(
             ) {
                 items(ranked, key = { it.regionCode }) { option ->
                     ChoiceRow(
-                        selected = selectedRegion.equals(option.regionCode, ignoreCase = true),
+                        selected = option.regionCode.uppercase() in selectedRegions,
                         text = option.label,
                         onSelect = { onSelect(option.regionCode) },
                     )
@@ -408,12 +483,12 @@ internal fun resolveSelectedSim(ref: SimRef?, options: List<SimOptionUi>): SimRe
 
 internal fun isValid(
     matchesAny: Boolean,
-    region: String?,
+    regions: List<String>,
     action: ActionChoice?,
     simRef: SimRef?,
     simOptions: List<SimOptionUi>,
 ): Boolean {
-    if (!matchesAny && region == null) return false
+    if (!matchesAny && regions.isEmpty()) return false
     // A specific-SIM action must point at a SIM actually offered here. When the
     // stored SIM can't be resolved to a row (e.g. renamed or removed after a
     // restore, so nothing is selected), require re-linking to a real SIM rather
@@ -421,6 +496,12 @@ internal fun isValid(
     if (action == ActionChoice.USE_SIM && simOptions.none { it.ref == simRef }) return false
     return true
 }
+
+/** Persists the rule's chosen countries across recreation. */
+private val RegionsSaver: Saver<List<String>, Any> = listSaver(
+    save = { it },
+    restore = { it },
+)
 
 /** Persists the selected SIM across recreation as its three identity fields. */
 private val SimRefSaver: Saver<SimRef?, List<String>> = Saver(

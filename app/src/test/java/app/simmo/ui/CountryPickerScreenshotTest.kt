@@ -40,7 +40,7 @@ class CountryPickerScreenshotTest {
                     ),
                     query = "united",
                     onQueryChange = {},
-                    selectedRegion = "GB",
+                    selectedRegions = setOf("GB"),
                     onSelect = {},
                     onBack = {},
                 )

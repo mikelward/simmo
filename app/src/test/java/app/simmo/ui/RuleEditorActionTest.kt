@@ -54,26 +54,26 @@ class RuleEditorActionTest {
     fun `a specific-SIM action needs a SIM that is actually offered`() {
         val options = listOf(telstraOption)
         // Resolvable SIM → valid.
-        assertTrue(isValid(matchesAny = true, region = null, ActionChoice.USE_SIM, telstra, options))
+        assertTrue(isValid(matchesAny = true, regions = emptyList(), ActionChoice.USE_SIM, telstra, options))
         // Stored SIM that resolves to no row (renamed/removed) → invalid, forcing re-link.
         val stale = SimRef(SimRef.INVALID_SUBSCRIPTION_ID, "Vodafone", "Old name")
-        assertFalse(isValid(matchesAny = true, region = null, ActionChoice.USE_SIM, stale, options))
-        assertFalse(isValid(matchesAny = true, region = null, ActionChoice.USE_SIM, simRef = null, options))
+        assertFalse(isValid(matchesAny = true, regions = emptyList(), ActionChoice.USE_SIM, stale, options))
+        assertFalse(isValid(matchesAny = true, regions = emptyList(), ActionChoice.USE_SIM, simRef = null, options))
     }
 
     @Test
     fun `non-SIM actions do not require a SIM`() {
         val noSims = emptyList<SimOptionUi>()
-        assertTrue(isValid(matchesAny = true, region = null, ActionChoice.MATCHING_SIM, simRef = null, noSims))
-        assertTrue(isValid(matchesAny = true, region = null, ActionChoice.SYSTEM_DEFAULT, simRef = null, noSims))
+        assertTrue(isValid(matchesAny = true, regions = emptyList(), ActionChoice.MATCHING_SIM, simRef = null, noSims))
+        assertTrue(isValid(matchesAny = true, regions = emptyList(), ActionChoice.SYSTEM_DEFAULT, simRef = null, noSims))
         // A preserved unsupported action (null choice) is valid too.
-        assertTrue(isValid(matchesAny = true, region = null, action = null, simRef = null, noSims))
+        assertTrue(isValid(matchesAny = true, regions = emptyList(), action = null, simRef = null, noSims))
     }
 
     @Test
     fun `a country matcher needs a region`() {
         val options = listOf(telstraOption)
-        assertFalse(isValid(matchesAny = false, region = null, ActionChoice.MATCHING_SIM, simRef = null, options))
-        assertTrue(isValid(matchesAny = false, region = "AU", ActionChoice.MATCHING_SIM, simRef = null, options))
+        assertFalse(isValid(matchesAny = false, regions = emptyList(), ActionChoice.MATCHING_SIM, simRef = null, options))
+        assertTrue(isValid(matchesAny = false, regions = listOf("AU"), ActionChoice.MATCHING_SIM, simRef = null, options))
     }
 }

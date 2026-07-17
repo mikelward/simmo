@@ -9,9 +9,9 @@ import app.simmo.domain.ActiveSim
 import app.simmo.domain.RegisteredSim
 import app.simmo.domain.Rule
 import app.simmo.domain.RuleAction
-import app.simmo.domain.RuleMatcher
 import app.simmo.domain.SimRef
 import app.simmo.domain.SimResolution
+import app.simmo.domain.regionCodes
 import app.simmo.domain.resolveSim
 import app.simmo.store.SimmoState
 import com.google.i18n.phonenumbers.PhoneNumberUtil
@@ -45,7 +45,10 @@ enum class RulePause {
 
 /** One row of the rules list, ready to render (SPEC "Rules"). */
 data class RuleRowUi(
-    /** e.g. "+61 Australia"; null means the rule matches any destination. */
+    /**
+     * e.g. "+61 Australia" — or a comma-joined list for a multi-country rule;
+     * null means the rule matches any destination.
+     */
     val matcherCountryLabel: String?,
     val action: ActionUi,
     /** Non-null when the rule is skipped during evaluation — shown greyed. */
@@ -222,10 +225,9 @@ internal fun countryDisplayName(regionCode: String): String {
 }
 
 internal fun Rule.toRow(activeSims: List<ActiveSim>): RuleRowUi {
-    val matcherLabel = when (val m = matcher) {
-        RuleMatcher.AnyDestination -> null
-        is RuleMatcher.Country -> countryLabel(m.regionCode)
-    }
+    val matcherLabel = matcher.regionCodes()
+        .takeIf { it.isNotEmpty() }
+        ?.joinToString { countryLabel(it) }
     return when (val a = action) {
         is RuleAction.UseSim -> RuleRowUi(
             matcherCountryLabel = matcherLabel,
