@@ -49,6 +49,33 @@ class SimRegistryRecordTest {
     }
 
     @Test
+    fun `re-downloaded profile with a new id re-binds instead of duplicating`() {
+        // Same device: the profile was deleted and re-downloaded, so Android
+        // assigned a fresh subscription id. The old row must re-bind, not stay
+        // beside a duplicate new row.
+        val stale = RegisteredSim(5, "Telstra", "Telstra personal", 100L)
+        val redownloaded = ActiveSim(9, "Telstra", "Telstra personal", PhoneAccountRef("a9"))
+        assertEquals(
+            listOf(RegisteredSim(9, "Telstra", "Telstra personal", 900L)),
+            listOf(stale).recordSeen(listOf(redownloaded), nowMillis = 900L),
+        )
+    }
+
+    @Test
+    fun `same-named stale rows adopt deterministically without duplicating`() {
+        // Two identically named stale rows, one active candidate: the rows are
+        // indistinguishable by identity, so the first adopts it (deterministic,
+        // no duplicate row) and the other stays for a future SIM.
+        val staleA = RegisteredSim(5, "Telstra", "Telstra personal", 100L)
+        val staleB = RegisteredSim(6, "Telstra", "Telstra personal", 200L)
+        val active = ActiveSim(9, "Telstra", "Telstra personal", PhoneAccountRef("a9"))
+        assertEquals(
+            listOf(RegisteredSim(9, "Telstra", "Telstra personal", 900L), staleB),
+            listOf(staleA, staleB).recordSeen(listOf(active), nowMillis = 900L),
+        )
+    }
+
+    @Test
     fun `restored entry with different names is kept, not adopted`() {
         val restored = RegisteredSim(SimRef.INVALID_SUBSCRIPTION_ID, "Vodafone", "Voda AU", 100L)
         assertEquals(
