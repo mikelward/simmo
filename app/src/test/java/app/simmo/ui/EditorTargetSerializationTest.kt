@@ -28,8 +28,11 @@ class EditorTargetSerializationTest {
     }
 
     @Test
-    fun `a new-rule target keeps its preset sim`() {
-        val target: EditorTarget = EditorTarget.New(presetSim = SimRef(1, "Telstra", "Telstra AU"))
+    fun `a new-rule target keeps its preset sim and region`() {
+        val target: EditorTarget = EditorTarget.New(
+            presetSim = SimRef(1, "Telstra", "Telstra AU"),
+            presetRegion = "AU",
+        )
         assertEquals(target, roundTrip(target))
     }
 

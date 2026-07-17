@@ -76,7 +76,7 @@ internal fun RulesScreenContent(
     onAddRule: () -> Unit = {},
     onEditRule: (Int) -> Unit = {},
     onMoveRule: (Int, Int) -> Unit = { _, _ -> },
-    onAddRuleForSim: (SimRef) -> Unit = {},
+    onAddRuleForSim: (NewSimPromptUi) -> Unit = {},
     onDismissNewSimPrompt: (SimRef) -> Unit = {},
 ) {
     val listState = rememberLazyListState()
@@ -125,7 +125,7 @@ internal fun RulesScreenContent(
                 newSimPrompts.forEach { prompt ->
                     NewSimPromptCard(
                         prompt = prompt,
-                        onAddRule = { onAddRuleForSim(prompt.ref) },
+                        onAddRule = { onAddRuleForSim(prompt) },
                         onDismiss = { onDismissNewSimPrompt(prompt.ref) },
                     )
                 }

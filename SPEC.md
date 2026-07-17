@@ -49,6 +49,9 @@ evaluation continues with the next rule:
   greyed out in the list and are kept for when the SIM is re-enabled);
 - its hand-off target is no longer reachable;
 - its action needs UI (Ask, dial-intent hand-off) in a non-interactive context;
+- its action is Ask but the chooser would have no target to offer (no active
+  SIMs — e.g. the phone-state permission was revoked) — canceling would strand
+  the call behind a chooser that can only cancel;
 - "matching country SIM" finds zero or several matching active SIMs.
 
 If no rule applies, the call proceeds unmodified — a call is never dropped. If the

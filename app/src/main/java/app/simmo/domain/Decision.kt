@@ -135,7 +135,12 @@ class DecisionEngine(private val countryDetector: CountryDetector) {
                     }
 
                 RuleAction.Ask ->
-                    if (call.interactive) {
+                    // Applicable only when the chooser has at least one target
+                    // to offer. With no active SIMs (READ_PHONE_STATE revoked,
+                    // degraded telephony read), canceling would strand the
+                    // call behind a chooser that can only cancel — skip
+                    // instead, degrading toward "proceed unmodified".
+                    if (call.interactive && snapshot.activeSims.isNotEmpty()) {
                         return Verdict.OpenChooser(skippedInactiveSims.toList())
                     }
 
