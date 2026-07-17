@@ -45,6 +45,10 @@ jobs:
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd  # v5.0.1
         with:
           fetch-depth: 0
+          # Don't leave the job's (pull-requests: write) token in .git/config
+          # while Gradle runs PR-controlled build code; the one step that
+          # posts to the PR gets the token via its own env instead.
+          persist-credentials: false
 
       - name: Set up JDK
         uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654  # v5.2.0
