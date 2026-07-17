@@ -43,13 +43,23 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             MaterialTheme {
+                var phoneGranted by remember { mutableStateOf(isPhonePermissionGranted()) }
                 var ready by remember {
                     mutableStateOf(isRedirectionRoleHeld() && isPhonePermissionGranted())
                 }
                 // Grants can change while we're backgrounded (revoked in
                 // Settings, or granted there mid-onboarding): re-check on
-                // every resume so the screen never shows a stale state.
-                OnResume { ready = isRedirectionRoleHeld() && isPhonePermissionGranted() }
+                // every resume so the screen never shows a stale state. A
+                // grant made in Settings bypasses the permission launcher, so
+                // the telephony refresh must also run on that transition.
+                OnResume {
+                    val nowGranted = isPhonePermissionGranted()
+                    if (nowGranted && !phoneGranted) {
+                        (application as SimmoApp).refreshTelephony()
+                    }
+                    phoneGranted = nowGranted
+                    ready = isRedirectionRoleHeld() && nowGranted
+                }
                 if (ready) {
                     RulesScreen(viewModel<RulesViewModel>())
                 } else {
@@ -96,7 +106,11 @@ internal fun OnboardingScreen(
     var phoneGranted by remember { mutableStateOf(isPhonePermissionGranted()) }
     OnResume {
         roleHeld = isRoleHeld()
-        phoneGranted = isPhonePermissionGranted()
+        val nowGranted = isPhonePermissionGranted()
+        // Granted from Settings rather than our launcher: the refresh
+        // callback must still run.
+        if (nowGranted && !phoneGranted) onPhonePermissionGranted()
+        phoneGranted = nowGranted
         if (roleHeld && phoneGranted) onAllGranted()
     }
 
