@@ -175,6 +175,18 @@ jobs:
             fi
           done
 
+      - name: Fail on screenshot drift when a refresh cannot be pushed
+        # Fork PRs and pushes to main can't receive a refresh commit, so
+        # recording drift must fail the job loudly there instead of hiding in
+        # the artifact under a green check.
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
+        run: |
+          if [ -n "$(git status --porcelain -- app/src/test/snapshots/images)" ]; then
+            git status --porcelain -- app/src/test/snapshots/images
+            echo "::error::Recorded screenshots differ from the committed ones; re-record and commit them."
+            exit 1
+          fi
+
       - name: Commit refreshed screenshots
         # Keeps the committed snapshots identical to what this runner renders;
         # subject prefixed ci: so release notes skip it. Same-repo PRs only.
