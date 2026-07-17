@@ -93,22 +93,30 @@ class SimmoCallRedirectionService : CallRedirectionService() {
                     )
                 }
 
-                is Verdict.ForwardToContactApp -> respond {
+                is Verdict.ForwardToContactApp -> {
                     // Place the call to the contact via the app (e.g. WhatsApp)
-                    // by ACTION_VIEW-ing its Data row. Resolve first, then cancel:
-                    // if the app can't take it (uninstalled since the snapshot),
-                    // never strand the call — proceed unmodified.
-                    val intent = Intent(
-                        Intent.ACTION_VIEW,
-                        ContentUris.withAppendedId(ContactsContract.Data.CONTENT_URI, verdict.dataRowId),
-                    )
+                    // by ACTION_VIEW-ing its Data row. Resolve *before* latching a
+                    // response: this PackageManager IPC must not run after respond()
+                    // removes the watchdog, or a stall could eat Telecom's deadline.
+                    // While it's unresolved the watchdog is still armed and will
+                    // place the call unmodified. If the app can't take it
+                    // (uninstalled since the snapshot), never strand the call.
+                    val dataUri =
+                        ContentUris.withAppendedId(ContactsContract.Data.CONTENT_URI, verdict.dataRowId)
+                    val intent = Intent(Intent.ACTION_VIEW)
+                        // The MIME type is what selects the app's call action on
+                        // the contact row; ACTION_VIEW on the bare URI resolves to
+                        // the generic contact viewer instead.
+                        .setDataAndType(dataUri, verdict.mimeType)
                         .setPackage(verdict.packageName)
                         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                     if (intent.resolveActivity(packageManager) != null) {
-                        cancelCall()
-                        startActivity(intent)
+                        respond {
+                            cancelCall()
+                            startActivity(intent)
+                        }
                     } else {
-                        placeCallUnmodified()
+                        respond { placeCallUnmodified() }
                     }
                 }
 
