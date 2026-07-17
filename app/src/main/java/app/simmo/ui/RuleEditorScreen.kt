@@ -57,10 +57,18 @@ import kotlinx.serialization.Serializable
  */
 @Serializable
 sealed interface EditorTarget {
-    /** [presetSim] preselects that SIM's action — the new-SIM prompt's path. */
+    /**
+     * The new-SIM prompt's path: [presetSim] preselects that SIM's action,
+     * and [presetRegion] (the SIM's home country, when known) preseeds the
+     * matcher so the editor opens on the countries branch — accepting the
+     * prompt must never quietly produce an any-destination rule.
+     */
     @Serializable
     @SerialName("new")
-    data class New(val presetSim: SimRef? = null) : EditorTarget
+    data class New(
+        val presetSim: SimRef? = null,
+        val presetRegion: String? = null,
+    ) : EditorTarget
 
     @Serializable
     @SerialName("existing")
@@ -115,8 +123,16 @@ internal fun RuleEditorContent(
 ) {
     // rememberSaveable so an in-progress edit survives rotation / recreation.
     val initial = (target as? EditorTarget.Existing)?.rule
+    val preset = target as? EditorTarget.New
+    // A preset (new-SIM prompt) editor starts on the countries branch —
+    // prefilled with the SIM's home country when the platform reported one,
+    // otherwise empty so Save stays disabled until the user scopes the rule.
+    // Only an explicit "Any country" tap widens it to every destination.
     val initialRegions = initial?.matcher?.regionCodes().orEmpty()
-    var matchesAny by rememberSaveable { mutableStateOf(initialRegions.isEmpty()) }
+        .ifEmpty { preset?.presetRegion?.let { listOf(it) }.orEmpty() }
+    var matchesAny by rememberSaveable {
+        mutableStateOf(if (preset?.presetSim != null) false else initialRegions.isEmpty())
+    }
     // The rule's countries, in the order added; kept when toggling to "any"
     // so switching back doesn't lose them (they're dropped only on save).
     var regions by rememberSaveable(stateSaver = RegionsSaver) {
@@ -130,7 +146,7 @@ internal fun RuleEditorContent(
     // Null means "keep the unsupported original action" (only reachable when
     // keepAction is non-null); a concrete choice replaces it. A new rule
     // opened from the new-SIM prompt starts on that SIM's action.
-    val presetSim = (target as? EditorTarget.New)?.presetSim
+    val presetSim = preset?.presetSim
     var actionChoice by rememberSaveable {
         mutableStateOf(if (presetSim != null) ActionChoice.USE_SIM else ActionChoice.of(initial?.action))
     }

@@ -44,7 +44,7 @@ class RulesScreenScreenshotTest {
                         RuleRowUi(null, ActionUi.SystemDefault),
                     ),
                     newSimPrompts = listOf(
-                        NewSimPromptUi(SimRef(3, "Optus", "Optus travel"), "Optus travel"),
+                        NewSimPromptUi(SimRef(3, "Optus", "Optus travel"), "Optus travel", homeRegion = "AU"),
                     ),
                 )
             }

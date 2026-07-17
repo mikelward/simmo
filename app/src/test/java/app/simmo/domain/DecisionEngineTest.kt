@@ -214,6 +214,24 @@ class DecisionEngineTest {
     }
 
     @Test
+    fun `ask is skipped when the chooser would have no target to offer`() {
+        // No active SIMs (permission revoked / degraded read): canceling for
+        // the chooser would strand the call — the next rule decides instead.
+        val rules = listOf(
+            any(RuleAction.Ask),
+            any(RuleAction.SystemDefault),
+        )
+        assertEquals(
+            Verdict.Proceed(ProceedReason.SYSTEM_DEFAULT),
+            engine.decide(
+                call(auNumber, currentAccount = null),
+                snapshot(rules, activeSims = emptyList()),
+                now,
+            ),
+        )
+    }
+
+    @Test
     fun `nothing applicable proceeds, never drops`() {
         val rules = listOf(
             any(RuleAction.Ask),

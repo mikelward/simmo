@@ -133,8 +133,14 @@ class RulesViewModel(
 
     fun openNewRule() = setEditorTarget(EditorTarget.New())
 
-    /** The prompt's "add a rule" path: the editor opens preset to [sim]. */
-    fun openNewRuleForSim(sim: SimRef) = setEditorTarget(EditorTarget.New(presetSim = sim))
+    /**
+     * The prompt's "add a rule" path: the editor opens preset to the SIM,
+     * with its home country preseeding the matcher (the user still has to
+     * scope the rule deliberately before Save enables — no accidental
+     * any-destination rules from accepting defaults).
+     */
+    fun openNewRuleForSim(prompt: NewSimPromptUi) =
+        setEditorTarget(EditorTarget.New(presetSim = prompt.ref, presetRegion = prompt.homeRegion))
 
     fun openEditRule(index: Int) {
         currentRules().getOrNull(index)?.let { setEditorTarget(EditorTarget.Existing(index, it)) }
@@ -206,16 +212,29 @@ data class SimOptionUi(
 data class NewSimPromptUi(
     val ref: SimRef,
     val label: String,
+    /**
+     * The SIM's home country (uppercase ISO region) when the platform reports
+     * one; preseeds the suggested rule's matcher so accepting the prompt
+     * doesn't silently create an any-destination rule.
+     */
+    val homeRegion: String?,
 )
 
 internal fun buildNewSimPrompts(
     registry: List<RegisteredSim>,
     activeSims: List<ActiveSim>,
 ): List<NewSimPromptUi> {
-    val activeIds = activeSims.map { it.subscriptionId }.toSet()
+    val activeById = activeSims.associateBy { it.subscriptionId }
     return registry
-        .filter { it.needsRulePrompt && it.subscriptionId in activeIds }
-        .map { NewSimPromptUi(it.ref(), it.displayName.ifBlank { it.carrierName }) }
+        .filter { it.needsRulePrompt && it.subscriptionId in activeById }
+        .map { sim ->
+            NewSimPromptUi(
+                ref = sim.ref(),
+                label = sim.displayName.ifBlank { sim.carrierName },
+                homeRegion = activeById.getValue(sim.subscriptionId)
+                    .countryIso.uppercase().ifBlank { null },
+            )
+        }
 }
 
 /** A country the rule editor can match. */

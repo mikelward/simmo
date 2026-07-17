@@ -9,7 +9,7 @@ import org.junit.Test
 
 class NewSimPromptTest {
 
-    private val telstraActive = ActiveSim(1, "Telstra", "Telstra AU", PhoneAccountRef("a1"))
+    private val telstraActive = ActiveSim(1, "Telstra", "Telstra AU", PhoneAccountRef("a1"), "au")
 
     @Test
     fun `only unanswered prompts for active sims show`() {
@@ -22,9 +22,10 @@ class NewSimPromptTest {
             // Active but already answered.
             RegisteredSim(3, "Optus", "Optus AU", 100L, needsRulePrompt = false),
         )
-        val optusActive = ActiveSim(3, "Optus", "Optus AU", PhoneAccountRef("a3"))
+        val optusActive = ActiveSim(3, "Optus", "Optus AU", PhoneAccountRef("a3"), "au")
         assertEquals(
-            listOf(NewSimPromptUi(SimRef(1, "Telstra", "Telstra AU"), "Telstra AU")),
+            // The home region is normalized uppercase for the editor preset.
+            listOf(NewSimPromptUi(SimRef(1, "Telstra", "Telstra AU"), "Telstra AU", homeRegion = "AU")),
             buildNewSimPrompts(registry, listOf(telstraActive, optusActive)),
         )
     }
@@ -33,8 +34,17 @@ class NewSimPromptTest {
     fun `prompt label falls back to the carrier name`() {
         val registry = listOf(RegisteredSim(1, "Telstra", "", 100L, needsRulePrompt = true))
         assertEquals(
-            listOf(NewSimPromptUi(SimRef(1, "Telstra", ""), "Telstra")),
+            listOf(NewSimPromptUi(SimRef(1, "Telstra", ""), "Telstra", homeRegion = "AU")),
             buildNewSimPrompts(registry, listOf(telstraActive.copy(displayName = ""))),
+        )
+    }
+
+    @Test
+    fun `an unreported home country presets nothing`() {
+        val registry = listOf(RegisteredSim(1, "Telstra", "Telstra AU", 100L, needsRulePrompt = true))
+        assertEquals(
+            listOf(NewSimPromptUi(SimRef(1, "Telstra", "Telstra AU"), "Telstra AU", homeRegion = null)),
+            buildNewSimPrompts(registry, listOf(telstraActive.copy(countryIso = ""))),
         )
     }
 }
