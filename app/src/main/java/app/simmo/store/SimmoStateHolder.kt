@@ -63,17 +63,36 @@ class SimmoStateHolder(
         }
     }
 
+    /** What a registry capture found; see [recordSeenSims]. */
+    data class SimCapture(
+        val registry: List<RegisteredSim>,
+        /**
+         * True when this capture populated a previously empty registry —
+         * the fresh-install case whose batch of "new" SIMs must not nag.
+         * Read from the stored state inside the write transaction, never
+         * from the asynchronously published [state] flow: on cold start an
+         * existing user's capture can run before the first load publishes,
+         * and mistaking that for a fresh install would silently swallow a
+         * real new-SIM notification (Codex on PR #21).
+         */
+        val firstCapture: Boolean,
+    )
+
     /**
      * Registry capture on every subscription change (SPEC "Disabled-SIM
      * assist"). Returns the updated registry — the published [state] flow
      * updates asynchronously, so callers reacting to the capture (the new-SIM
      * notification) must not re-read [current] and race it.
      */
-    suspend fun recordSeenSims(active: List<ActiveSim>, nowMillis: Long): List<RegisteredSim> =
-        store.updateData {
+    suspend fun recordSeenSims(active: List<ActiveSim>, nowMillis: Long): SimCapture {
+        var wasEmpty = false
+        val updated = store.updateData {
             val valid = it.withInstallValidated(installId)
+            wasEmpty = valid.simRegistry.isEmpty()
             valid.copy(simRegistry = valid.simRegistry.recordSeen(active, nowMillis))
-        }.simRegistry
+        }
+        return SimCapture(updated.simRegistry, firstCapture = wasEmpty)
+    }
 
     /** The new-SIM prompt for [ref] was answered — added a rule or dismissed. */
     suspend fun markSimRulePromptAnswered(ref: SimRef) {

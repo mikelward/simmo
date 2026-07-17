@@ -44,6 +44,26 @@ class SimmoStateHolderTest {
     }
 
     @Test
+    fun `first capture is reported from the stored state, not the async flow`() = runTest {
+        // Codex P2 on PR #21: an existing user's cold-start capture can run
+        // before the eager load publishes; the fresh-install signal must come
+        // from inside the write, or a real new-SIM notification is swallowed.
+        val existing = SimmoState(
+            simRegistry = listOf(RegisteredSim(1, "Telstra", "Telstra personal", 100L)),
+            installId = "install-1",
+        )
+        val holder = SimmoStateHolder(FakeDataStore(existing), backgroundScope, installId = "install-1")
+        val newSim = ActiveSim(2, "Optus", "Optus travel", PhoneAccountRef("a2"))
+        // Even with holder.current still unpublished, this is NOT a first capture.
+        val capture = holder.recordSeenSims(listOf(newSim), nowMillis = 900L)
+        assertEquals(false, capture.firstCapture)
+        assertEquals(2, capture.registry.size)
+
+        val fresh = SimmoStateHolder(FakeDataStore(SimmoState()), backgroundScope, installId = "install-1")
+        assertEquals(true, fresh.recordSeenSims(listOf(newSim), nowMillis = 900L).firstCapture)
+    }
+
+    @Test
     fun `state from another install gets its subscription ids invalidated`() = runTest {
         val restored = SimmoState(
             rules = RuleBook(
