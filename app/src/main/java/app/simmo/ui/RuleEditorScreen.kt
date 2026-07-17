@@ -32,10 +32,22 @@ import app.simmo.domain.Rule
 import app.simmo.domain.RuleAction
 import app.simmo.domain.RuleMatcher
 import app.simmo.domain.SimRef
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 
-/** What the editor is producing — a new rule or an edit to an existing one. */
+/**
+ * What the editor is producing — a new rule or an edit to an existing one.
+ * Serializable so the open editor route can be persisted in saved state and
+ * survive process death, not just configuration change.
+ */
+@Serializable
 sealed interface EditorTarget {
+    @Serializable
+    @SerialName("new")
     data object New : EditorTarget
+
+    @Serializable
+    @SerialName("existing")
     data class Existing(val index: Int, val rule: Rule) : EditorTarget
 }
 
@@ -89,6 +101,12 @@ internal fun RuleEditorContent(
     var region by rememberSaveable {
         mutableStateOf((initial?.matcher as? RuleMatcher.Country)?.regionCode)
     }
+    // An existing rule whose action the editor can't yet represent (Ask, or a
+    // hand-off): kept verbatim so saving an edit to its country never silently
+    // rewrites the action. Null for new rules and editor-representable ones.
+    val keepAction = initial?.action?.takeIf { it is RuleAction.Ask || it is RuleAction.HandOff }
+    // Null means "keep the unsupported original action" (only reachable when
+    // keepAction is non-null); a concrete choice replaces it.
     var actionChoice by rememberSaveable {
         mutableStateOf(ActionChoice.of(initial?.action))
     }
@@ -149,6 +167,26 @@ internal fun RuleEditorContent(
                 item {
                     Text(stringResource(R.string.editor_do_label), style = MaterialTheme.typography.titleMedium)
                 }
+                if (keepAction != null) {
+                    // The rule's current action can't be edited here yet (no
+                    // chooser for Ask; hand-off lands in a later phase). Show it
+                    // as a preselected row so the user can see and keep it; the
+                    // action is only rewritten if they pick a control below.
+                    item {
+                        ChoiceRow(
+                            selected = actionChoice == null,
+                            text = when (val a = keepAction) {
+                                RuleAction.Ask -> stringResource(R.string.rule_action_ask)
+                                is RuleAction.HandOff.ViaPhoneAccount ->
+                                    stringResource(R.string.rule_action_hand_off, a.account.id)
+                                is RuleAction.HandOff.ViaDialIntent ->
+                                    stringResource(R.string.rule_action_hand_off, a.packageName)
+                                else -> ""
+                            },
+                            onSelect = { actionChoice = null },
+                        )
+                    }
+                }
                 item {
                     ChoiceRow(
                         selected = actionChoice == ActionChoice.USE_SIM,
@@ -173,9 +211,11 @@ internal fun RuleEditorContent(
                         onSelect = { actionChoice = ActionChoice.MATCHING_SIM },
                     )
                 }
-                // "Ask" is deliberately omitted until the chooser exists — a
-                // saved Ask rule would otherwise silently behave as "No change"
-                // (see TODO.md Phase 3 chooser).
+                // "Ask" is deliberately absent as a *new* choice until the
+                // chooser exists — a saved Ask rule would otherwise silently
+                // behave as "No change" (see TODO.md Phase 3 chooser). An
+                // existing Ask rule is still preserved via the keep-action row
+                // above.
                 item {
                     ChoiceRow(
                         selected = actionChoice == ActionChoice.SYSTEM_DEFAULT,
@@ -201,7 +241,7 @@ internal fun RuleEditorContent(
                         val matcher =
                             if (matchesAny) RuleMatcher.AnyDestination
                             else RuleMatcher.Country(region!!)
-                        onSave(EditorDraft(matcher, actionChoice.toAction(simRef)))
+                        onSave(EditorDraft(matcher, resolveEditorAction(actionChoice, simRef, keepAction)))
                     },
                     enabled = isValid(matchesAny, region, actionChoice, simRef),
                 ) {
@@ -227,7 +267,7 @@ private fun ChoiceRow(selected: Boolean, text: String, onSelect: () -> Unit) {
     }
 }
 
-private enum class ActionChoice {
+internal enum class ActionChoice {
     USE_SIM,
     MATCHING_SIM,
     SYSTEM_DEFAULT,
@@ -240,22 +280,38 @@ private enum class ActionChoice {
     }
 
     companion object {
-        fun of(action: RuleAction?): ActionChoice = when (action) {
+        /**
+         * The editor control for [action], or null when the editor can't
+         * represent it (Ask, hand-off) and must preserve the original on save.
+         * A new rule (null [action]) defaults to the matching-country SIM.
+         */
+        fun of(action: RuleAction?): ActionChoice? = when (action) {
             is RuleAction.UseSim -> USE_SIM
             RuleAction.UseMatchingCountrySim -> MATCHING_SIM
             RuleAction.SystemDefault -> SYSTEM_DEFAULT
-            // The editor can't yet represent Ask (no chooser) or hand-off
-            // (Phase 5); a new rule defaults to the matching-country SIM, and
-            // an existing Ask/hand-off rule opens on that until those land.
-            RuleAction.Ask, is RuleAction.HandOff, null -> MATCHING_SIM
+            null -> MATCHING_SIM
+            RuleAction.Ask, is RuleAction.HandOff -> null
         }
     }
 }
 
+/**
+ * The action to save: the user's [choice] if they picked one, otherwise the
+ * preserved [keepAction] for a rule whose action the editor can't yet edit.
+ */
+internal fun resolveEditorAction(
+    choice: ActionChoice?,
+    simRef: SimRef?,
+    keepAction: RuleAction?,
+): RuleAction =
+    choice?.toAction(simRef)
+        ?: keepAction
+        ?: error("Rule editor produced no action")
+
 private fun isValid(
     matchesAny: Boolean,
     region: String?,
-    action: ActionChoice,
+    action: ActionChoice?,
     simRef: SimRef?,
 ): Boolean {
     if (!matchesAny && region == null) return false

@@ -2,6 +2,7 @@ package app.simmo.ui
 
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import app.simmo.SimmoApp
 import app.simmo.domain.ActiveSim
@@ -29,6 +30,9 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 
 /** Why a rule cannot act right now — each points at a different recovery. */
 enum class RulePause {
@@ -57,8 +61,12 @@ sealed interface ActionUi {
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
-class RulesViewModel(application: Application) : AndroidViewModel(application) {
+class RulesViewModel(
+    application: Application,
+    private val savedState: SavedStateHandle,
+) : AndroidViewModel(application) {
     private val app = application as SimmoApp
+    private val editorJson = Json { ignoreUnknownKeys = true }
 
     /**
      * Rebuilt off the main thread whenever the stored rules OR the live SIM
@@ -96,24 +104,32 @@ class RulesViewModel(application: Application) : AndroidViewModel(application) {
             .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     /**
-     * Which rule the editor is open on, held here (not in composition) so it
-     * survives configuration changes — a rotation mid-edit must not drop the
-     * user back to the list.
+     * Which rule the editor is open on. Held here (not in composition) and
+     * mirrored into [SavedStateHandle] so it survives both configuration
+     * changes and process death — restore reopens the editor, letting the
+     * editor's own rememberSaveable draft come back rather than dropping the
+     * user to the list with an in-progress add/edit lost.
      */
-    private val _editorTarget = MutableStateFlow<EditorTarget?>(null)
+    private val _editorTarget = MutableStateFlow(restoreEditorTarget())
     val editorTarget: StateFlow<EditorTarget?> = _editorTarget
 
-    fun openNewRule() {
-        _editorTarget.value = EditorTarget.New
-    }
+    fun openNewRule() = setEditorTarget(EditorTarget.New)
 
     fun openEditRule(index: Int) {
-        currentRules().getOrNull(index)?.let { _editorTarget.value = EditorTarget.Existing(index, it) }
+        currentRules().getOrNull(index)?.let { setEditorTarget(EditorTarget.Existing(index, it)) }
     }
 
-    fun closeEditor() {
-        _editorTarget.value = null
+    fun closeEditor() = setEditorTarget(null)
+
+    private fun setEditorTarget(target: EditorTarget?) {
+        _editorTarget.value = target
+        savedState[KEY_EDITOR_TARGET] = target?.let { editorJson.encodeToString(it) }
     }
+
+    private fun restoreEditorTarget(): EditorTarget? =
+        savedState.get<String?>(KEY_EDITOR_TARGET)?.let { encoded ->
+            runCatching { editorJson.decodeFromString<EditorTarget>(encoded) }.getOrNull()
+        }
 
     /** The current rules, as domain objects, for the editor to read and edit. */
     fun currentRules(): List<Rule> = app.stateHolder()?.current?.rules?.rules.orEmpty()
@@ -130,6 +146,10 @@ class RulesViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             app.stateHolders().filterNotNull().first().updateRules(transform)
         }
+    }
+
+    private companion object {
+        const val KEY_EDITOR_TARGET = "editor_target"
     }
 }
 
