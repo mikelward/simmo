@@ -61,7 +61,7 @@ without `+`; `«E164enc»` = URL-encoded for a query value (`+` → `%2B`, e.g.
 
 | | |
 |---|---|
-| **Launch** | `ACTION_VIEW`, `msteams://teams.microsoft.com/l/call/0/0?users=4:«E164»` (fall back to `https://teams.microsoft.com/l/call/0/0?users=4:«E164»`) |
+| **Launch** | `ACTION_VIEW`, `msteams://teams.microsoft.com/l/call/0/0?users=4:«E164enc»` (fall back to `https://teams.microsoft.com/l/call/0/0?users=4:«E164enc»`) — i.e. `4:%2B61412345678` |
 | **What happens** | Opens Teams to call the PSTN number. `4:` is the PSTN MRI prefix. |
 | **Requires** | Teams installed **and a paid Teams Phone calling plan** for PSTN. Without a plan, only Teams-user (app-to-app) calls work, so a raw number won't connect. |
 | **Notes** | The `msteams://` scheme reportedly mishandles a literal `+`; URL-encode it as `%2B`. The `https` form opens a browser interstitial first on some devices. |
@@ -71,21 +71,27 @@ without `+`; `«E164enc»` = URL-encoded for a query value (`+` → `%2B`, e.g.
 
 | | |
 |---|---|
-| **Launch** | `ACTION_VIEW`, `viber://add?number=«digits»`, `setPackage("com.viber.voip")` |
-| **What happens** | Opens Viber's keypad **pre-filled** with the number; the user taps to call. Not auto-dial. |
+| **Launch** | `ACTION_VIEW`, `viber://keypad?number=«digits»`, `setPackage("com.viber.voip")` |
+| **What happens** | Opens Viber's **keypad pre-filled** with the number; the user taps to call. Not auto-dial. |
 | **Requires** | Viber installed. Viber-to-Viber is free; calling a non-Viber **phone number needs paid Viber Out credit**. |
-| **Notes** | An older pattern targets `com.viber.voip.WelcomeActivity` with a `tel:` URI, but component-targeting is fragile across versions — prefer the `viber://add` deep link. |
+| **Notes** | Use `viber://keypad?number=` (the documented dial form). **Not** `viber://add?number=`, which is for *adding/messaging* a contact and would land the user on the wrong surface after the carrier call is cancelled. An older pattern targets `com.viber.voip.WelcomeActivity` with a `tel:` URI, but component-targeting is fragile across versions. |
 | **Confidence** | Medium — needs a device check for the pre-fill and Viber Out path. |
 
 ---
 
 ## Out of scope for the number-hand-off MVP
 
-- **App-to-app only** (callee must be a user of the app; no arbitrary-number call):
-  **WhatsApp** (needs `READ_CONTACTS` + a `content://com.android.contacts/data/<id>` row
-  with a WhatsApp voip MIME type, and the number must be a WhatsApp contact),
-  **Signal**, **Telegram**, **Messenger**, **Line**, **WeChat**. Best we could ever do is
-  *open the app* — low value for "call this number", so not offered.
+- **App-to-app only** (callee must be a user of the app; no arbitrary-number call). Out of
+  the *number*-hand-off MVP, but:
+  - **WhatsApp — worth revisiting** (`TODO.md` Phase 5): when the dialed number belongs to
+    a saved WhatsApp contact, its voice-call intent works — `ACTION_VIEW` on
+    `content://com.android.contacts/data/<rowId>` with MIME
+    `vnd.android.cursor.item/vnd.com.whatsapp.voip.call`. Gated on `READ_CONTACTS` + a
+    number→contact reverse lookup (shareable with the same-contact-number-correction
+    index). Many users' contacts are on WhatsApp, so it's worth having despite the
+    contact-only limit; only offer it when the number resolves to a WhatsApp contact.
+  - **Signal, Telegram, Messenger, Line, WeChat** — no comparable public by-number or
+    by-contact call intent found, so they stay *open-app-only* and are not offered.
 - **TextNow** — free US/CA numbers, but no documented launch-to-number deep link found;
   revisit only if there's demand (needs device probing).
 
@@ -137,7 +143,7 @@ pre-fill vs browser).
 | 2 | Google Voice | Same, but GV **not** set up / no linked number | GV shows a setup prompt; carrier call was already cancelled — confirm this is acceptable or that we vet "GV ready" before offering it | |
 | 3 | Teams (with plan) | Launch `msteams://…/l/call/0/0?users=4:%2B«digits»` | Opens Teams and places/pre-fills the PSTN call | |
 | 4 | Teams (no plan) | Same | Confirm it fails gracefully (no crash); decide whether to hide Teams when no plan is detectable | |
-| 5 | Viber | Launch `viber://add?number=«digits»` with `setPackage` | Opens Viber keypad pre-filled with the number | |
+| 5 | Viber | Launch `viber://keypad?number=«digits»` with `setPackage` | Opens Viber **keypad** pre-filled with the number (not the add-contact surface) | |
 | 6 | Viber Out | Same, then tap call to a non-Viber number | Placed via Viber Out credit (or prompts to buy) | |
 | 7 | Fallback | Launch a target with only `tel:«E164»` + `setPackage` | Note which apps honor `tel:` vs ignore it | |
 | 8 | Launcher-only | An app with no number-carrying intent (only a launcher) | Treated as **unreachable** — not offered, and the carrier call is **not** cancelled (never dropped at an app home screen) | |

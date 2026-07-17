@@ -122,6 +122,12 @@ can't dial an arbitrary number and are out of scope.
 
 - [ ] Verify the MVP intents on a real device (the `docs/handoff-intents.md` checklist)
       before building — auto-dial vs pre-fill vs browser is unconfirmed in the sandbox.
+- [ ] Consider WhatsApp (and other app-to-app apps) hand-off: when the dialed number
+      belongs to a contact reachable on the app, launch its by-contact call intent (e.g.
+      WhatsApp's `vnd.com.whatsapp.voip.call` contacts-data row). Needs `READ_CONTACTS` +
+      a number→contact reverse lookup (shareable with the same-contact-number-correction
+      index) and is only offered when the number is actually a user of that app. Many
+      users' contacts are on WhatsApp, so it's worth having despite the contact-only limit.
 - [ ] Reachable-app discovery off the decision path: resolve each candidate intent and
       cache the vetted template + mechanism label in the warm snapshot (`handOffApps`).
 - [ ] Cancel-and-forward action: rule editor offers only reachable apps with honest copy
