@@ -33,4 +33,6 @@
     <string name="rule_action_system_default" tools:ignore="MissingTranslation">No change</string>
     <!-- TODO: translate -->
     <string name="rule_sim_disabled" tools:ignore="MissingTranslation">SIM disabled — rule paused</string>
+    <!-- TODO: translate -->
+    <string name="rule_sim_ambiguous" tools:ignore="MissingTranslation">SIM changed — rule needs re-linking</string>
 </resources>
