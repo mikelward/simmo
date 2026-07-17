@@ -26,12 +26,12 @@ small stack), fully unit-tested, with `./gradlew test` and `./gradlew lint` gree
       `(call, snapshot) → verdict` with table-driven unit tests: rule hit, fallback, already-
       on-target pass-through, inactive-SIM target, non-interactive degradation, pass-token
       consumption.
-- [ ] DataStore (Proto) persistence for rules + SIM registry; snapshot holder that loads
-      off the main thread and stays subscribed.
-- [ ] Decide backup policy before persistence lands (flagged by Codex on PR #1): whether
-      rules + SIM registry join Android backups/device transfers (convenient on a new
-      phone) or are excluded via `dataExtractionRules` / `allowBackup=false` (stricter
-      reading of SPEC's on-device privacy posture). Record the decision in SPEC.
+- [x] DataStore persistence for rules + SIM registry (typed serializer via
+      kotlinx-serialization JSON — same guarantees as Proto without the codegen);
+      state holder that loads off the main thread and stays subscribed.
+- [x] Decide backup policy before persistence lands (flagged by Codex on PR #1):
+      decided — backups ON, scoped by explicit extraction rules to Simmo's own state
+      files; recorded in SPEC "Permissions and privacy".
 
 ## Phase 2 — Telecom integration
 
