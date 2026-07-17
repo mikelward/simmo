@@ -181,13 +181,15 @@ internal fun RuleEditorContent(
                 }
                 item {
                     // Tapping opens the searchable country picker rather than
-                    // listing ~240 countries inline; the chosen country shows
-                    // as a subtitle so the current selection stays visible.
-                    CountryChoiceRow(
+                    // listing ~240 countries inline; once chosen, the country
+                    // replaces the "A specific country" label in place.
+                    val countryLabel = countryOptions
+                        .firstOrNull { it.regionCode.equals(region, ignoreCase = true) }?.label
+                    ChoiceRow(
                         selected = !matchesAny,
-                        countryLabel = countryOptions
-                            .firstOrNull { it.regionCode.equals(region, ignoreCase = true) }?.label,
-                        onOpen = {
+                        text = if (!matchesAny && countryLabel != null) countryLabel
+                        else stringResource(R.string.editor_when_country),
+                        onSelect = {
                             matchesAny = false
                             showCountryPicker = true
                         },
@@ -294,34 +296,6 @@ private fun ChoiceRow(selected: Boolean, text: String, onSelect: () -> Unit) {
     ) {
         RadioButton(selected = selected, onClick = onSelect)
         Text(text, style = MaterialTheme.typography.bodyLarge)
-    }
-}
-
-/**
- * The "A specific country" option: selecting it opens the country picker, and
- * the chosen country (or a prompt when none is chosen yet) shows as a subtitle.
- */
-@Composable
-private fun CountryChoiceRow(selected: Boolean, countryLabel: String?, onOpen: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .selectable(selected = selected, onClick = onOpen)
-            .padding(vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        RadioButton(selected = selected, onClick = onOpen)
-        Column {
-            Text(stringResource(R.string.editor_when_country), style = MaterialTheme.typography.bodyLarge)
-            if (selected) {
-                Text(
-                    text = countryLabel ?: stringResource(R.string.editor_country_search_hint),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
     }
 }
 

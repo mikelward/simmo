@@ -55,9 +55,10 @@ class RuleEditorScreenshotTest {
         composeRule.waitForIdle()
 
         composeRule.onNodeWithText("Edit rule").assertExists()
-        // The chosen country shows as the subtitle of the country row; the full
-        // list now lives behind the searchable picker (CountryPickerScreenshotTest).
+        // The chosen country replaces the "A specific country" label in place;
+        // the full list lives behind the picker (CountryPickerScreenshotTest).
         composeRule.onNodeWithText("+61 Australia").assertExists()
+        composeRule.onNodeWithText("A specific country").assertDoesNotExist()
         composeRule.onNodeWithText("A specific SIM").assertExists()
         captureSnapshot("rule_editor.png")
     }
