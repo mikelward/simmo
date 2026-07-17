@@ -179,8 +179,17 @@ internal fun buildSimOptions(
 
 private fun allCountryOptions(): List<CountryOptionUi> =
     PhoneNumberUtil.getInstance().supportedRegions
-        .map { CountryOptionUi(it, countryLabel(it)) }
-        .sortedBy { it.label.lowercase() }
+        .map { region -> region to CountryOptionUi(region, countryLabel(region)) }
+        // Sort by the localized country name, not the "+61 …" label, so the
+        // picker reads alphabetically (Australia under A, not by dialing code).
+        .sortedBy { (region, _) -> countryDisplayName(region).lowercase() }
+        .map { (_, option) -> option }
+
+/** The localized country name alone, e.g. "Australia". */
+internal fun countryDisplayName(regionCode: String): String {
+    val region = regionCode.uppercase()
+    return Locale("", region).displayCountry.ifBlank { region }
+}
 
 internal fun Rule.toRow(activeSims: List<ActiveSim>): RuleRowUi {
     val matcherLabel = when (val m = matcher) {
@@ -217,6 +226,6 @@ internal fun Rule.toRow(activeSims: List<ActiveSim>): RuleRowUi {
 internal fun countryLabel(regionCode: String): String {
     val region = regionCode.uppercase()
     val callingCode = PhoneNumberUtil.getInstance().getCountryCodeForRegion(region)
-    val name = Locale("", region).displayCountry.ifBlank { region }
+    val name = countryDisplayName(region)
     return if (callingCode > 0) "+$callingCode $name" else name
 }
