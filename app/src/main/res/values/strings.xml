@@ -79,4 +79,6 @@
     <string name="chooser_no_sims" tools:ignore="MissingTranslation">No active SIM can place this call.</string>
     <!-- TODO: translate -->
     <string name="chooser_cancel" tools:ignore="MissingTranslation">Cancel call</string>
+    <!-- TODO: translate -->
+    <string name="chooser_sim_settings" tools:ignore="MissingTranslation">SIM settings</string>
 </resources>

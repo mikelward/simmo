@@ -32,6 +32,8 @@ import app.simmo.domain.ActiveSim
 import app.simmo.domain.CountryVerdict
 import app.simmo.domain.PhoneAccountRef
 import app.simmo.domain.SimRef
+import app.simmo.domain.SimResolution
+import app.simmo.domain.resolveSim
 
 /**
  * Everything the chooser renders, prepared up front from the warm in-memory
@@ -78,7 +80,12 @@ internal fun buildChooserUiState(
                 label = sim.displayName.ifBlank { sim.carrierName },
             )
         },
-        skippedSimNames = skippedInactiveSims.map { it.displayName.ifBlank { it.carrierName } },
+        // Re-resolved against the *current* SIMs, not the ones at verdict
+        // time: the user can jump to SIM settings from here, enable the SIM,
+        // and come back — its note must clear as its call button appears.
+        skippedSimNames = skippedInactiveSims
+            .filter { resolveSim(it, activeSims) !is SimResolution.Active }
+            .map { it.displayName.ifBlank { it.carrierName } },
     )
 }
 
@@ -92,6 +99,7 @@ internal fun buildChooserUiState(
 internal fun ChooserContent(
     state: ChooserUiState,
     onPlace: (target: ChooserTargetUi, rememberRule: Boolean) -> Unit,
+    onOpenSimSettings: () -> Unit,
     onCancel: () -> Unit,
 ) {
     var rememberRule by rememberSaveable { mutableStateOf(false) }
@@ -131,6 +139,21 @@ internal fun ChooserContent(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(top = 8.dp),
                     )
+                }
+                if (state.skippedSimNames.isNotEmpty()) {
+                    // Enabling a SIM needs the system Settings screen — apps
+                    // can't switch eSIM profiles themselves (SPEC "Enabling
+                    // SIMs is Settings' job"). The targets above update live
+                    // when the SIM comes back, so returning here shows its
+                    // call button and drops the note.
+                    OutlinedButton(
+                        onClick = onOpenSimSettings,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 8.dp),
+                    ) {
+                        Text(stringResource(R.string.chooser_sim_settings))
+                    }
                 }
                 Spacer(modifier = Modifier.height(16.dp))
                 state.targets.forEach { target ->

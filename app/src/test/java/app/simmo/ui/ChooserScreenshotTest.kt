@@ -46,6 +46,7 @@ class ChooserScreenshotTest {
                         skippedSimNames = listOf("Voda AU"),
                     ),
                     onPlace = { _, _ -> },
+                    onOpenSimSettings = {},
                     onCancel = {},
                 )
             }
@@ -56,6 +57,7 @@ class ChooserScreenshotTest {
         composeRule.onNodeWithText("+61 Australia").assertExists()
         composeRule.onNodeWithText("Call with Telstra AU").assertExists()
         composeRule.onNodeWithText("Your rule wanted Voda AU, but that SIM is disabled.").assertExists()
+        composeRule.onNodeWithText("SIM settings").assertExists()
         composeRule.onNodeWithText("Remember for Australia").assertExists()
         composeRule.onNodeWithText("Cancel call").assertExists()
         captureSnapshot("chooser.png")

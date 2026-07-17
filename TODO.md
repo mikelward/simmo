@@ -110,9 +110,12 @@ small stack), fully unit-tested, with `./gradlew test` and `./gradlew lint` gree
 
 ## Phase 4 — Disabled-SIM assist
 
-- [ ] Chooser "enable" mode for inactive-SIM rule hits; deep link to
-      `EuiccManager.ACTION_MANAGE_EMBEDDED_SUBSCRIPTIONS` with generic SIM-settings
-      fallback (verify the best deep link per Android version on device).
+- [x] Chooser "enable" jump for inactive-SIM rule hits: a "SIM settings" button under
+      the skipped-SIM note deep-links to `EuiccManager.ACTION_MANAGE_EMBEDDED_SUBSCRIPTIONS`
+      (generic wireless-settings fallback), and the chooser's targets/notes rebuild live
+      from the SIM flow so the re-enabled SIM's call button appears on return. Direct
+      in-app toggling is impossible without carrier privileges (SPEC "Enabling SIMs is
+      Settings' job"). Still to verify on device: the best deep link per Android version.
 - [ ] Subscription-change watcher + held-call notification ("Telstra is now active —
       place the call?"); `POST_NOTIFICATIONS` request.
 - [ ] MEP behavior pass on a dual-eSIM Pixel; document what profile-swap looks like from
