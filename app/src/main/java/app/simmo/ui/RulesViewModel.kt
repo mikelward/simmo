@@ -22,9 +22,11 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 
@@ -122,8 +124,12 @@ class RulesViewModel(application: Application) : AndroidViewModel(application) {
     fun moveRule(from: Int, to: Int) = edit { it.withRuleMoved(from, to) }
 
     private fun edit(transform: (app.simmo.domain.RuleBook) -> app.simmo.domain.RuleBook) {
-        val holder = app.stateHolder() ?: return
-        viewModelScope.launch { holder.updateRules(transform) }
+        // Wait for the holder rather than dropping the edit: on a fast cold
+        // start the rules screen can be interactive before SimmoApp finishes
+        // building the holder, and a lost add/edit/delete would look saved.
+        viewModelScope.launch {
+            app.stateHolders().filterNotNull().first().updateRules(transform)
+        }
     }
 }
 
