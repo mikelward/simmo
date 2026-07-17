@@ -50,6 +50,20 @@ class CountryDetectionTest {
     }
 
     @Test
+    fun `lower-case default region from telephony apis is normalized`() {
+        // TelephonyManager reports regions lower-case ("au"); rules and
+        // libphonenumber use upper-case ISO codes.
+        assertEquals(CountryVerdict.Country("AU"), detect("0412 345 678", defaultRegion = "au"))
+        assertEquals(CountryVerdict.Emergency, detect("000", defaultRegion = " au "))
+    }
+
+    @Test
+    fun `warm-up loads metadata for every region without breaking detection`() {
+        detector.warmUp()
+        assertEquals(CountryVerdict.Country("GB"), detect("+44 20 7946 0958"))
+    }
+
+    @Test
     fun `emergency numbers are flagged, never a country`() {
         assertEquals(CountryVerdict.Emergency, detect("000", defaultRegion = "AU"))
         assertEquals(CountryVerdict.Emergency, detect("911", defaultRegion = "US"))

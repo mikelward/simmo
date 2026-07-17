@@ -30,7 +30,7 @@ fun interface CountryDetector {
  * emergency, and the platform's own classification always wins.
  *
  * Construction touches no metadata; libphonenumber loads per-region tables on
- * first use, so the platform layer must warm this off the decision path
+ * first use, so the platform layer must run [warmUp] off the decision path
  * (AGENTS.md "Fast decision path").
  */
 class PhoneNumberCountryDetector(
@@ -38,22 +38,33 @@ class PhoneNumberCountryDetector(
     private val shortNumbers: ShortNumberInfo = ShortNumberInfo.getInstance(),
 ) : CountryDetector {
     override fun detect(dialedNumber: String, defaultRegion: String): CountryVerdict {
-        if (shortNumbers.isEmergencyNumber(dialedNumber, defaultRegion)) {
+        // Android telephony APIs report regions lower-case ("au"); libphonenumber
+        // expects upper-case ISO codes. Normalize at this boundary so no caller
+        // has to remember.
+        val region = defaultRegion.trim().uppercase()
+        if (shortNumbers.isEmergencyNumber(dialedNumber, region)) {
             return CountryVerdict.Emergency
         }
         val parsed = try {
-            util.parse(dialedNumber, defaultRegion)
+            util.parse(dialedNumber, region)
         } catch (_: NumberParseException) {
             return CountryVerdict.Undetermined
         }
         if (!util.isValidNumber(parsed)) return CountryVerdict.Undetermined
-        val region = util.getRegionCodeForNumber(parsed) ?: return CountryVerdict.Undetermined
-        return CountryVerdict.Country(region)
+        val numberRegion = util.getRegionCodeForNumber(parsed) ?: return CountryVerdict.Undetermined
+        return CountryVerdict.Country(numberRegion)
     }
 
-    /** Force-load the metadata for [defaultRegion] plus the NANP table; see class KDoc. */
-    fun warmUp(defaultRegion: String) {
-        detect("+12025550123", defaultRegion)
-        detect("0", defaultRegion)
+    /**
+     * Force-load the phone and short-number metadata for every supported region,
+     * so no [detect] call during a live decision loads parser tables — a call can
+     * be placed toward any country regardless of which rules exist. One-time cost
+     * of a few MB / well under a second; run it off the decision path at startup.
+     */
+    fun warmUp() {
+        for (region in util.supportedRegions) {
+            util.getExampleNumber(region)
+            shortNumbers.isEmergencyNumber("112", region)
+        }
     }
 }
