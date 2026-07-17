@@ -28,7 +28,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.viewmodel.compose.viewModel
 import app.simmo.ui.RulesScreen
 import app.simmo.ui.RulesViewModel
@@ -42,6 +46,10 @@ class MainActivity : ComponentActivity() {
                 var ready by remember {
                     mutableStateOf(isRedirectionRoleHeld() && isPhonePermissionGranted())
                 }
+                // Grants can change while we're backgrounded (revoked in
+                // Settings, or granted there mid-onboarding): re-check on
+                // every resume so the screen never shows a stale state.
+                OnResume { ready = isRedirectionRoleHeld() && isPhonePermissionGranted() }
                 if (ready) {
                     RulesScreen(viewModel<RulesViewModel>())
                 } else {
@@ -86,6 +94,11 @@ internal fun OnboardingScreen(
 ) {
     var roleHeld by remember { mutableStateOf(isRoleHeld()) }
     var phoneGranted by remember { mutableStateOf(isPhonePermissionGranted()) }
+    OnResume {
+        roleHeld = isRoleHeld()
+        phoneGranted = isPhonePermissionGranted()
+        if (roleHeld && phoneGranted) onAllGranted()
+    }
 
     val roleLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult(),
@@ -135,6 +148,19 @@ internal fun OnboardingScreen(
                 )
             }
         }
+    }
+}
+
+/** Runs [block] on every ON_RESUME of the current lifecycle. */
+@Composable
+private fun OnResume(block: () -> Unit) {
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) block()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 }
 
