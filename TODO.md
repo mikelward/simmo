@@ -234,14 +234,28 @@ Android Auto safeguards").
       the signed AAB.
 - [ ] Release-notes-from-commit-subjects pipeline (`whatsnew-en-US`, 500-char cap,
       non-user-facing prefixes skipped) — adopt from typelauncher's deploy job.
-- [ ] Play listing assets: store screenshots (device frames of rules list, chooser,
-      enable flow), feature graphic, short/full description.
-- [ ] Privacy policy (`PRIVACY.md`) — the no-INTERNET-permission commitment makes this
-      short. Host it and link from Play + an in-app About surface.
+- [x] Play listing text: app title + short/full description, kept as fastlane
+      metadata (`fastlane/metadata/android/en-US/`) so the future upload pipeline
+      can push listing updates.
+- [ ] Play listing graphics: store screenshots (device frames of rules list,
+      chooser, enable flow), 512×512 icon, feature graphic.
+- [x] Privacy policy (`docs/PRIVACY.md`) — short thanks to the no-INTERNET-permission
+      commitment; served by stock branch-based GitHub Pages (Jekyll) at
+      https://mikelward.github.io/simmo/PRIVACY.html once Pages is enabled.
+- [x] Enable GitHub Pages: Settings → Pages → Deploy from a branch → `main`,
+      `/docs` folder (done by the maintainer in the GitHub UI, 2026-07-17).
+- [ ] Link the privacy policy from the Play listing (App content → Privacy policy)
+      and an in-app About surface.
 - [ ] Translations pass per the two-PR rule in `AGENTS.md` once English copy settles.
 
 ## Deferred / open (see also SPEC "Open questions")
 
+- [ ] Decide on crash reporting (Crashlytics) and usage analytics — under
+      consideration per SPEC "Permissions and privacy". Would add the `INTERNET`
+      permission. Candidate signals: SIM name × destination country routing counts,
+      call completion/failure rates — never contact names/numbers or dialed
+      numbers. Shipping it requires updating `docs/PRIVACY.md` and the Play data
+      safety form in the same release.
 - [ ] Evaluate confirm-first system redirect UX vs. custom chooser for the simple case.
 - [ ] Carrier-name stability for re-binding (roaming/MVNO rebrand data needed).
 - [ ] Per-number overrides.
