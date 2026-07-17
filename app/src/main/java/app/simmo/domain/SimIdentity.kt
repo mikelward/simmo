@@ -163,8 +163,21 @@ fun List<RegisteredSim>.withRulePromptCleared(ref: SimRef): List<RegisteredSim> 
 
 /**
  * Deletes [ref]'s registry entry (the SIMs screen; SPEC "Disabled-SIM
- * assist"). Rules that still store the SIM keep working by name — they just
- * stay paused until a matching SIM appears again.
+ * assist"). An exact (real) subscription-ID match wins outright: with two
+ * same-named rows under different real IDs, deleting one must not take its
+ * sibling too (flagged by Codex on PR #19). The carrier + display-name
+ * fallback only applies when no row carries the ref's ID — e.g. after a
+ * restore invalidated it. Rules that still store the SIM keep working by
+ * name — they just stay paused until a matching SIM appears again.
  */
-fun List<RegisteredSim>.withoutSim(ref: SimRef): List<RegisteredSim> =
-    filterNot { it.matchesRef(ref) }
+fun List<RegisteredSim>.withoutSim(ref: SimRef): List<RegisteredSim> {
+    if (ref.subscriptionId != SimRef.INVALID_SUBSCRIPTION_ID &&
+        any { it.subscriptionId == ref.subscriptionId }
+    ) {
+        return filterNot { it.subscriptionId == ref.subscriptionId }
+    }
+    return filterNot {
+        it.carrierName.matchesIgnoringCaseAndSpace(ref.carrierName) &&
+            it.displayName.matchesIgnoringCaseAndSpace(ref.displayName)
+    }
+}

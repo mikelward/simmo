@@ -144,6 +144,16 @@ class SimRegistryRecordTest {
     }
 
     @Test
+    fun `deleting one of two same-named sims spares its sibling`() {
+        // Two rows sharing carrier + name under different real ids (e.g. a
+        // profile deleted and re-downloaded over the years): deleting one by
+        // its exact id must not name-match the other away too.
+        val older = RegisteredSim(5, "Telstra", "Telstra personal", 100L)
+        val newer = RegisteredSim(9, "Telstra", "Telstra personal", 900L)
+        assertEquals(listOf(newer), listOf(older, newer).withoutSim(older.ref()))
+    }
+
+    @Test
     fun `no active sims leaves the registry untouched`() {
         val registry = listOf(RegisteredSim(1, "Telstra", "Telstra personal", 100L))
         assertEquals(registry, registry.recordSeen(emptyList(), nowMillis = 900L))
