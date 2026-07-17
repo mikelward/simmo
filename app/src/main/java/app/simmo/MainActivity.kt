@@ -43,6 +43,11 @@ class MainActivity : ComponentActivity() {
                         getSystemService(RoleManager::class.java)
                             .createRequestRoleIntent(RoleManager.ROLE_CALL_REDIRECTION)
                     },
+                    onPhonePermissionGranted = {
+                        // The startup telephony read ran before the grant and
+                        // cached nothing; refresh so rules work immediately.
+                        (application as SimmoApp).refreshTelephony()
+                    },
                 )
             }
         }
@@ -65,6 +70,7 @@ internal fun OnboardingScreen(
     isRoleHeld: () -> Boolean,
     isPhonePermissionGranted: () -> Boolean,
     requestRoleIntent: () -> android.content.Intent,
+    onPhonePermissionGranted: () -> Unit,
 ) {
     var roleHeld by remember { mutableStateOf(isRoleHeld()) }
     var phoneGranted by remember { mutableStateOf(isPhonePermissionGranted()) }
@@ -74,7 +80,10 @@ internal fun OnboardingScreen(
     ) { roleHeld = isRoleHeld() }
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
-    ) { phoneGranted = it }
+    ) { granted ->
+        phoneGranted = granted
+        if (granted) onPhonePermissionGranted()
+    }
 
     Surface(modifier = Modifier.fillMaxSize()) {
         Column(

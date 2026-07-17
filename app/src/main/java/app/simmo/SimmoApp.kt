@@ -33,6 +33,15 @@ class SimmoApp : Application() {
     private val detector = PhoneNumberCountryDetector()
     private val stateHolderRef = AtomicReference<SimmoStateHolder?>(null)
 
+    /**
+     * Snapshot readiness includes warm parsing metadata: until [detector]'s
+     * warm-up completes, decisions would load parser tables on the live
+     * redirection path, so the coordinator sees no snapshot and calls proceed
+     * unmodified (fast and safe) instead.
+     */
+    @Volatile
+    private var metadataWarm = false
+
     lateinit var assembler: SnapshotAssembler
         private set
     lateinit var coordinator: RedirectionCoordinator
@@ -52,7 +61,7 @@ class SimmoApp : Application() {
         )
         coordinator = RedirectionCoordinator(
             engine = DecisionEngine(detector),
-            snapshotProvider = assembler::current,
+            snapshotProvider = { if (metadataWarm) assembler.current() else null },
             nowMillis = System::currentTimeMillis,
         )
 
@@ -63,23 +72,33 @@ class SimmoApp : Application() {
             stateHolderRef.set(SimmoStateHolder(simmoStateStore, appScope, installId))
             recordSims()
         }
-        appScope.launch { detector.warmUp() }
         appScope.launch {
-            assembler.refresh()
-            recordSims()
+            detector.warmUp()
+            metadataWarm = true
         }
+        refreshTelephony()
 
         getSystemService(SubscriptionManager::class.java).addOnSubscriptionsChangedListener(
             Dispatchers.Default.asExecutor(),
             object : SubscriptionManager.OnSubscriptionsChangedListener() {
                 override fun onSubscriptionsChanged() {
-                    appScope.launch {
-                        assembler.refresh()
-                        recordSims()
-                    }
+                    refreshTelephony()
                 }
             },
         )
+    }
+
+    /**
+     * Re-reads telephony state off the main thread. Also called by onboarding
+     * right after READ_PHONE_STATE is granted — the startup refresh on a fresh
+     * install runs before the grant and caches an empty SIM list, and no
+     * subscription-change event fires for a permission grant.
+     */
+    fun refreshTelephony() {
+        appScope.launch {
+            assembler.refresh()
+            recordSims()
+        }
     }
 
     private suspend fun recordSims() {
