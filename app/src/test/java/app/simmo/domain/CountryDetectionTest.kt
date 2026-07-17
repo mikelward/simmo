@@ -71,6 +71,13 @@ class CountryDetectionTest {
     }
 
     @Test
+    fun `global service numbers are undetermined, not a country`() {
+        // +800 international toll-free lives in libphonenumber's non-geographic
+        // "001" entity; only the fallback rule should match it.
+        assertEquals(CountryVerdict.Undetermined, detect("+800 1234 5678"))
+    }
+
+    @Test
     fun `ussd and short codes are undetermined`() {
         assertEquals(CountryVerdict.Undetermined, detect("*#06#"))
         assertEquals(CountryVerdict.Undetermined, detect("#100#"))
