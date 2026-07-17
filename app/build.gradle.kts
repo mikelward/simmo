@@ -12,9 +12,11 @@ android {
 
     defaultConfig {
         applicationId = "app.simmo"
-        // CallRedirectionService — the interception hook the whole product rests
-        // on (see SPEC.md) — exists since API 29.
-        minSdk = 29
+        // CallRedirectionService exists since API 29, but mapping a
+        // PhoneAccountHandle to its subscription without OEM-specific guesswork
+        // (TelephonyManager.getSubscriptionId(handle)) needs API 30 — and the
+        // primary target is current Pixels anyway (SPEC).
+        minSdk = 30
         targetSdk = 36
         versionCode = 1
         versionName = "0.1"
