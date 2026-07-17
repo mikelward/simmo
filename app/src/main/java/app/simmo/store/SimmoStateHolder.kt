@@ -8,6 +8,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 
 /**
  * Keeps the persisted state resident in memory for the decision path (AGENTS.md
@@ -19,7 +20,17 @@ import kotlinx.coroutines.flow.stateIn
 class SimmoStateHolder(
     private val store: DataStore<SimmoState>,
     scope: CoroutineScope,
+    /** The device's install marker; see [InstallMarker] and [withInstallValidated]. */
+    installId: String,
 ) {
+    init {
+        // Restore guard: state written by a different install gets its
+        // subscription IDs invalidated before anything routes with it.
+        scope.launch {
+            store.updateData { it.withInstallValidated(installId) }
+        }
+    }
+
     val state: StateFlow<SimmoState?> =
         store.data.stateIn(scope, SharingStarted.Eagerly, initialValue = null)
 
