@@ -195,6 +195,11 @@ UI is forbidden).
 - **No `INTERNET` permission.** Everything (parsing, rules, registry) is on-device;
   dialed numbers never leave the phone. This is a hard product commitment: the app
   works fully offline and is auditable as such from its manifest.
+- **Backups are on** (maintainer decision): rules, the SIM registry, and settings are
+  included in Android backups and device-to-device transfers via explicit extraction
+  rules scoped to exactly Simmo's own state files, so a phone upgrade keeps the rule
+  set. The privacy line above is unaffected — dialed numbers are never persisted at
+  all, so no call data can ever reach a backup.
 
 ## Architecture
 
@@ -210,7 +215,7 @@ sibling Type Launcher project:
   kept too small to hide logic.
 - **UI layer**: onboarding (role + permissions + default region), rules list + editor,
   SIM registry, and the chooser activity. State via ViewModel + StateFlow; persistence
-  via DataStore (Proto). Screenshot tests (Robolectric + Roborazzi) cover each screen
+  via DataStore. Screenshot tests (Robolectric + Roborazzi) cover each screen
   state, per the CI conventions in `AGENTS.md`.
 
 Snapshot lifecycle: rules and registry load from DataStore into memory at process start
