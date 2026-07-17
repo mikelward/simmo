@@ -128,6 +128,22 @@ class SimRegistryRecordTest {
     }
 
     @Test
+    fun `deleting removes exactly the referenced sim`() {
+        val telstra = RegisteredSim(1, "Telstra", "Telstra personal", 100L)
+        val vodafone = RegisteredSim(7, "Vodafone", "Voda AU", 100L)
+        assertEquals(listOf(telstra), listOf(telstra, vodafone).withoutSim(vodafone.ref()))
+    }
+
+    @Test
+    fun `deleting re-binds by name when the id is stale`() {
+        // Same identity ladder as resolveSim: a sentinel-id ref (post-restore)
+        // still deletes the row it names.
+        val restored = RegisteredSim(3, "Vodafone", "Voda AU", 100L)
+        val staleRef = SimRef(SimRef.INVALID_SUBSCRIPTION_ID, "vodafone", " Voda AU ")
+        assertEquals(emptyList<RegisteredSim>(), listOf(restored).withoutSim(staleRef))
+    }
+
+    @Test
     fun `no active sims leaves the registry untouched`() {
         val registry = listOf(RegisteredSim(1, "Telstra", "Telstra personal", 100L))
         assertEquals(registry, registry.recordSeen(emptyList(), nowMillis = 900L))

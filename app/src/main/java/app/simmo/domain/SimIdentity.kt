@@ -144,17 +144,27 @@ fun List<RegisteredSim>.recordSeen(active: List<ActiveSim>, nowMillis: Long): Li
 }
 
 /**
- * Marks the prompt for [ref]'s SIM answered (rule added or dismissed): exact
- * subscription-ID match first, else the carrier + display-name identity — the
- * same ladder as [resolveSim].
+ * Whether this registry entry is the SIM [ref] points at: exact (real)
+ * subscription-ID match first, else the carrier + display-name identity —
+ * the same ladder as [resolveSim].
  */
+private fun RegisteredSim.matchesRef(ref: SimRef): Boolean =
+    if (ref.subscriptionId != SimRef.INVALID_SUBSCRIPTION_ID && subscriptionId == ref.subscriptionId) {
+        true
+    } else {
+        carrierName.matchesIgnoringCaseAndSpace(ref.carrierName) &&
+            displayName.matchesIgnoringCaseAndSpace(ref.displayName)
+    }
+
+/** Marks the prompt for [ref]'s SIM answered (rule added or dismissed). */
 fun List<RegisteredSim>.withRulePromptCleared(ref: SimRef): List<RegisteredSim> = map { entry ->
-    val matches =
-        if (ref.subscriptionId != SimRef.INVALID_SUBSCRIPTION_ID && entry.subscriptionId == ref.subscriptionId) {
-            true
-        } else {
-            entry.carrierName.matchesIgnoringCaseAndSpace(ref.carrierName) &&
-                entry.displayName.matchesIgnoringCaseAndSpace(ref.displayName)
-        }
-    if (matches && entry.needsRulePrompt) entry.copy(needsRulePrompt = false) else entry
+    if (entry.matchesRef(ref) && entry.needsRulePrompt) entry.copy(needsRulePrompt = false) else entry
 }
+
+/**
+ * Deletes [ref]'s registry entry (the SIMs screen; SPEC "Disabled-SIM
+ * assist"). Rules that still store the SIM keep working by name — they just
+ * stay paused until a matching SIM appears again.
+ */
+fun List<RegisteredSim>.withoutSim(ref: SimRef): List<RegisteredSim> =
+    filterNot { it.matchesRef(ref) }

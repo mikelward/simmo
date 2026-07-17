@@ -172,6 +172,9 @@ jobs:
       - name: Run chooser screenshot tests
         run: ./gradlew :app:testDebugUnitTest --tests "app.simmo.ui.ChooserScreenshotTest" -Proborazzi.test.record=true
 
+      - name: Run SIM registry screenshot tests
+        run: ./gradlew :app:testDebugUnitTest --tests "app.simmo.ui.SimRegistryScreenshotTest" -Proborazzi.test.record=true
+
       - name: Print failing test details
         if: failure()
         run: |

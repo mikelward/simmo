@@ -6,6 +6,7 @@ import app.simmo.domain.RuleBook
 import app.simmo.domain.SimRef
 import app.simmo.domain.recordSeen
 import app.simmo.domain.withRulePromptCleared
+import app.simmo.domain.withoutSim
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -73,6 +74,14 @@ class SimmoStateHolder(
         store.updateData {
             val valid = it.withInstallValidated(installId)
             valid.copy(simRegistry = valid.simRegistry.withRulePromptCleared(ref))
+        }
+    }
+
+    /** Deletes [ref] from the registry (the SIMs screen). */
+    suspend fun deleteRegisteredSim(ref: SimRef) {
+        store.updateData {
+            val valid = it.withInstallValidated(installId)
+            valid.copy(simRegistry = valid.simRegistry.withoutSim(ref))
         }
     }
 }

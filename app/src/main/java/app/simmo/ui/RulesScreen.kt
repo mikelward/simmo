@@ -17,10 +17,12 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -66,6 +68,7 @@ fun RulesScreen(
         onMoveRule = viewModel::moveRule,
         onAddRuleForSim = viewModel::openNewRuleForSim,
         onDismissNewSimPrompt = viewModel::dismissNewSimPrompt,
+        onOpenSimRegistry = viewModel::openSimRegistry,
     )
 }
 
@@ -78,6 +81,7 @@ internal fun RulesScreenContent(
     onMoveRule: (Int, Int) -> Unit = { _, _ -> },
     onAddRuleForSim: (NewSimPromptUi) -> Unit = {},
     onDismissNewSimPrompt: (SimRef) -> Unit = {},
+    onOpenSimRegistry: () -> Unit = {},
 ) {
     val listState = rememberLazyListState()
     val currentRows by rememberUpdatedState(rows)
@@ -110,11 +114,24 @@ internal fun RulesScreenContent(
                     .safeDrawingPadding()
                     .padding(16.dp),
             ) {
-                Text(
-                    text = stringResource(R.string.rules_title),
-                    style = MaterialTheme.typography.headlineMedium,
-                    modifier = Modifier.padding(bottom = 16.dp),
-                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = stringResource(R.string.rules_title),
+                        style = MaterialTheme.typography.headlineMedium,
+                        modifier = Modifier.weight(1f),
+                    )
+                    IconButton(onClick = onOpenSimRegistry) {
+                        Icon(
+                            imageVector = Icons.Filled.Settings,
+                            contentDescription = stringResource(R.string.sim_registry_open),
+                        )
+                    }
+                }
                 Text(
                     text = stringResource(R.string.rules_explainer),
                     style = MaterialTheme.typography.bodyMedium,

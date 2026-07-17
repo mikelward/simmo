@@ -128,7 +128,15 @@ small stack), fully unit-tested, with `./gradlew test` and `./gradlew lint` gree
       service's startActivity on some Android versions (fallback would be a
       full-screen-intent notification), and the double call-UI flash from
       cancel-then-re-place needs measuring (SPEC open question).
-- [ ] SIM registry screen (rename, delete, last-seen).
+- [x] SIM registry screen: every registered SIM with active/last-seen state,
+      reached from the rules list; stale entries can be deleted (active ones
+      can't — the next telephony refresh would just re-register them).
+- [ ] Rename SIMs on the registry screen (maintainer: deferred). Must be a
+      *nickname* layered over the stored identity, never an edit of
+      displayName — carrier + display name is the re-binding ladder (SPEC "SIM
+      identity"), so a rename that touched it would break rule re-binding. The
+      nickname then needs surfacing everywhere SIMs are named: rules list
+      action labels, editor SIM options, chooser targets, new-SIM prompt.
 - [x] Screenshot tests (Robolectric + Roborazzi) wired into CI with the explicit
       `--tests` allow-list pattern from Type Launcher (rules list + onboarding landed;
       each new screen adds its class and CI step).
@@ -142,7 +150,9 @@ small stack), fully unit-tested, with `./gradlew test` and `./gradlew lint` gree
       in-app toggling is impossible without carrier privileges (SPEC "Enabling SIMs is
       Settings' job"). Still to verify on device: the best deep link per Android version.
 - [ ] Subscription-change watcher + held-call notification ("Telstra is now active —
-      place the call?"); `POST_NOTIFICATIONS` request.
+      place the call?"); `POST_NOTIFICATIONS` request. Once that plumbing exists,
+      consider a "new SIM seen — add rules?" notification too (today the nudge is
+      only the in-app card, so it waits until the user next opens Simmo).
 - [ ] MEP behavior pass on a dual-eSIM Pixel; document what profile-swap looks like from
       Simmo's point of view in `docs/qa-matrix.md`.
 
