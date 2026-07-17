@@ -28,6 +28,10 @@ small stack), fully unit-tested, with `./gradlew test` and `./gradlew lint` gree
       consumption.
 - [ ] DataStore (Proto) persistence for rules + SIM registry; snapshot holder that loads
       off the main thread and stays subscribed.
+- [ ] Decide backup policy before persistence lands (flagged by Codex on PR #1): whether
+      rules + SIM registry join Android backups/device transfers (convenient on a new
+      phone) or are excluded via `dataExtractionRules` / `allowBackup=false` (stricter
+      reading of SPEC's on-device privacy posture). Record the decision in SPEC.
 
 ## Phase 2 — Telecom integration
 
