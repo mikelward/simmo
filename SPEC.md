@@ -225,6 +225,17 @@ On devices with Multiple Enabled Profiles (recent Pixels), enabling one profile 
 require disabling another; where the platform does swap profiles, that trade is made by
 the user inside system Settings, never by Simmo.
 
+### Quick Settings tile
+
+A "Manage SIMs" tile in Quick Settings jumps straight into Simmo's SIMs screen, which
+in turn offers the same one-tap jump to the system SIM settings as the chooser. The
+tile is a shortcut, not a toggle: enabling/disabling a SIM and changing the default
+voice or data SIM all require carrier privileges or `MODIFY_PHONE_STATE`, which a
+regular app cannot hold on any current Android version — so the fastest honest path
+is tile → Simmo's SIM registry → system SIM settings. The tile is stateless and always
+renders active. A tap before onboarding is complete lands on onboarding, and the SIMs
+screen opens as soon as the grants are in place.
+
 ### Hands-free and Android Auto safeguards
 
 A stated goal of the project: **no accidental international calls from hands-free
@@ -467,9 +478,6 @@ redirection service only ever reads the snapshot.
   open part.)
 - Whether to offer per-rule "and remember for this number" overrides when a user
   diverges from a country rule for one number repeatedly.
-- Quick Settings tile shape: a shortcut into Simmo's rules, a quick "switch data /
-  calling SIM" toggle (which for a non-privileged app can at best deep-link into the
-  system SIM screens), or both as separate tiles.
 - Whether the trailing "no change" default should split into two distinct entries —
   explicitly routing to the default calling app vs. the default voice SIM — rather
   than one non-intervention rule.

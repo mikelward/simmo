@@ -103,6 +103,20 @@
             android:excludeFromRecents="true"
             android:exported="false" />
 
+        <!-- The Quick Settings tile: a shortcut into the SIMs screen (apps
+             cannot toggle SIMs themselves, so a fast path to the management
+             screens is the whole job). -->
+        <service
+            android:name=".tile.ManageSimsTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_qs_sim"
+            android:label="@string/sim_registry_title"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+
         <!-- The interception hook: the platform binds here for every outgoing
              carrier call while Simmo holds ROLE_CALL_REDIRECTION. -->
         <service

@@ -67,6 +67,9 @@ class SimRegistryScreenshotTest {
         composeRule.onNodeWithText("Active").assertExists()
         composeRule.onNodeWithText("+61 412 345 678 · Australia").assertExists()
         composeRule.onNodeWithText("Last seen Mar 2, 2026").assertExists()
+        // The jump to system settings (the Quick Settings tile's landing
+        // screen leans on it: enabling SIMs is Settings' job).
+        composeRule.onNodeWithText("SIM settings").assertExists()
         captureSnapshot("sim_registry.png")
     }
 

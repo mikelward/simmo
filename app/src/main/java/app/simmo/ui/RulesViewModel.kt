@@ -251,6 +251,17 @@ class RulesViewModel(
 
     fun openSimRegistry() = setRegistryOpen(true)
 
+    /**
+     * The Quick Settings tile's landing: a deliberate navigation, so any open
+     * editor is closed too (abandoning its draft, exactly like Cancel) —
+     * otherwise the editor would keep covering the registry and the tile tap
+     * would appear to do nothing.
+     */
+    fun openSimRegistryFromShortcut() {
+        setEditorTarget(null)
+        setRegistryOpen(true)
+    }
+
     fun closeSimRegistry() = setRegistryOpen(false)
 
     private fun setRegistryOpen(open: Boolean) {
