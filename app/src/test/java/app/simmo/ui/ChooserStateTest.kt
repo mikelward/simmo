@@ -61,4 +61,26 @@ class ChooserStateTest {
         )
         assertEquals(listOf("Voda AU", "Optus"), state.skippedSimNames)
     }
+
+    @Test
+    fun `a skipped sim that was re-enabled drops off the note`() {
+        // The user jumped to SIM settings from the chooser and enabled the
+        // SIM: rebuilt against the refreshed SIM list, the note clears (the
+        // SIM now has its own call button in targets).
+        val vodafone = ActiveSim(7, "Vodafone", "Voda AU", PhoneAccountRef("a7"), "au")
+        val state = buildChooserUiState(
+            dialedNumber = "+61412345678",
+            country = CountryVerdict.Country("AU"),
+            activeSims = listOf(tmobile, vodafone),
+            skippedInactiveSims = listOf(SimRef(7, "Vodafone", "Voda AU")),
+        )
+        assertEquals(emptyList<String>(), state.skippedSimNames)
+        assertEquals(
+            listOf(
+                ChooserTargetUi(SimRef(2, "T-Mobile", ""), PhoneAccountRef("a2"), "T-Mobile"),
+                ChooserTargetUi(SimRef(7, "Vodafone", "Voda AU"), PhoneAccountRef("a7"), "Voda AU"),
+            ),
+            state.targets,
+        )
+    }
 }

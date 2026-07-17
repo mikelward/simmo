@@ -1,12 +1,15 @@
 package app.simmo.ui
 
 import android.Manifest
+import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
+import android.provider.Settings
 import android.telecom.TelecomManager
+import android.telephony.euicc.EuiccManager
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -19,6 +22,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.simmo.SimmoApp
 import app.simmo.domain.PassToken
 import app.simmo.domain.Rule
@@ -51,14 +55,23 @@ class ChooserActivity : ComponentActivity() {
             return
         }
         val dialedNumber = handle.schemeSpecificPart.orEmpty()
-        val state = buildChooserUiState(
-            dialedNumber = dialedNumber,
-            country = app.detectCountry(dialedNumber),
-            activeSims = app.assembler.activeSims(),
-            skippedInactiveSims = decodeSkippedSims(intent.getStringExtra(EXTRA_SKIPPED_SIMS)),
-        )
+        val country = app.detectCountry(dialedNumber)
+        val skippedSims = decodeSkippedSims(intent.getStringExtra(EXTRA_SKIPPED_SIMS))
         setContent {
             MaterialTheme {
+                // Rebuilt from the live SIM flow (its current value is warm,
+                // so the first frame is still instant): when the user jumps
+                // to SIM settings, enables the disabled SIM, and comes back,
+                // the SIM's call button appears and its note clears.
+                val sims by app.assembler.simsAndAccounts().collectAsStateWithLifecycle()
+                val state = remember(sims) {
+                    buildChooserUiState(
+                        dialedNumber = dialedNumber,
+                        country = country,
+                        activeSims = sims.activeSims,
+                        skippedInactiveSims = skippedSims,
+                    )
+                }
                 // A tap made before CALL_PHONE is granted parks the choice,
                 // asks, and completes it on grant (SPEC: CALL_PHONE is
                 // requested on first use). Plain remember: if the process
@@ -86,6 +99,7 @@ class ChooserActivity : ComponentActivity() {
                             permissionLauncher.launch(Manifest.permission.CALL_PHONE)
                         }
                     },
+                    onOpenSimSettings = ::openSimSettings,
                     // The carrier call was canceled before this screen opened;
                     // canceling here just abandons the call, per SPEC.
                     onCancel = { finish() },
@@ -99,6 +113,30 @@ class ChooserActivity : ComponentActivity() {
     private fun hasCallPermission(): Boolean =
         ContextCompat.checkSelfPermission(this, Manifest.permission.CALL_PHONE) ==
             PackageManager.PERMISSION_GRANTED
+
+    /**
+     * The enable assist's jump (SPEC "Disabled-SIM assist"): apps cannot
+     * switch eSIM profiles themselves (carrier privileges), so the best we
+     * can do is land the user on the system's embedded-SIM management
+     * screen, falling back to the generic network settings where no eUICC
+     * screen exists. Which deep link is best per Android version is on the
+     * device-QA list (TODO.md Phase 4).
+     */
+    private fun openSimSettings() {
+        val candidates = listOf(
+            Intent(EuiccManager.ACTION_MANAGE_EMBEDDED_SUBSCRIPTIONS),
+            Intent(Settings.ACTION_WIRELESS_SETTINGS),
+        )
+        for (candidate in candidates) {
+            try {
+                startActivity(candidate)
+                return
+            } catch (_: ActivityNotFoundException) {
+                // Try the next, more generic screen.
+            }
+        }
+        Log.e(TAG, "No SIM settings screen available on this device")
+    }
 
     private fun placeCall(
         handle: Uri,
