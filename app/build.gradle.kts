@@ -36,9 +36,24 @@ android {
         compose = true
     }
 
+    testOptions {
+        unitTests {
+            isIncludeAndroidResources = true
+        }
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+    }
+}
+
+tasks.withType<Test>().configureEach {
+    if (project.hasProperty("roborazzi.test.record")) {
+        jvmArgs("-Droborazzi.test.record=true")
+    }
+    if (project.hasProperty("roborazzi.test.verify")) {
+        jvmArgs("-Droborazzi.test.verify=true")
     }
 }
 
@@ -62,6 +77,11 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.libphonenumber)
     debugImplementation(libs.androidx.compose.ui.tooling)
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.androidx.compose.ui.test.junit4)
+    testImplementation(libs.androidx.test.core)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.roborazzi)
 }
