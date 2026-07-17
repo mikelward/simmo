@@ -1,0 +1,112 @@
+name: Android CI
+
+# Trimmed-down adaptation of Type Launcher's android-ci.yml: build + unit
+# tests + lint only. The screenshot job arrives with the first screenshot
+# test (TODO.md Phase 3) and the deploy job with the release plumbing
+# (Phase 8).
+
+on:
+  pull_request:
+    # Skip CI when every changed path is housekeeping with no effect on the
+    # app build: markdown docs, or root dotfiles/dotdirs — with
+    # `.github/workflows/**` re-included so workflow edits validate
+    # themselves. `paths` is an allow-list: patterns apply in order, last
+    # match wins per file; a push runs when at least one changed file
+    # survives as included.
+    paths:
+      - '**'
+      - '!**/*.md'
+      - '!.*'
+      - '!.*/**'
+      - '.github/workflows/**'
+  push:
+    branches:
+      - main
+    paths:
+      - '**'
+      - '!**/*.md'
+      - '!.*'
+      - '!.*/**'
+      - '.github/workflows/**'
+
+jobs:
+  build:
+    name: Build and unit test
+    runs-on: ubuntu-latest
+    # Fail fast if a test deadlocks instead of burning the 6-hour default.
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      # Used by "Print failing test details" to post a comment on the
+      # originating PR when `./gradlew test` fails.
+      pull-requests: write
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd  # v5.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654  # v5.2.0
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@4c125117fe7c5aed11272ec4213f602f012f89f2  # v5
+        with:
+          # A malicious PR commit can poison its own branch's cache; lock PRs
+          # to read-only so only main pushes write the shared cache.
+          cache-read-only: ${{ github.event_name == 'pull_request' }}
+
+      - name: Build debug APK
+        run: ./gradlew assembleDebug
+
+      - name: Run unit tests
+        run: ./gradlew test
+
+      - name: Print failing test details
+        # When `gradlew test` fails the JUnit XML still contains the failure
+        # messages and stack traces. Dump them to the job log AND, on a PR
+        # build, post them as a PR comment so the same data is reachable
+        # without opening the job log or unzipping the artifact.
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          JOB_NAME: ${{ github.job }}
+        run: |
+          shopt -s nullglob globstar
+          summary=""
+          for xml in app/build/test-results/**/TEST-*.xml; do
+            if grep -q "<\(failure\|error\)" "$xml"; then
+              echo "::group::$xml"
+              cat "$xml"
+              echo "::endgroup::"
+              summary+=$'\n\n'"### \`$xml\`"$'\n```xml\n'"$(cat "$xml")"$'\n```'
+            fi
+          done
+          if [ -n "$PR_NUMBER" ] && [ -n "$summary" ]; then
+            body=$'<!-- ci-failure -->'$'\n'"**${JOB_NAME} failed.** Failing test reports:"$'\n'"$summary"
+            curl -sS -X POST \
+              -H "Authorization: token $GH_TOKEN" \
+              -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" \
+              -d "$(jq -n --arg body "$body" '{body:$body}')" > /dev/null
+          fi
+
+      - name: Upload unit test reports
+        # Always upload so a failed run leaves the JUnit XMLs and HTML
+        # reports for inspection.
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        with:
+          name: unit-test-reports
+          path: |
+            app/build/reports/tests/
+            app/build/test-results/
+          if-no-files-found: ignore
+          retention-days: 1
+
+      - name: Run lint
+        run: ./gradlew lint
