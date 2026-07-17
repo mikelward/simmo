@@ -138,12 +138,14 @@ to be the dialer, and only one app on the device can hold it at a time.
 
 Key platform constraints the design honors:
 
-- **The decision deadline.** The platform gives a redirection service ~5 seconds before
-  it drops the redirection (and the call proceeds). Simmo's decision path therefore
-  reads only from an in-memory snapshot (rules, SIM registry, phone accounts) that is
-  kept warm off the main thread; the service never does I/O, parsing table loads, or
-  IPC on the decision path. Missing snapshot data degrades to "proceed unmodified,"
-  never to a blocked call.
+- **The decision deadline.** The platform requires a response within ~5 seconds — and
+  a missed deadline means **Telecom cancels the call**, not "the call proceeds without
+  us." A timeout is a dropped call, so Simmo never relies on it: every path — rule
+  hit, no match, missing or half-loaded snapshot, cold start, internal error — ends in
+  an explicit answer (worst case "proceed unmodified") delivered well inside the
+  deadline. The decision path therefore reads only from an in-memory snapshot (rules,
+  SIM registry, phone accounts) kept warm off the main thread; the service never does
+  I/O, parsing table loads, or IPC on the decision path.
 - **Redirect-loop guard.** The Ask and hand-off flows cancel a call and later re-place
   it, which routes the new call back through Simmo. Re-placed calls carry a short-lived
   in-memory pass token (number + chosen account + expiry); a call matching a live token

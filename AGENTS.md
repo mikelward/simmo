@@ -31,7 +31,9 @@ UI**:
   touched**. New behavior is covered by a unit test; when fixing a bug, add a test that
   fails before the fix and passes after.
 - **Fast decision path**: the platform gives the call-redirection service a hard ~5 s
-  deadline, after which the call proceeds without us. The service must answer from the
+  deadline, and a missed deadline means **Telecom cancels the call** — a timeout drops
+  the user's call. So the service must always respond explicitly (worst case "proceed
+  unmodified") on every path including cold start and errors, and must answer from the
   in-memory snapshot only — no disk, no `PackageManager`/telephony IPC, no parser table
   loads on the decision path, and nothing on the main thread. Any change touching the
   service or snapshot must state (in the PR) what the decision path now reads and why
