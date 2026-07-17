@@ -120,7 +120,7 @@
     <!-- TODO: translate -->
     <string name="chooser_cancel" tools:ignore="MissingTranslation">Cancel call</string>
     <!-- TODO: translate -->
-    <string name="chooser_sim_settings" tools:ignore="MissingTranslation">SIM settings</string>
+    <string name="sim_settings" tools:ignore="MissingTranslation">SIM settings</string>
     <!-- TODO: translate -->
     <string name="group_eu_eea" tools:ignore="MissingTranslation">EU/EEA</string>
     <!-- TODO: translate -->

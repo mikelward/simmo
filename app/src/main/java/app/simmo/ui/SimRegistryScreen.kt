@@ -20,6 +20,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -68,6 +69,7 @@ data class RegistrySimRowUi(
 fun SimRegistryScreen(
     viewModel: RulesViewModel,
     onBack: () -> Unit,
+    onOpenSimSettings: () -> Unit,
 ) {
     val rows by viewModel.registryRows.collectAsStateWithLifecycle()
     // The rows' own-number line needs READ_PHONE_NUMBERS (split from
@@ -94,6 +96,7 @@ fun SimRegistryScreen(
         rows = rows,
         onDelete = viewModel::deleteRegisteredSim,
         onBack = onBack,
+        onOpenSimSettings = onOpenSimSettings,
     )
 }
 
@@ -102,6 +105,7 @@ internal fun SimRegistryContent(
     rows: List<RegistrySimRowUi>,
     onDelete: (SimRef) -> Unit = {},
     onBack: () -> Unit = {},
+    onOpenSimSettings: () -> Unit = {},
 ) {
     BackHandler(onBack = onBack)
     // The row awaiting delete confirmation; saveable so a rotation mid-confirm
@@ -126,6 +130,17 @@ internal fun SimRegistryContent(
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.padding(bottom = 16.dp),
             )
+            // Enabling or disabling a SIM is Settings' job (apps can't switch
+            // profiles themselves) — same jump the chooser offers, styled the
+            // same way.
+            OutlinedButton(
+                onClick = onOpenSimSettings,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp),
+            ) {
+                Text(stringResource(R.string.sim_settings))
+            }
             LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 // Deliberately no item keys: after a restore invalidates every
                 // subscription ID, same-named rows differing only in last-seen

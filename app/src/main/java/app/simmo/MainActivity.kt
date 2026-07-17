@@ -2,6 +2,7 @@ package app.simmo
 
 import android.Manifest
 import android.app.role.RoleManager
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -53,11 +54,25 @@ import app.simmo.ui.RulesScreen
 import app.simmo.ui.RulesViewModel
 import app.simmo.ui.SettingsScreen
 import app.simmo.ui.SimRegistryScreen
+import app.simmo.ui.openSimSettings
 
 class MainActivity : ComponentActivity() {
+
+    /**
+     * Set when the Quick Settings tile asked for the SIMs screen; consumed by
+     * composition once the app is past onboarding. Only a fresh launch reads
+     * the creation intent — on recreation the intent is redelivered but the
+     * user may have navigated elsewhere since, so the pending flag itself is
+     * carried in the saved state instead: a tile tap that lands on onboarding
+     * must survive rotation or process death there, where the ViewModel that
+     * would hold the route doesn't exist yet (Codex on PR #22).
+     */
+    private var manageSimsRequested by mutableStateOf(false)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        manageSimsRequested = pendingManageSimsRequest(savedInstanceState, intent?.action)
         setContent {
             MaterialTheme {
                 var phoneGranted by remember { mutableStateOf(isPhonePermissionGranted()) }
@@ -117,6 +132,30 @@ class MainActivity : ComponentActivity() {
                     val registryOpen by vm.registryOpen.collectAsStateWithLifecycle()
                     val groupsOpen by vm.groupsOpen.collectAsStateWithLifecycle()
                     val settingsOpen by vm.settingsOpen.collectAsStateWithLifecycle()
+                    // Same deal as the chooser's SIM-settings jump: it's the
+                    // moment the held-call offer becomes relevant — this
+                    // registry can sit directly above a chooser holding a
+                    // parked call (Codex on PR #22) — so POST_NOTIFICATIONS
+                    // is asked for here too; settings open either way.
+                    val notificationsLauncher = rememberLauncherForActivityResult(
+                        ActivityResultContracts.RequestPermission(),
+                    ) { openSimSettings() }
+                    val openSimSettingsAskingNotifications = {
+                        if (isNotificationsGranted()) {
+                            openSimSettings()
+                        } else {
+                            notificationsLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                        }
+                    }
+                    // The tile's request waits here until onboarding is done:
+                    // a tap before the grants exist still lands on the SIMs
+                    // screen once they're in place.
+                    LaunchedEffect(manageSimsRequested) {
+                        if (manageSimsRequested) {
+                            manageSimsRequested = false
+                            vm.openSimRegistryFromShortcut()
+                        }
+                    }
                     val editing = target
                     when {
                         // The editor wins: it can only be open from the rules
@@ -131,10 +170,22 @@ class MainActivity : ComponentActivity() {
                         }
 
                         // Above Settings: the SIMs screen is opened from it,
-                        // so closing lands back on Settings.
+                        // so closing lands back on Settings. Except in an
+                        // instance the tile itself created — that one exists
+                        // only for the SIMs screen, so Back dismisses the
+                        // whole activity, revealing what was beneath it (in
+                        // the worst case the mid-call Ask chooser, which must
+                        // not hide behind a screen the user never visited —
+                        // Codex on PR #22). An instance that merely received
+                        // the tile action via onNewIntent keeps in-app Back.
                         registryOpen -> SimRegistryScreen(
                             viewModel = vm,
-                            onBack = vm::closeSimRegistry,
+                            onBack = if (intent?.action == ACTION_MANAGE_SIMS) {
+                                ::finish
+                            } else {
+                                vm::closeSimRegistry
+                            },
+                            onOpenSimSettings = openSimSettingsAskingNotifications,
                         )
 
                         groupsOpen -> GroupsScreen(
@@ -210,6 +261,20 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        // The tile tapped while this activity is foreground: SINGLE_TOP
+        // routes the relaunch here instead of stacking a second instance.
+        if (intent.action == ACTION_MANAGE_SIMS) {
+            manageSimsRequested = true
+        }
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putBoolean(STATE_MANAGE_SIMS_REQUESTED, manageSimsRequested)
+    }
+
     private fun isRedirectionRoleHeld(): Boolean =
         getSystemService(RoleManager::class.java).isRoleHeld(RoleManager.ROLE_CALL_REDIRECTION)
 
@@ -229,6 +294,22 @@ class MainActivity : ComponentActivity() {
     private fun isCallPermissionGranted(): Boolean =
         ContextCompat.checkSelfPermission(this, Manifest.permission.CALL_PHONE) ==
             PackageManager.PERMISSION_GRANTED
+
+    companion object {
+        /** Sent by the Quick Settings tile: open straight onto the SIMs screen. */
+        const val ACTION_MANAGE_SIMS = "app.simmo.action.MANAGE_SIMS"
+
+        private const val STATE_MANAGE_SIMS_REQUESTED = "manage_sims_requested"
+
+        /**
+         * Whether a tile request is pending at creation. A fresh launch reads
+         * the intent; a recreation reads the saved flag only — the redelivered
+         * intent must not resurrect a request that was already consumed.
+         */
+        internal fun pendingManageSimsRequest(saved: Bundle?, intentAction: String?): Boolean =
+            saved?.getBoolean(STATE_MANAGE_SIMS_REQUESTED, false)
+                ?: (intentAction == ACTION_MANAGE_SIMS)
+    }
 }
 
 /**

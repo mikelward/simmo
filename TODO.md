@@ -327,11 +327,13 @@ Android Auto safeguards").
 
 ## Phase 7 — Quick Settings tile
 
-- [ ] `TileService` tile(s); decide shape per SPEC open question: shortcut to Simmo's
-      rules, quick switch of data / calling SIM (for a non-privileged app: deep link
-      into the system SIM screens; check what `TelephonyManager` /
-      `SubscriptionManager` allow for default-voice/data selection per Android
-      version), or both as separate tiles.
+- [x] `TileService` tile; shape decided (SPEC "Quick Settings tile"): a shortcut into
+      Simmo's SIMs screen, which links on to the system SIM settings. A switch-SIM
+      toggle is out: default-voice/data selection (`SubscriptionManager`
+      `setDefaultDataSubId` and friends) needs `MODIFY_PHONE_STATE` on every current
+      Android version.
+- [ ] Device QA: tile tap from a locked device (activity should wait for unlock), and
+      tile tap while the rule editor is open (editor closes, registry shows).
 
 ## Phase 8 — Release plumbing
 
