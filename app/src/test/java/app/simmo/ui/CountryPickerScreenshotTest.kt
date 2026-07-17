@@ -7,10 +7,6 @@ import androidx.activity.ComponentActivity
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
-import app.simmo.domain.Rule as SimmoRule
-import app.simmo.domain.RuleAction
-import app.simmo.domain.RuleMatcher
-import app.simmo.domain.SimRef
 import com.github.takahirom.roborazzi.captureRoboImage
 import org.junit.Rule
 import org.junit.Test
@@ -19,47 +15,44 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
-/** Renders the rule editor for an existing "AU → Telstra" rule. */
+/** Renders the country picker mid-search, filtered to a query. */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [36], qualifiers = "w411dp-h914dp-420dpi")
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-class RuleEditorScreenshotTest {
+class CountryPickerScreenshotTest {
     @get:Rule
     val composeRule = createAndroidComposeRule<ComponentActivity>()
 
+    private fun option(region: String, name: String, code: Int) =
+        CountryOptionUi(region, "+$code $name", countrySearchTerms(region, name, code))
+
     @Test
-    fun editor_editingCountrySimRule() {
-        val telstra = SimRef(1, "Telstra", "Telstra AU")
+    fun countryPicker_filteredBySearch() {
         composeRule.setContent {
             MaterialTheme {
-                RuleEditorContent(
-                    target = EditorTarget.Existing(
-                        0,
-                        SimmoRule(RuleMatcher.Country("AU"), RuleAction.UseSim(telstra)),
+                CountryPickerContent(
+                    options = listOf(
+                        option("AU", "Australia", 61),
+                        option("FR", "France", 33),
+                        option("AE", "United Arab Emirates", 971),
+                        option("GB", "United Kingdom", 44),
+                        option("US", "United States", 1),
                     ),
-                    simOptions = listOf(
-                        SimOptionUi(telstra, "Telstra AU", active = true),
-                        SimOptionUi(SimRef(2, "T-Mobile", "T-Mobile US"), "T-Mobile US", active = true),
-                        SimOptionUi(SimRef(7, "Vodafone", "Voda AU"), "Voda AU", active = false),
-                    ),
-                    countryOptions = listOf(
-                        CountryOptionUi("AU", "+61 Australia"),
-                        CountryOptionUi("US", "+1 United States"),
-                    ),
-                    onSave = {},
-                    onDelete = {},
-                    onCancel = {},
+                    query = "united",
+                    onQueryChange = {},
+                    selectedRegion = "GB",
+                    onSelect = {},
+                    onBack = {},
                 )
             }
         }
         composeRule.waitForIdle()
 
-        composeRule.onNodeWithText("Edit rule").assertExists()
-        // The chosen country shows as the subtitle of the country row; the full
-        // list now lives behind the searchable picker (CountryPickerScreenshotTest).
-        composeRule.onNodeWithText("+61 Australia").assertExists()
-        composeRule.onNodeWithText("A specific SIM").assertExists()
-        captureSnapshot("rule_editor.png")
+        // "united" keeps the three United* countries and drops the rest.
+        composeRule.onNodeWithText("+44 United Kingdom").assertExists()
+        composeRule.onNodeWithText("+971 United Arab Emirates").assertExists()
+        composeRule.onNodeWithText("+61 Australia").assertDoesNotExist()
+        captureSnapshot("country_picker.png")
     }
 
     private fun captureSnapshot(name: String, widthPx: Int = 1080, heightPx: Int = 1920) {

@@ -1,5 +1,6 @@
 package app.simmo.ui
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -13,12 +14,14 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -118,6 +121,31 @@ internal fun RuleEditorContent(
     }
     val selectedSimRef = resolveSelectedSim(simRef, simOptions)
 
+    // The country picker is a full-screen sub-step of the editor rather than a
+    // separate navigation route, so the editor's draft above stays composed
+    // (and thus retained) while it's open. Both flags are rememberSaveable so a
+    // rotation or process death mid-search reopens the picker where it was.
+    var showCountryPicker by rememberSaveable { mutableStateOf(false) }
+    var countryQuery by rememberSaveable { mutableStateOf("") }
+    if (showCountryPicker) {
+        CountryPickerContent(
+            options = countryOptions,
+            query = countryQuery,
+            onQueryChange = { countryQuery = it },
+            selectedRegion = region,
+            onSelect = {
+                region = it
+                countryQuery = ""
+                showCountryPicker = false
+            },
+            onBack = {
+                countryQuery = ""
+                showCountryPicker = false
+            },
+        )
+        return
+    }
+
     Surface(modifier = Modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
@@ -152,20 +180,18 @@ internal fun RuleEditorContent(
                     )
                 }
                 item {
-                    ChoiceRow(
+                    // Tapping opens the searchable country picker rather than
+                    // listing ~240 countries inline; the chosen country shows
+                    // as a subtitle so the current selection stays visible.
+                    CountryChoiceRow(
                         selected = !matchesAny,
-                        text = stringResource(R.string.editor_when_country),
-                        onSelect = { matchesAny = false },
+                        countryLabel = countryOptions
+                            .firstOrNull { it.regionCode.equals(region, ignoreCase = true) }?.label,
+                        onOpen = {
+                            matchesAny = false
+                            showCountryPicker = true
+                        },
                     )
-                }
-                if (!matchesAny) {
-                    items(countryOptions, key = { it.regionCode }) { option ->
-                        ChoiceRow(
-                            selected = region.equals(option.regionCode, ignoreCase = true),
-                            text = option.label,
-                            onSelect = { region = option.regionCode },
-                        )
-                    }
                 }
 
                 item {
@@ -268,6 +294,81 @@ private fun ChoiceRow(selected: Boolean, text: String, onSelect: () -> Unit) {
     ) {
         RadioButton(selected = selected, onClick = onSelect)
         Text(text, style = MaterialTheme.typography.bodyLarge)
+    }
+}
+
+/**
+ * The "A specific country" option: selecting it opens the country picker, and
+ * the chosen country (or a prompt when none is chosen yet) shows as a subtitle.
+ */
+@Composable
+private fun CountryChoiceRow(selected: Boolean, countryLabel: String?, onOpen: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .selectable(selected = selected, onClick = onOpen)
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        RadioButton(selected = selected, onClick = onOpen)
+        Column {
+            Text(stringResource(R.string.editor_when_country), style = MaterialTheme.typography.bodyLarge)
+            if (selected) {
+                Text(
+                    text = countryLabel ?: stringResource(R.string.editor_country_search_hint),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Full-screen searchable country picker (a sub-step of the editor). Filters the
+ * ~240-country list by name, dial code, ISO code, or alias as the user types;
+ * picking one or pressing back returns to the editor.
+ */
+@Composable
+internal fun CountryPickerContent(
+    options: List<CountryOptionUi>,
+    query: String,
+    onQueryChange: (String) -> Unit,
+    selectedRegion: String?,
+    onSelect: (String) -> Unit,
+    onBack: () -> Unit,
+) {
+    BackHandler(onBack = onBack)
+    val ranked = remember(options, query) { rankCountries(options, query) }
+    Surface(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .safeDrawingPadding()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            OutlinedTextField(
+                value = query,
+                onValueChange = onQueryChange,
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+                placeholder = { Text(stringResource(R.string.editor_country_search_hint)) },
+            )
+            LazyColumn(
+                modifier = Modifier.fillMaxWidth().weight(1f),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                items(ranked, key = { it.regionCode }) { option ->
+                    ChoiceRow(
+                        selected = selectedRegion.equals(option.regionCode, ignoreCase = true),
+                        text = option.label,
+                        onSelect = { onSelect(option.regionCode) },
+                    )
+                }
+            }
+        }
     }
 }
 

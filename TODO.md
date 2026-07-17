@@ -74,10 +74,19 @@ small stack), fully unit-tested, with `./gradlew test` and `./gradlew lint` gree
       picker (any destination or a specific country) and action picker (specific SIM
       from the registry, matching-country SIM, Ask, no change). Hand-off actions wait
       for Phase 5's reachable-app discovery.
+- [x] Country picker search: a searchable full-screen subpage (reached from the editor's
+      country row) that fuzzy-matches by name, dial code, ISO alpha-2/alpha-3, and aliases
+      (UK/USA/America), ranked exact/prefix-first with capitals-match-capitals acronym
+      matching.
+- [ ] Suggested countries at the top of the picker: surface the countries drawn from the
+      user's contacts' numbers (and/or recent calls) as a "Suggested" bucket above the
+      full list, so the common destinations are one tap away. Needs `READ_CONTACTS` and a
+      cheap country-of-number rollup off the main thread.
+- [ ] Per-contact rule overrides: consider letting a rule (or a quick action) target a
+      specific contact — e.g. "always call Mum on Telstra" — layered above the
+      country rules. Decide where it lives in the ordered rule model and how it reads on
+      the decision path from the warm snapshot.
 - [ ] Drag to reorder the rule list (pure reorder helper landed; gesture UI pending).
-- [ ] Country picker search: filter the ~240-country list by typed name or calling code
-      (the flat radio list is hard to scan without it). Full-screen editor, so a search
-      TextField is safe under Robolectric.
 - [ ] New-SIM prompt: nudge to create rules for a newly seen SIM, inserted above rules
       referencing disabled SIMs.
 - [ ] Chooser activity (Ask flow): number + detected country, targets, "remember for

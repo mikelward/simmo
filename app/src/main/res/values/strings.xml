@@ -44,6 +44,8 @@
     <!-- TODO: translate -->
     <string name="editor_when_country" tools:ignore="MissingTranslation">A specific country</string>
     <!-- TODO: translate -->
+    <string name="editor_country_search_hint" tools:ignore="MissingTranslation">Search countries or codes</string>
+    <!-- TODO: translate -->
     <string name="editor_do_label" tools:ignore="MissingTranslation">Use</string>
     <!-- TODO: translate -->
     <string name="editor_action_use_sim" tools:ignore="MissingTranslation">A specific SIM</string>

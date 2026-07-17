@@ -22,7 +22,10 @@ reorder. A rule pairs a **matcher** with an **action**:
 - **Matcher**: a destination country (ISO region, shown with its calling code —
   "+61 Australia"), or **any destination** (used by the preseeded defaults below).
   Because the +1 group is split by area code, a US rule does not catch Canadian or
-  Caribbean numbers.
+  Caribbean numbers. The country is chosen from a searchable picker rather than a flat
+  ~240-row list: it fuzzy-matches by name, dial code, and ISO code (plus common aliases
+  like UK/USA), ranked so exact and prefix matches lead, with uppercase input matched as
+  an acronym (e.g. "US" → United States).
 - **Action**, one of:
   1. **Call with a specific SIM** — identified by the SIM's stable identity (see "SIM
      identity" below), e.g. "Telstra", never by physical slot.
