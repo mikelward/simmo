@@ -69,6 +69,24 @@ class RuleRowMappingTest {
     }
 
     @Test
+    fun `group matcher renders its label ahead of hand-picked countries`() {
+        val row = Rule(
+            RuleMatcher.Countries(listOf("GB"), listOf("eu_eea")),
+            RuleAction.SystemDefault,
+        ).toRow(emptyList(), groupLabel = { "EU/EEA" })
+        assertEquals("EU/EEA, +44 United Kingdom", row.matcherCountryLabel)
+    }
+
+    @Test
+    fun `an unknown stored group id still shows rather than vanishing`() {
+        val row = Rule(
+            RuleMatcher.Countries(groupIds = listOf("from_the_future")),
+            RuleAction.SystemDefault,
+        ).toRow(emptyList(), groupLabel = { it })
+        assertEquals("from_the_future", row.matcherCountryLabel)
+    }
+
+    @Test
     fun `any-destination defaults have no country label`() {
         val row = Rule(RuleMatcher.AnyDestination, RuleAction.SystemDefault).toRow(emptyList())
         assertEquals(null, row.matcherCountryLabel)

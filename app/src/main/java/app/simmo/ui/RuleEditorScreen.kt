@@ -45,7 +45,8 @@ import app.simmo.domain.Rule
 import app.simmo.domain.RuleAction
 import app.simmo.domain.RuleMatcher
 import app.simmo.domain.SimRef
-import app.simmo.domain.countryMatcher
+import app.simmo.domain.destinationMatcher
+import app.simmo.domain.groupIds
 import app.simmo.domain.regionCodes
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -93,6 +94,7 @@ fun RuleEditorScreen(
         target = target,
         simOptions = simOptions,
         countryOptions = countryOptions,
+        groupOptions = viewModel.groupOptions,
         onSave = { draft ->
             val rule = Rule(draft.matcher, draft.action)
             when (target) {
@@ -120,6 +122,7 @@ internal fun RuleEditorContent(
     onSave: (EditorDraft) -> Unit,
     onDelete: (() -> Unit)?,
     onCancel: () -> Unit,
+    groupOptions: List<CountryGroupOptionUi> = emptyList(),
 ) {
     // rememberSaveable so an in-progress edit survives rotation / recreation.
     val initial = (target as? EditorTarget.Existing)?.rule
@@ -130,13 +133,20 @@ internal fun RuleEditorContent(
     // Only an explicit "Any country" tap widens it to every destination.
     val initialRegions = initial?.matcher?.regionCodes().orEmpty()
         .ifEmpty { preset?.presetRegion?.let { listOf(it) }.orEmpty() }
+    val initialGroups = initial?.matcher?.groupIds().orEmpty()
     var matchesAny by rememberSaveable {
-        mutableStateOf(if (preset?.presetSim != null) false else initialRegions.isEmpty())
+        mutableStateOf(
+            if (preset?.presetSim != null) false
+            else initialRegions.isEmpty() && initialGroups.isEmpty(),
+        )
     }
-    // The rule's countries, in the order added; kept when toggling to "any"
-    // so switching back doesn't lose them (they're dropped only on save).
+    // The rule's countries and groups, in the order added; kept when toggling
+    // to "any" so switching back doesn't lose them (dropped only on save).
     var regions by rememberSaveable(stateSaver = RegionsSaver) {
         mutableStateOf(initialRegions)
+    }
+    var groups by rememberSaveable(stateSaver = RegionsSaver) {
+        mutableStateOf(initialGroups)
     }
     // An existing rule whose action the editor can't yet represent (hand-off,
     // which lands with Phase 5): kept verbatim so saving an edit to its
@@ -174,6 +184,14 @@ internal fun RuleEditorContent(
                 if (regions.none { it.equals(picked, ignoreCase = true) }) {
                     regions = regions + picked
                 }
+                matchesAny = false
+                countryQuery = ""
+                showCountryPicker = false
+            },
+            groups = groupOptions,
+            selectedGroupIds = groups.toSet(),
+            onSelectGroup = { picked ->
+                if (picked !in groups) groups = groups + picked
                 matchesAny = false
                 countryQuery = ""
                 showCountryPicker = false
@@ -219,11 +237,20 @@ internal fun RuleEditorContent(
                         onSelect = { matchesAny = true },
                     )
                 }
-                // Each chosen country is a removable entry; the add row below
-                // opens the searchable picker rather than listing ~240
-                // countries inline. Entries stay visible (dimmed) while "Any
-                // country" is selected, same as the old single-country label
-                // did, so switching back is one tap with nothing lost.
+                // Each chosen group and country is a removable entry; the add
+                // row below opens the searchable picker rather than listing
+                // ~240 countries inline. Entries stay visible (dimmed) while
+                // "Any country" is selected, same as the old single-country
+                // label did, so switching back is one tap with nothing lost.
+                items(groups, key = { "group:$it" }) { entry ->
+                    val label = groupOptions.firstOrNull { it.id == entry }?.label ?: entry
+                    SelectedCountryRow(
+                        label = label,
+                        dimmed = matchesAny,
+                        onSelect = { matchesAny = false },
+                        onRemove = { groups = groups.filterNot { it == entry } },
+                    )
+                }
                 items(regions, key = { "region:$it" }) { entry ->
                     val label = countryOptions
                         .firstOrNull { it.regionCode.equals(entry, ignoreCase = true) }?.label
@@ -313,10 +340,10 @@ internal fun RuleEditorContent(
                     onClick = {
                         val matcher =
                             if (matchesAny) RuleMatcher.AnyDestination
-                            else countryMatcher(regions)
+                            else destinationMatcher(regions, groups)
                         onSave(EditorDraft(matcher, resolveEditorAction(actionChoice, selectedSimRef, keepAction)))
                     },
-                    enabled = isValid(matchesAny, regions, actionChoice, selectedSimRef, simOptions),
+                    enabled = isValid(matchesAny, regions, groups, actionChoice, selectedSimRef, simOptions),
                 ) {
                     Text(stringResource(R.string.editor_save))
                 }
@@ -409,9 +436,17 @@ internal fun CountryPickerContent(
     selectedRegions: Set<String>,
     onSelect: (String) -> Unit,
     onBack: () -> Unit,
+    groups: List<CountryGroupOptionUi> = emptyList(),
+    selectedGroupIds: Set<String> = emptySet(),
+    onSelectGroup: (String) -> Unit = {},
 ) {
     BackHandler(onBack = onBack)
     val ranked = remember(options, query) { rankCountries(options, query) }
+    // Groups sit above the countries: always on a blank query, and for a
+    // typed one when it matches the group itself (EU, EEA, Europe, …) OR any
+    // member country — searching "France" suggests EU/EEA right where the
+    // tap happens.
+    val visibleGroups = remember(groups, query, ranked) { matchingGroups(groups, query, ranked) }
     Surface(modifier = Modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
@@ -431,6 +466,14 @@ internal fun CountryPickerContent(
                 modifier = Modifier.fillMaxWidth().weight(1f),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
+                items(visibleGroups, key = { "group:${it.id}" }) { group ->
+                    GroupRow(
+                        selected = group.id in selectedGroupIds,
+                        label = group.label,
+                        description = group.description,
+                        onSelect = { onSelectGroup(group.id) },
+                    )
+                }
                 items(ranked, key = { it.regionCode }) { option ->
                     ChoiceRow(
                         selected = option.regionCode.uppercase() in selectedRegions,
@@ -439,6 +482,34 @@ internal fun CountryPickerContent(
                     )
                 }
             }
+        }
+    }
+}
+
+/** A country group in the picker: label plus what the group covers. */
+@Composable
+private fun GroupRow(
+    selected: Boolean,
+    label: String,
+    description: String,
+    onSelect: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .selectable(selected = selected, onClick = onSelect)
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        RadioButton(selected = selected, onClick = onSelect)
+        Column {
+            Text(label, style = MaterialTheme.typography.bodyLarge)
+            Text(
+                text = description,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }
@@ -512,11 +583,12 @@ internal fun resolveSelectedSim(ref: SimRef?, options: List<SimOptionUi>): SimRe
 internal fun isValid(
     matchesAny: Boolean,
     regions: List<String>,
+    groups: List<String>,
     action: ActionChoice?,
     simRef: SimRef?,
     simOptions: List<SimOptionUi>,
 ): Boolean {
-    if (!matchesAny && regions.isEmpty()) return false
+    if (!matchesAny && regions.isEmpty() && groups.isEmpty()) return false
     // A specific-SIM action must point at a SIM actually offered here. When the
     // stored SIM can't be resolved to a row (e.g. renamed or removed after a
     // restore, so nothing is selected), require re-linking to a real SIM rather

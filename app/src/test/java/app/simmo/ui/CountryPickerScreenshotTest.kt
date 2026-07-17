@@ -55,6 +55,44 @@ class CountryPickerScreenshotTest {
         captureSnapshot("country_picker.png")
     }
 
+    @Test
+    fun countryPicker_memberSearchSurfacesTheGroup() {
+        val euEea = CountryGroupOptionUi(
+            id = app.simmo.domain.CountryGroups.EU_EEA,
+            label = "EU/EEA",
+            description = "European Union and EEA countries",
+            memberRegions = app.simmo.domain.CountryGroups
+                .members(app.simmo.domain.CountryGroups.EU_EEA).toSet(),
+            searchTerms = countryGroupSearchTerms(app.simmo.domain.CountryGroups.EU_EEA, "EU/EEA"),
+        )
+        composeRule.setContent {
+            MaterialTheme {
+                CountryPickerContent(
+                    options = listOf(
+                        option("AU", "Australia", 61),
+                        option("FR", "France", 33),
+                        option("GB", "United Kingdom", 44),
+                    ),
+                    query = "france",
+                    onQueryChange = {},
+                    selectedRegions = emptySet(),
+                    onSelect = {},
+                    groups = listOf(euEea),
+                    selectedGroupIds = emptySet(),
+                    onSelectGroup = {},
+                    onBack = {},
+                )
+            }
+        }
+        composeRule.waitForIdle()
+
+        // France is an EU/EEA member, so the group is suggested above it.
+        composeRule.onNodeWithText("EU/EEA").assertExists()
+        composeRule.onNodeWithText("+33 France").assertExists()
+        composeRule.onNodeWithText("+61 Australia").assertDoesNotExist()
+        captureSnapshot("country_picker_group.png")
+    }
+
     private fun captureSnapshot(name: String, widthPx: Int = 1080, heightPx: Int = 1920) {
         val isRecord = System.getProperty("roborazzi.test.record") == "true"
         val isVerify = System.getProperty("roborazzi.test.verify") == "true"

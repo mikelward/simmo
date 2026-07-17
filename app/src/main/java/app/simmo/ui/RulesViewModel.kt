@@ -10,7 +10,9 @@ import app.simmo.domain.RegisteredSim
 import app.simmo.domain.Rule
 import app.simmo.domain.RuleAction
 import app.simmo.domain.SimRef
+import app.simmo.domain.CountryGroups
 import app.simmo.domain.SimResolution
+import app.simmo.domain.groupIds
 import app.simmo.domain.newSimRuleInsertionIndex
 import app.simmo.domain.regionCodes
 import app.simmo.domain.resolveSim
@@ -88,7 +90,11 @@ class RulesViewModel(
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     private fun buildRows(state: SimmoState?, activeSims: List<ActiveSim>): List<RuleRowUi> =
-        state?.rules?.rules.orEmpty().map { rule -> rule.toRow(activeSims) }
+        state?.rules?.rules.orEmpty().map { rule ->
+            // A stored group id this version doesn't know still shows (as its
+            // raw id) rather than vanishing from the rule's description.
+            rule.toRow(activeSims, groupLabel = { id -> groupLabelsById[id] ?: id })
+        }
 
     /** SIMs the user can target: every registered SIM, active or not. */
     val simOptions: StateFlow<List<SimOptionUi>> =
@@ -106,6 +112,20 @@ class RulesViewModel(
             .map { allCountryOptions() }
             .flowOn(Dispatchers.Default)
             .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    /** The country groups the picker offers, labels resolved once. */
+    val groupOptions: List<CountryGroupOptionUi> = CountryGroups.allIds().map { id ->
+        val label = application.getString(groupLabelRes(id))
+        CountryGroupOptionUi(
+            id = id,
+            label = label,
+            description = application.getString(groupDescriptionRes(id)),
+            memberRegions = CountryGroups.members(id).map { it.uppercase() }.toSet(),
+            searchTerms = countryGroupSearchTerms(id, label),
+        )
+    }
+
+    private val groupLabelsById = groupOptions.associate { it.id to it.label }
 
     /**
      * SIMs whose "add rules for this new SIM?" prompt is pending. Only shown
@@ -245,6 +265,19 @@ data class CountryOptionUi(
     val searchTerms: List<String> = emptyList(),
 )
 
+/** A country group the picker offers as a single one-tap entry. */
+data class CountryGroupOptionUi(
+    val id: String,
+    /** e.g. "EU/EEA". */
+    val label: String,
+    /** e.g. "European Union and EEA countries". */
+    val description: String,
+    /** Uppercase member regions; surfaces the group on member searches. */
+    val memberRegions: Set<String>,
+    /** Folded terms the group itself is found by (EU, EEA, Europe, …). */
+    val searchTerms: List<String>,
+)
+
 internal fun buildSimOptions(
     registry: List<RegisteredSim>,
     activeSims: List<ActiveSim>,
@@ -292,16 +325,31 @@ private fun allCountryOptions(): List<CountryOptionUi> {
         }
 }
 
+private fun groupLabelRes(groupId: String): Int = when (groupId) {
+    CountryGroups.EU_EEA -> app.simmo.R.string.group_eu_eea
+    else -> error("Unknown country group: $groupId")
+}
+
+private fun groupDescriptionRes(groupId: String): Int = when (groupId) {
+    CountryGroups.EU_EEA -> app.simmo.R.string.group_eu_eea_description
+    else -> error("Unknown country group: $groupId")
+}
+
 /** The localized country name alone, e.g. "Australia". */
 internal fun countryDisplayName(regionCode: String): String {
     val region = regionCode.uppercase()
     return Locale("", region).displayCountry.ifBlank { region }
 }
 
-internal fun Rule.toRow(activeSims: List<ActiveSim>): RuleRowUi {
-    val matcherLabel = matcher.regionCodes()
-        .takeIf { it.isNotEmpty() }
-        ?.joinToString { countryLabel(it) }
+internal fun Rule.toRow(
+    activeSims: List<ActiveSim>,
+    groupLabel: (String) -> String = { it },
+): RuleRowUi {
+    // Groups lead ("EU/EEA, +44 United Kingdom"): the group is the rule's
+    // headline and the hand-picked countries read as its additions.
+    val parts = matcher.groupIds().map(groupLabel) +
+        matcher.regionCodes().map { countryLabel(it) }
+    val matcherLabel = parts.takeIf { it.isNotEmpty() }?.joinToString()
     return when (val a = action) {
         is RuleAction.UseSim -> RuleRowUi(
             matcherCountryLabel = matcherLabel,

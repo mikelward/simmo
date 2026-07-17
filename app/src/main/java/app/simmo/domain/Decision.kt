@@ -154,8 +154,16 @@ class DecisionEngine(private val countryDetector: CountryDetector) {
     private fun RuleMatcher.matches(destination: String?): Boolean = when (this) {
         RuleMatcher.AnyDestination -> true
         is RuleMatcher.Country -> destination != null && regionCode.equals(destination, ignoreCase = true)
-        is RuleMatcher.Countries ->
-            destination != null && regionCodes.any { it.equals(destination, ignoreCase = true) }
+        is RuleMatcher.Countries -> destination != null &&
+            (
+                regionCodes.any { it.equals(destination, ignoreCase = true) } ||
+                    // Group membership resolves from the in-memory table at
+                    // decision time, so one stored "EU/EEA" entry tracks
+                    // membership across app updates.
+                    groupIds.any { id ->
+                        CountryGroups.members(id).any { it.equals(destination, ignoreCase = true) }
+                    }
+                )
     }
 
     private fun redirectOrPassThrough(call: PlacedCall, target: PhoneAccountRef): Verdict =
