@@ -29,6 +29,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.viewmodel.compose.viewModel
+import app.simmo.ui.RulesScreen
+import app.simmo.ui.RulesViewModel
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -36,19 +39,27 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             MaterialTheme {
-                OnboardingScreen(
-                    isRoleHeld = ::isRedirectionRoleHeld,
-                    isPhonePermissionGranted = ::isPhonePermissionGranted,
-                    requestRoleIntent = {
-                        getSystemService(RoleManager::class.java)
-                            .createRequestRoleIntent(RoleManager.ROLE_CALL_REDIRECTION)
-                    },
-                    onPhonePermissionGranted = {
-                        // The startup telephony read ran before the grant and
-                        // cached nothing; refresh so rules work immediately.
-                        (application as SimmoApp).refreshTelephony()
-                    },
-                )
+                var ready by remember {
+                    mutableStateOf(isRedirectionRoleHeld() && isPhonePermissionGranted())
+                }
+                if (ready) {
+                    RulesScreen(viewModel<RulesViewModel>())
+                } else {
+                    OnboardingScreen(
+                        isRoleHeld = ::isRedirectionRoleHeld,
+                        isPhonePermissionGranted = ::isPhonePermissionGranted,
+                        requestRoleIntent = {
+                            getSystemService(RoleManager::class.java)
+                                .createRequestRoleIntent(RoleManager.ROLE_CALL_REDIRECTION)
+                        },
+                        onPhonePermissionGranted = {
+                            // The startup telephony read ran before the grant and
+                            // cached nothing; refresh so rules work immediately.
+                            (application as SimmoApp).refreshTelephony()
+                        },
+                        onAllGranted = { ready = true },
+                    )
+                }
             }
         }
     }
@@ -71,18 +82,23 @@ internal fun OnboardingScreen(
     isPhonePermissionGranted: () -> Boolean,
     requestRoleIntent: () -> android.content.Intent,
     onPhonePermissionGranted: () -> Unit,
+    onAllGranted: () -> Unit = {},
 ) {
     var roleHeld by remember { mutableStateOf(isRoleHeld()) }
     var phoneGranted by remember { mutableStateOf(isPhonePermissionGranted()) }
 
     val roleLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult(),
-    ) { roleHeld = isRoleHeld() }
+    ) {
+        roleHeld = isRoleHeld()
+        if (roleHeld && phoneGranted) onAllGranted()
+    }
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
     ) { granted ->
         phoneGranted = granted
         if (granted) onPhonePermissionGranted()
+        if (roleHeld && phoneGranted) onAllGranted()
     }
 
     Surface(modifier = Modifier.fillMaxSize()) {

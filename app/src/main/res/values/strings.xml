@@ -8,4 +8,13 @@
     <string name="onboarding_phone_permission_button">Allow</string>
     <string name="onboarding_granted">Done</string>
     <string name="onboarding_ready">All set. Your calls now follow your rules.</string>
+    <string name="rules_title">Rules</string>
+    <string name="rules_explainer">Checked top to bottom for every call; the first rule that can act wins.</string>
+    <string name="rule_matcher_any">Any country</string>
+    <string name="rule_action_use_sim">Call with %1$s</string>
+    <string name="rule_action_matching_sim">Call with the SIM for that country</string>
+    <string name="rule_action_hand_off">Hand off to %1$s</string>
+    <string name="rule_action_ask">Ask which SIM to use</string>
+    <string name="rule_action_system_default">No change</string>
+    <string name="rule_sim_disabled">SIM disabled — rule paused</string>
 </resources>

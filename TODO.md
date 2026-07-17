@@ -68,16 +68,18 @@ small stack), fully unit-tested, with `./gradlew test` and `./gradlew lint` gree
 
 ## Phase 3 — UI
 
-- [ ] Rules list + rule editor (country picker, action picker limited to registered SIMs
-      and reachable hand-off apps); drag to reorder; rules for disabled SIMs greyed out.
+- [x] Rules list as the home screen once grants are held: ordered rules with country +
+      action labels, preseeded defaults visible, disabled-SIM rules greyed out.
+- [ ] Rule editor (country picker, action picker limited to registered SIMs and
+      reachable hand-off apps); drag to reorder.
 - [ ] New-SIM prompt: nudge to create rules for a newly seen SIM, inserted above rules
       referencing disabled SIMs.
 - [ ] Chooser activity (Ask flow): number + detected country, targets, "remember for
       <country>", cancel. Re-places on confirm.
 - [ ] SIM registry screen (rename, delete, last-seen).
-- [ ] Screenshot tests (Robolectric + Roborazzi) per screen state, wired into CI with the
-      explicit `--tests` allow-list pattern from Type Launcher (add the screenshot job to
-      `.github/workflows/android-ci.yml` when the first screenshot test lands).
+- [x] Screenshot tests (Robolectric + Roborazzi) wired into CI with the explicit
+      `--tests` allow-list pattern from Type Launcher (rules list + onboarding landed;
+      each new screen adds its class and CI step).
 
 ## Phase 4 — Disabled-SIM assist
 
@@ -128,9 +130,9 @@ Android Auto safeguards").
 
 ## Phase 8 — Release plumbing
 
-- [ ] CI screenshot job (mirroring Type Launcher's `connected-tests` job: per-class
+- [x] CI screenshot job (mirroring Type Launcher's `connected-tests` job: per-class
       `--tests` record steps, snapshot refresh auto-commit, screenshot-diff PR
-      comment) — lands with or after the first Phase 3 screenshot test.
+      comment).
 - [ ] versionCode derived from git commit count; report versionCode after merges, per
       Type Launcher's convention.
 - [ ] Debug keystore secret so CI builds install as updates on tester devices.
