@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- Enumerate subscriptions and phone accounts for the snapshot. -->
+    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
+
     <!-- Simmo routes carrier calls, but must still install on devices without a
          radio so rules can be reviewed there. -->
     <uses-feature
@@ -8,6 +11,7 @@
         android:required="false" />
 
     <application
+        android:name=".SimmoApp"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
@@ -24,6 +28,17 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- The interception hook: the platform binds here for every outgoing
+             carrier call while Simmo holds ROLE_CALL_REDIRECTION. -->
+        <service
+            android:name=".telecom.SimmoCallRedirectionService"
+            android:exported="true"
+            android:permission="android.permission.BIND_CALL_REDIRECTION_SERVICE">
+            <intent-filter>
+                <action android:name="android.telecom.CallRedirectionService" />
+            </intent-filter>
+        </service>
     </application>
 
 </manifest>

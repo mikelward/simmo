@@ -1,0 +1,103 @@
+package app.simmo.telecom
+
+import android.content.Intent
+import android.net.Uri
+import android.os.Handler
+import android.os.Looper
+import android.telecom.CallRedirectionService
+import android.telecom.PhoneAccountHandle
+import android.util.Log
+import app.simmo.SimmoApp
+import app.simmo.domain.PlacedCall
+import app.simmo.domain.Verdict
+import java.util.concurrent.atomic.AtomicBoolean
+import kotlinx.coroutines.launch
+
+/**
+ * The interception hook (SPEC "How it hooks into Android"). Telecom CANCELS
+ * the call if no response arrives within ~5 s, so this class guarantees
+ * exactly one explicit response per call on every path: a watchdog answers
+ * `placeCallUnmodified()` if the decision hasn't responded by [WATCHDOG_MILLIS],
+ * and every failure path degrades to the same. The decision itself runs off
+ * the main thread against the in-memory snapshot only.
+ */
+class SimmoCallRedirectionService : CallRedirectionService() {
+
+    private val mainHandler = Handler(Looper.getMainLooper())
+
+    override fun onPlaceCall(
+        handle: Uri,
+        initialPhoneAccount: PhoneAccountHandle,
+        allowInteractiveResponse: Boolean,
+    ) {
+        val app = application as SimmoApp
+        val responded = AtomicBoolean(false)
+        fun respond(action: () -> Unit) {
+            if (responded.compareAndSet(false, true)) {
+                mainHandler.removeCallbacksAndMessages(WATCHDOG_TOKEN)
+                try {
+                    action()
+                } catch (e: RuntimeException) {
+                    // The response call itself failed (e.g. a stale handle);
+                    // responded is already latched, so the watchdog can't save
+                    // us — try the safe response directly as a last resort.
+                    Log.e(TAG, "Redirection response failed; placing unmodified", e)
+                    runCatching { placeCallUnmodified() }
+                }
+            }
+        }
+
+        mainHandler.postDelayed(
+            { respond { placeCallUnmodified() } },
+            WATCHDOG_TOKEN,
+            WATCHDOG_MILLIS,
+        )
+
+        app.appScope.launch {
+            val verdict = app.coordinator.decide(
+                PlacedCall(
+                    dialedNumber = handle.schemeSpecificPart.orEmpty(),
+                    currentAccount = app.assembler.refFor(initialPhoneAccount),
+                    interactive = allowInteractiveResponse,
+                ),
+            )
+            when (verdict) {
+                is Verdict.Proceed -> {
+                    verdict.consumedToken?.let(app.passTokens::consume)
+                    respond { placeCallUnmodified() }
+                }
+
+                is Verdict.RedirectToAccount -> {
+                    val target = app.assembler.handleFor(verdict.account)
+                    if (target != null) {
+                        respond { redirectCall(handle, target, /* confirmFirst = */ false) }
+                    } else {
+                        // The account vanished between snapshot refreshes;
+                        // never gamble with the user's call.
+                        respond { placeCallUnmodified() }
+                    }
+                }
+
+                is Verdict.ForwardToApp -> respond {
+                    cancelCall()
+                    startActivity(
+                        Intent(Intent.ACTION_DIAL, handle)
+                            .setPackage(verdict.packageName)
+                            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                    )
+                }
+
+                // TODO(Phase 3): cancel + launch the chooser activity, minting a
+                // pass token for the re-placed call. Until the chooser exists,
+                // an Ask verdict must not cost the user their call.
+                is Verdict.OpenChooser -> respond { placeCallUnmodified() }
+            }
+        }
+    }
+
+    private companion object {
+        const val TAG = "SimmoRedirection"
+        const val WATCHDOG_MILLIS = 3_000L
+        val WATCHDOG_TOKEN = Any()
+    }
+}
