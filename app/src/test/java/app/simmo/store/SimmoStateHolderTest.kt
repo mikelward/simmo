@@ -7,6 +7,7 @@ import app.simmo.domain.RegisteredSim
 import app.simmo.domain.RuleAction
 import app.simmo.domain.RuleBook
 import app.simmo.domain.SimRef
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.filterNotNull
@@ -59,6 +60,33 @@ class SimmoStateHolderTest {
         assertEquals(
             listOf(RegisteredSim(SimRef.INVALID_SUBSCRIPTION_ID, "Telstra", "Telstra personal", 100L)),
             migrated.simRegistry,
+        )
+    }
+
+    @Test
+    fun `stale ids are never published, even before the persistence write lands`() = runTest {
+        // Codex P1 on PR #4: the eager collector must not expose restored
+        // state ahead of the migration write. This store never completes
+        // writes at all — published state must still come out validated.
+        val restored = SimmoState(
+            rules = RuleBook(
+                countryRules = mapOf("AU" to RuleAction.UseSim(SimRef(1, "Telstra", "Telstra personal"))),
+            ),
+            installId = "old-phone",
+        )
+        val neverPersisting = object : DataStore<SimmoState> {
+            override val data: Flow<SimmoState> = MutableStateFlow(restored)
+            override suspend fun updateData(
+                transform: suspend (t: SimmoState) -> SimmoState,
+            ): SimmoState = awaitCancellation()
+        }
+        val holder = SimmoStateHolder(neverPersisting, backgroundScope, installId = "new-phone")
+
+        val published = holder.state.filterNotNull().first()
+        assertEquals("new-phone", published.installId)
+        assertEquals(
+            RuleAction.UseSim(SimRef(SimRef.INVALID_SUBSCRIPTION_ID, "Telstra", "Telstra personal")),
+            published.rules.countryRules["AU"],
         )
     }
 
