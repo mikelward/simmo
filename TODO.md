@@ -92,7 +92,9 @@ small stack), fully unit-tested, with `./gradlew test` and `./gradlew lint` gree
       specific contact — e.g. "always call Mum on Telstra" — layered above the
       country rules. Decide where it lives in the ordered rule model and how it reads on
       the decision path from the warm snapshot.
-- [ ] Drag to reorder the rule list (pure reorder helper landed; gesture UI pending).
+- [x] Drag to reorder the rule list (handle-initiated drag over a working copy;
+      single domain commit on drop). Auto-scroll while dragging near the list edges
+      is still pending — long lists need a device check anyway.
 - [ ] New-SIM prompt: nudge to create rules for a newly seen SIM, inserted above rules
       referencing disabled SIMs.
 - [ ] Chooser activity (Ask flow): number + detected country, targets, "remember for
