@@ -98,6 +98,19 @@ small stack), fully unit-tested, with `./gradlew test` and `./gradlew lint` gree
       Union" and on any member-country search. Revisit membership at least
       yearly (last reviewed 2026-07; Montenegro/Albania may join the EU roaming
       area soon — a group is only added/changed when the *label* set changes).
+- [x] NANP groups: "USA" (US + PR/VI/GU/AS/MP — every US plan rates territory
+      calls as domestic, so they live under the plain USA name), "North America"
+      (USA group + Canada + Mexico, the postpaid plan tier; separate because many
+      prepaid/MVNO tiers are domestic-only), and "Caribbean +1" (the 18 non-US
+      NANP countries that dial like domestic calls but bill internationally),
+      enabling the guard rule "Caribbean +1 → Ask" placed above a USA rule.
+- [ ] Custom country groups: user-defined groups ("My plan's included countries")
+      created in the picker and referenced from rules like the built-ins — the
+      answer to carrier "Tier 1"/zone lists, which differ per carrier (and often
+      split landline vs. mobile) so no shipped list can be right. Also the home
+      for carrier-footprint sets (Vodafone/Three/T-Mobile markets) rejected as
+      built-ins. Membership must resolve from the warm snapshot on the decision
+      path, same as built-in groups resolve from the static table.
 - [ ] Per-contact rule overrides: consider letting a rule (or a quick action) target a
       specific contact — e.g. "always call Mum on Telstra" — layered above the
       country rules. Decide where it lives in the ordered rule model and how it reads on
