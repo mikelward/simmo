@@ -1,11 +1,13 @@
 package app.simmo.ui
 
 import android.app.Application
+import android.content.pm.PackageManager
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import app.simmo.SimmoApp
 import app.simmo.domain.ActiveSim
+import app.simmo.domain.ContactCallApp
 import app.simmo.domain.RegisteredSim
 import app.simmo.domain.Rule
 import app.simmo.domain.RuleAction
@@ -128,6 +130,20 @@ class RulesViewModel(
     }
 
     private val groupLabelsById = groupOptions.associate { it.id to it.label }
+
+    /**
+     * Installed app-to-app hand-off targets, so the editor offers only reachable
+     * apps (SPEC "Hand-off to another app"). PackageManager query, off the main
+     * thread.
+     */
+    val handOffApps: StateFlow<Set<ContactCallApp>> =
+        flowOf(Unit)
+            .map { installedContactCallApps(app.packageManager) }
+            .flowOn(Dispatchers.Default)
+            .stateIn(viewModelScope, SharingStarted.Eagerly, emptySet())
+
+    /** After READ_CONTACTS is granted, rebuild the warm contact index. */
+    fun onContactsAccessGranted() = app.refreshContacts()
 
     /**
      * SIMs whose "add rules for this new SIM?" prompt is pending. Only shown
@@ -448,11 +464,23 @@ internal fun Rule.toRow(
         is RuleAction.HandOff.ViaDialIntent ->
             RuleRowUi(matcherLabel, ActionUi.HandOffApp(a.packageName))
 
+        is RuleAction.HandOff.ViaContactApp ->
+            RuleRowUi(matcherLabel, ActionUi.HandOffApp(a.app.label))
+
         RuleAction.Ask -> RuleRowUi(matcherLabel, ActionUi.Ask)
 
         RuleAction.SystemDefault -> RuleRowUi(matcherLabel, ActionUi.SystemDefault)
     }
 }
+
+/**
+ * The app-to-app hand-off targets currently installed. Needs a `<queries>` entry
+ * per package in the manifest for Android 11+ package visibility.
+ */
+internal fun installedContactCallApps(packageManager: PackageManager): Set<ContactCallApp> =
+    ContactCallApp.entries.filterTo(mutableSetOf()) { app ->
+        runCatching { packageManager.getPackageInfo(app.packageName, 0) }.isSuccess
+    }
 
 /** "+61 Australia" — calling code + localized country name. Not for composition. */
 internal fun countryLabel(regionCode: String): String {

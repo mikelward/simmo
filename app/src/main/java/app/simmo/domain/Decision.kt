@@ -38,6 +38,11 @@ data class DecisionSnapshot(
     val handOffAccounts: Set<PhoneAccountRef> = emptySet(),
     /** Installed apps that can receive a dial-intent hand-off. */
     val handOffApps: Set<String> = emptySet(),
+    /**
+     * Dialed number → contact, for app-to-app (per-contact) hand-off. Built off
+     * the decision path; the engine only reads it. Empty without READ_CONTACTS.
+     */
+    val contacts: ContactNumberIndex = ContactNumberIndex.EMPTY,
 )
 
 /** The one answer per call; total, and never a silent drop (SPEC invariants). */
@@ -53,6 +58,20 @@ sealed interface Verdict {
 
     /** Cancel the carrier call and forward the number to the app's dial intent. */
     data class ForwardToApp(val packageName: String) : Verdict
+
+    /**
+     * Cancel the carrier call and place it to a contact via an app's per-contact
+     * call intent: `ACTION_VIEW` the [dataRowId] `ContactsContract.Data` row with
+     * its [mimeType], scoped to [packageName] (e.g. WhatsApp). The MIME type is
+     * what picks the app's call action out of the contact row — without it the
+     * intent resolves to the generic contact viewer instead of the call. Only
+     * produced when the dialed number resolved to a contact reachable on that app.
+     */
+    data class ForwardToContactApp(
+        val packageName: String,
+        val mimeType: String,
+        val dataRowId: Long,
+    ) : Verdict
 
     /**
      * Cancel the carrier call and open Simmo's chooser. [skippedInactiveSims]
@@ -132,6 +151,24 @@ class DecisionEngine(private val countryDetector: CountryDetector) {
                 is RuleAction.HandOff.ViaDialIntent ->
                     if (call.interactive && action.packageName in snapshot.handOffApps) {
                         return Verdict.ForwardToApp(action.packageName)
+                    }
+
+                is RuleAction.HandOff.ViaContactApp ->
+                    // Applies only when the dialed number is a contact reachable
+                    // on the app (a call-action row in the warm index), and only
+                    // interactively (cancel-and-forward shows the app's UI).
+                    // Otherwise skip — a non-contact number falls through to the
+                    // lower rules rather than stranding the call.
+                    if (call.interactive) {
+                        snapshot.contacts.lookup(call.dialedNumber, snapshot.defaultRegion)
+                            ?.callActions?.get(action.app)
+                            ?.let { dataRowId ->
+                                return Verdict.ForwardToContactApp(
+                                    action.app.packageName,
+                                    action.app.dataMimeType,
+                                    dataRowId,
+                                )
+                            }
                     }
 
                 RuleAction.Ask ->

@@ -262,6 +262,13 @@ supports:
    target app with the dialed number (its dial intent). The receiving app takes over;
    whether it auto-dials or pre-fills is its behavior, not ours. Requires interactive
    context.
+3. **App-to-app (per-contact)**: for apps that call *contacts*, not arbitrary numbers
+   (e.g. WhatsApp), Simmo hands off only when the dialed number belongs to a contact
+   reachable on that app. It resolves the number against a warm contact index (built off
+   the decision path from `READ_CONTACTS`, keyed by E.164) and, on a match, cancels the
+   carrier call and opens the app's per-contact call — resolving the launch intent first,
+   so an uninstalled target proceeds unmodified rather than stranding the call. A
+   non-matching number (or a non-interactive context) skips the rule to the next.
 
 The rule editor only offers apps that are actually present and reachable by one of
 these mechanisms, and shows which mechanism will be used. Reachability is also
@@ -275,9 +282,9 @@ UI is forbidden).
 - `ROLE_CALL_REDIRECTION` (role, not permission) — the interception hook.
 - `READ_PHONE_STATE` — enumerate subscriptions and phone accounts.
 - `CALL_PHONE` — re-place calls after Ask / enable flows.
-- `READ_CONTACTS` (optional, requested only when enabling same-contact number
-  correction) — reverse lookup for the hands-free safeguards; a denial just disables
-  that feature.
+- `READ_CONTACTS` (optional, requested when a feature needs it — app-to-app hand-off, or
+  same-contact number correction) — the dialed-number→contact reverse lookup; a denial
+  just disables those features.
 - `POST_NOTIFICATIONS` — the "your SIM is now active, place the call?" nudge.
 - **No `INTERNET` permission.** Everything (parsing, rules, registry) is on-device;
   dialed numbers never leave the phone (hand-off passes the number to the app the

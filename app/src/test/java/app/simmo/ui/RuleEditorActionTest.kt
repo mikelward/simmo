@@ -1,5 +1,6 @@
 package app.simmo.ui
 
+import app.simmo.domain.ContactCallApp
 import app.simmo.domain.RuleAction
 import app.simmo.domain.SimRef
 import org.junit.Assert.assertEquals
@@ -29,6 +30,13 @@ class RuleEditorActionTest {
     @Test
     fun `actions the editor cannot represent have no control`() {
         assertNull(ActionChoice.of(RuleAction.HandOff.ViaDialIntent("com.google.android.apps.voice")))
+    }
+
+    @Test
+    fun `WhatsApp hand-off maps to and from its control`() {
+        val whatsApp = RuleAction.HandOff.ViaContactApp(ContactCallApp.WHATSAPP)
+        assertEquals(ActionChoice.HANDOFF_WHATSAPP, ActionChoice.of(whatsApp))
+        assertEquals(whatsApp, resolveEditorAction(ActionChoice.HANDOFF_WHATSAPP, simRef = null, keepAction = null))
     }
 
     @Test
