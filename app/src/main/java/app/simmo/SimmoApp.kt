@@ -5,15 +5,20 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.net.Uri
 import android.telephony.SubscriptionManager
 import android.telephony.TelephonyManager
 import androidx.core.content.ContextCompat
+import app.simmo.domain.ActiveSim
 import app.simmo.domain.CountryVerdict
 import app.simmo.domain.DecisionEngine
 import app.simmo.domain.PhoneNumberCountryDetector
+import app.simmo.domain.pendingNewSimNotifications
+import app.simmo.notify.SimNotifications
 import app.simmo.store.InstallMarker
 import app.simmo.store.SimmoStateHolder
 import app.simmo.store.simmoStateStore
+import app.simmo.telecom.HeldCallStore
 import app.simmo.telecom.PassTokenStore
 import app.simmo.telecom.RedirectionCoordinator
 import app.simmo.telecom.SnapshotAssembler
@@ -37,6 +42,8 @@ class SimmoApp : Application() {
 
     val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     val passTokens = PassTokenStore()
+    val heldCalls = HeldCallStore()
+    val notifications by lazy { SimNotifications(this) }
 
     private val detector = PhoneNumberCountryDetector()
     private val stateHolderFlow = MutableStateFlow<SimmoStateHolder?>(null)
@@ -137,10 +144,44 @@ class SimmoApp : Application() {
     }
 
     private suspend fun recordSims() {
-        val holder = stateHolderFlow.value ?: return
         val active = assembler.activeSims()
-        if (active.isNotEmpty()) {
-            holder.recordSeenSims(active, System.currentTimeMillis())
+        maybeOfferHeldCall(active)
+        val holder = stateHolderFlow.value ?: return
+        if (active.isEmpty()) return
+        // A first-ever capture registers every current SIM at once; nudging
+        // about SIMs the user has had all along would just be noise, so that
+        // batch is marked notified without posting.
+        val firstCapture = holder.current?.simRegistry.isNullOrEmpty()
+        val registry = holder.recordSeenSims(active, System.currentTimeMillis())
+        val pending = registry.pendingNewSimNotifications(active)
+        if (pending.isEmpty()) return
+        when {
+            firstCapture -> holder.markNewSimsNotified(pending.map { it.ref() })
+            notifications.canPost() -> {
+                pending.forEach { sim ->
+                    notifications.postNewSim(sim.displayName.ifBlank { sim.carrierName })
+                }
+                holder.markNewSimsNotified(pending.map { it.ref() })
+            }
+            // No permission: leave unmarked so a later grant can still nudge
+            // about a SIM whose prompt is genuinely unanswered.
         }
+    }
+
+    /**
+     * The held-call offer (SPEC "Disabled-SIM assist" step 3): when a
+     * subscription change makes a wanted SIM active, post the one-tap offer.
+     * The notification opens the chooser; the call is never auto-placed.
+     */
+    private fun maybeOfferHeldCall(active: List<ActiveSim>) {
+        val call = heldCalls.current(System.currentTimeMillis()) ?: return
+        val sim = call.activatedWantedSim(active) ?: return
+        if (!notifications.canPost()) return
+        heldCalls.clear()
+        notifications.postHeldCallOffer(
+            handle = Uri.parse(call.handleUri),
+            skippedSims = call.wantedSims,
+            simLabel = sim.displayName.ifBlank { sim.carrierName },
+        )
     }
 }

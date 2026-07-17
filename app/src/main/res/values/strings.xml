@@ -113,4 +113,14 @@
     <string name="sim_registry_delete_title" tools:ignore="MissingTranslation">Delete %1$s?</string>
     <!-- TODO: translate -->
     <string name="sim_registry_delete_body" tools:ignore="MissingTranslation">Rules that use this SIM stay paused until a matching SIM appears again.</string>
+    <!-- TODO: translate -->
+    <string name="onboarding_notifications_label" tools:ignore="MissingTranslation">Get notified about SIM changes (optional)</string>
+    <!-- TODO: translate -->
+    <string name="onboarding_notifications_button" tools:ignore="MissingTranslation">Allow</string>
+    <!-- TODO: translate -->
+    <string name="notification_channel_name" tools:ignore="MissingTranslation">SIM assist</string>
+    <!-- TODO: translate -->
+    <string name="notification_held_call_title" tools:ignore="MissingTranslation">%1$s is now active</string>
+    <!-- TODO: translate -->
+    <string name="notification_held_call_body" tools:ignore="MissingTranslation">Place your call to %1$s?</string>
 </resources>

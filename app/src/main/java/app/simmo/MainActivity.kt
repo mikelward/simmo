@@ -103,6 +103,7 @@ class MainActivity : ComponentActivity() {
                     OnboardingScreen(
                         isRoleHeld = ::isRedirectionRoleHeld,
                         isPhonePermissionGranted = ::isPhonePermissionGranted,
+                        isNotificationsGranted = ::isNotificationsGranted,
                         requestRoleIntent = {
                             getSystemService(RoleManager::class.java)
                                 .createRequestRoleIntent(RoleManager.ROLE_CALL_REDIRECTION)
@@ -128,11 +129,17 @@ class MainActivity : ComponentActivity() {
     private fun isPhonePermissionGranted(): Boolean =
         ContextCompat.checkSelfPermission(this, Manifest.permission.READ_PHONE_STATE) ==
             PackageManager.PERMISSION_GRANTED
+
+    private fun isNotificationsGranted(): Boolean =
+        android.os.Build.VERSION.SDK_INT < 33 ||
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) ==
+            PackageManager.PERMISSION_GRANTED
 }
 
 /**
- * Phase 2 onboarding: the two grants Simmo cannot work without. The rules list
- * replaces this as the home screen in Phase 3.
+ * Phase 2 onboarding: the two grants Simmo cannot work without, plus the
+ * optional notifications one (SIM-assist nudges) that never gates readiness.
+ * The rules list replaces this as the home screen in Phase 3.
  */
 @Composable
 internal fun OnboardingScreen(
@@ -141,11 +148,14 @@ internal fun OnboardingScreen(
     requestRoleIntent: () -> android.content.Intent,
     onPhonePermissionGranted: () -> Unit,
     onAllGranted: () -> Unit = {},
+    isNotificationsGranted: () -> Boolean = { true },
 ) {
     var roleHeld by remember { mutableStateOf(isRoleHeld()) }
     var phoneGranted by remember { mutableStateOf(isPhonePermissionGranted()) }
+    var notificationsGranted by remember { mutableStateOf(isNotificationsGranted()) }
     OnResume {
         roleHeld = isRoleHeld()
+        notificationsGranted = isNotificationsGranted()
         val nowGranted = isPhonePermissionGranted()
         // Any transition made in Settings (grant or revoke) must refresh the
         // telephony cache, same as the launcher path.
@@ -166,6 +176,11 @@ internal fun OnboardingScreen(
         phoneGranted = granted
         if (granted) onPhonePermissionGranted()
         if (roleHeld && phoneGranted) onAllGranted()
+    }
+    val notificationsLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        notificationsGranted = granted
     }
 
     Surface(modifier = Modifier.fillMaxSize()) {
@@ -194,6 +209,14 @@ internal fun OnboardingScreen(
                 label = stringResource(R.string.onboarding_phone_permission_label),
                 buttonText = stringResource(R.string.onboarding_phone_permission_button),
                 onRequest = { permissionLauncher.launch(Manifest.permission.READ_PHONE_STATE) },
+            )
+            GrantRow(
+                granted = notificationsGranted,
+                label = stringResource(R.string.onboarding_notifications_label),
+                buttonText = stringResource(R.string.onboarding_notifications_button),
+                onRequest = {
+                    notificationsLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                },
             )
             if (roleHeld && phoneGranted) {
                 Text(

@@ -149,16 +149,20 @@ small stack), fully unit-tested, with `./gradlew test` and `./gradlew lint` gree
       from the SIM flow so the re-enabled SIM's call button appears on return. Direct
       in-app toggling is impossible without carrier privileges (SPEC "Enabling SIMs is
       Settings' job"). Still to verify on device: the best deep link per Android version.
-- [ ] Subscription-change watcher + held-call notification ("Telstra is now active —
-      place the call?"); `POST_NOTIFICATIONS` request.
-- [ ] Helper notification on SIM changes (maintainer request): when the active
-      SIMs change — especially when a SIM Simmo has never seen becomes active —
-      post a notification ("New SIM: Optus travel. Add a rule for it?") that
-      deep-links to the rules list / new-SIM prompt. Today the nudge is only the
-      in-app card, so it waits until the user next opens Simmo; the notification
-      matters extra because installed-but-never-activated eSIMs are invisible to
-      apps, making first activation the one moment Simmo can catch a new SIM.
-      Rides the same `POST_NOTIFICATIONS` plumbing as the held-call item.
+- [x] Subscription-change watcher + held-call notification ("Telstra is now active —
+      place your call?"): the chooser parks the call when a rule's wanted SIM is
+      disabled; when that SIM activates, a notification reopens the chooser for it
+      (never auto-placed; in-memory, 15-minute expiry, dropped once any call is
+      placed, and never offered on an ambiguous re-binding). `POST_NOTIFICATIONS`
+      is an optional onboarding row plus a contextual ask at the chooser's SIM
+      settings jump. Device QA owed: end-to-end enable → notification → re-place
+      round trip on a real dual-SIM device.
+- [x] Helper notification on SIM changes (maintainer request): "New SIM: Optus
+      travel. Add a rule…" posts once per SIM (persisted flag, so refreshes never
+      re-nag), only while the SIM is active, deep-linking to the rules list's
+      card. The first-ever capture (fresh install) is suppressed — no nagging
+      about SIMs the user already had. Matters because installed-but-inactive
+      eSIMs are invisible to apps: first activation is the one catchable moment.
 - [ ] MEP behavior pass on a dual-eSIM Pixel; document what profile-swap looks like from
       Simmo's point of view in `docs/qa-matrix.md`.
 

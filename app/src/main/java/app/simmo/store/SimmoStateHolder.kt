@@ -2,9 +2,11 @@ package app.simmo.store
 
 import androidx.datastore.core.DataStore
 import app.simmo.domain.ActiveSim
+import app.simmo.domain.RegisteredSim
 import app.simmo.domain.RuleBook
 import app.simmo.domain.SimRef
 import app.simmo.domain.recordSeen
+import app.simmo.domain.withNewSimNotified
 import app.simmo.domain.withRulePromptCleared
 import app.simmo.domain.withoutSim
 import kotlinx.coroutines.CoroutineScope
@@ -61,13 +63,17 @@ class SimmoStateHolder(
         }
     }
 
-    /** Registry capture on every subscription change (SPEC "Disabled-SIM assist"). */
-    suspend fun recordSeenSims(active: List<ActiveSim>, nowMillis: Long) {
+    /**
+     * Registry capture on every subscription change (SPEC "Disabled-SIM
+     * assist"). Returns the updated registry — the published [state] flow
+     * updates asynchronously, so callers reacting to the capture (the new-SIM
+     * notification) must not re-read [current] and race it.
+     */
+    suspend fun recordSeenSims(active: List<ActiveSim>, nowMillis: Long): List<RegisteredSim> =
         store.updateData {
             val valid = it.withInstallValidated(installId)
             valid.copy(simRegistry = valid.simRegistry.recordSeen(active, nowMillis))
-        }
-    }
+        }.simRegistry
 
     /** The new-SIM prompt for [ref] was answered — added a rule or dismissed. */
     suspend fun markSimRulePromptAnswered(ref: SimRef) {
@@ -82,6 +88,14 @@ class SimmoStateHolder(
         store.updateData {
             val valid = it.withInstallValidated(installId)
             valid.copy(simRegistry = valid.simRegistry.withoutSim(ref))
+        }
+    }
+
+    /** The "new SIM" notification for [refs] was posted (or suppressed). */
+    suspend fun markNewSimsNotified(refs: List<SimRef>) {
+        store.updateData {
+            val valid = it.withInstallValidated(installId)
+            valid.copy(simRegistry = valid.simRegistry.withNewSimNotified(refs))
         }
     }
 }
