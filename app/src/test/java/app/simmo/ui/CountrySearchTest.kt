@@ -131,7 +131,7 @@ class CountrySearchTest {
 
     @Test
     fun `the nanp groups are found by their aliases`() {
-        val usa = groupOption(app.simmo.domain.CountryGroups.USA, "USA")
+        val usa = groupOption(app.simmo.domain.CountryGroups.USA_TERRITORIES, "USA + territories")
         val caribbean = groupOption(app.simmo.domain.CountryGroups.CARIBBEAN_NANP, "Caribbean +1")
         for (query in listOf("USA", "United States", "America", "us territories", "domestic")) {
             assertEquals("query=$query", listOf(usa), matchingGroups(listOf(usa, caribbean), query, emptyList()))

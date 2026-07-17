@@ -27,14 +27,18 @@ reorder. A rule pairs a **matcher** with an **action**:
   - **EU/EEA** — the EU-27 and EEA EFTA states (Iceland, Liechtenstein, Norway)
     plus the EU territories with their own calling codes (Åland, Guadeloupe,
     Martinique, French Guiana, Réunion, Mayotte, Saint-Martin) and Svalbard.
-  - **USA** — the states plus Puerto Rico, US Virgin Islands, Guam, American
-    Samoa, and the Northern Marianas. Every US plan rates calls to the
-    territories as domestic (they're inside the NANP), so they belong under the
-    plain "USA" name — but a bare "US" country rule misses them because each
-    territory is its own dialing region within +1.
-  - **North America** — the USA group plus Canada and Mexico, for the plan tiers
-    that include CA/MX (kept separate from USA because many prepaid/MVNO tiers
-    are domestic-only).
+  - **USA + territories** — the states plus Puerto Rico, US Virgin Islands,
+    Guam, American Samoa, and the Northern Marianas, which a bare "US" country
+    rule misses because each territory is its own dialing region within +1.
+    Territory inclusion is explicit in the name because it isn't uniformly
+    free: PR/USVI are domestic on every plan, but some prepaid tiers bill the
+    Pacific territories internationally — a user whose plan excludes them
+    picks the plain "United States" country entry (the 50 states + D.C.) and
+    hand-adds PR/USVI instead. Searching "USA" shows the group and the country
+    row side by side, which is the states-only vs. everything choice.
+  - **North America** — the USA + territories group plus Canada and Mexico, for
+    the plan tiers that include CA/MX (kept separate because many prepaid/MVNO
+    tiers are domestic-only).
   - **Caribbean +1** — the non-US NANP countries (Jamaica, Dominican Republic,
     Bahamas, …) that dial like a domestic +1 call but bill internationally. Its
     purpose is the guard shape "Caribbean +1 → Ask" placed above a US rule, so

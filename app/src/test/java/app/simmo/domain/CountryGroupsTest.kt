@@ -30,20 +30,22 @@ class CountryGroupsTest {
     }
 
     @Test
-    fun `usa group is the states plus the territories, nothing else`() {
-        // Every US plan rates calls to the territories as domestic (they're
-        // inside the NANP), so they belong under the plain "USA" name; CA/MX
+    fun `usa-and-territories group carries every territory, explicitly named`() {
+        // All five territories, under a name that says so — territory
+        // inclusion must never be silent, because some prepaid tiers bill
+        // the Pacific ones internationally (Codex on PR #17). States-only is
+        // the plain United States country entry, not a group. CA/MX
         // inclusion is a plan tier and lives in the North America group.
-        val usa = CountryGroups.members(CountryGroups.USA)
+        val usa = CountryGroups.members(CountryGroups.USA_TERRITORIES)
         assertEquals(listOf("US", "PR", "VI", "GU", "AS", "MP"), usa)
         assertFalse("CA" in usa)
         assertFalse("MX" in usa)
     }
 
     @Test
-    fun `north america is the usa group plus canada and mexico`() {
+    fun `north america is the usa-and-territories group plus canada and mexico`() {
         assertEquals(
-            CountryGroups.members(CountryGroups.USA) + listOf("CA", "MX"),
+            CountryGroups.members(CountryGroups.USA_TERRITORIES) + listOf("CA", "MX"),
             CountryGroups.members(CountryGroups.NORTH_AMERICA),
         )
     }
