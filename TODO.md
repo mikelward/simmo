@@ -75,6 +75,9 @@ small stack), fully unit-tested, with `./gradlew test` and `./gradlew lint` gree
       from the registry, matching-country SIM, Ask, no change). Hand-off actions wait
       for Phase 5's reachable-app discovery.
 - [ ] Drag to reorder the rule list (pure reorder helper landed; gesture UI pending).
+- [ ] Country picker search: filter the ~240-country list by typed name or calling code
+      (the flat radio list is hard to scan without it). Full-screen editor, so a search
+      TextField is safe under Robolectric.
 - [ ] New-SIM prompt: nudge to create rules for a newly seen SIM, inserted above rules
       referencing disabled SIMs.
 - [ ] Chooser activity (Ask flow): number + detected country, targets, "remember for
