@@ -19,7 +19,17 @@ data class SimRef(
     val subscriptionId: Int,
     val carrierName: String,
     val displayName: String,
-)
+) {
+    companion object {
+        /**
+         * Subscription IDs are only meaningful on the device that assigned
+         * them. After a backup restore / device transfer the store invalidates
+         * every stored ID to this sentinel (it matches no real subscription),
+         * forcing [resolveSim]'s carrier + display-name re-binding.
+         */
+        const val INVALID_SUBSCRIPTION_ID: Int = -1
+    }
+}
 
 /** A subscription currently active on the device. */
 data class ActiveSim(
@@ -86,16 +96,22 @@ private fun String.matchesIgnoringCaseAndSpace(other: String): Boolean =
  */
 fun List<RegisteredSim>.recordSeen(active: List<ActiveSim>, nowMillis: Long): List<RegisteredSim> {
     val seen = active.associateBy { it.subscriptionId }
+    val adopted = mutableSetOf<Int>()
     val updated = map { entry ->
-        seen[entry.subscriptionId]?.let {
-            entry.copy(
-                carrierName = it.carrierName,
-                displayName = it.displayName,
-                lastSeenEpochMillis = nowMillis,
-            )
+        val match = seen[entry.subscriptionId]
+            // A restored entry with an invalidated ID re-adopts the matching
+            // active SIM by name instead of leaving a duplicate row behind.
+            ?: active.firstOrNull {
+                entry.subscriptionId == SimRef.INVALID_SUBSCRIPTION_ID &&
+                    it.carrierName.matchesIgnoringCaseAndSpace(entry.carrierName) &&
+                    it.displayName.matchesIgnoringCaseAndSpace(entry.displayName)
+            }
+        match?.let {
+            adopted += it.subscriptionId
+            RegisteredSim(it.subscriptionId, it.carrierName, it.displayName, nowMillis)
         } ?: entry
     }
-    val known = updated.map { it.subscriptionId }.toSet()
+    val known = updated.map { it.subscriptionId }.toSet() + adopted
     val new = active.filter { it.subscriptionId !in known }.map {
         RegisteredSim(it.subscriptionId, it.carrierName, it.displayName, nowMillis)
     }

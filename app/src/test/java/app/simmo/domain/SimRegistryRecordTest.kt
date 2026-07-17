@@ -38,6 +38,26 @@ class SimRegistryRecordTest {
     }
 
     @Test
+    fun `restored entry with invalidated id re-adopts the matching active sim`() {
+        // After a device transfer the registry entry carries the sentinel id;
+        // seeing the same-named SIM active must update it, not duplicate it.
+        val restored = RegisteredSim(SimRef.INVALID_SUBSCRIPTION_ID, "Telstra", "Telstra personal", 100L)
+        assertEquals(
+            listOf(RegisteredSim(1, "Telstra", "Telstra personal", 900L)),
+            listOf(restored).recordSeen(listOf(telstraActive), nowMillis = 900L),
+        )
+    }
+
+    @Test
+    fun `restored entry with different names is kept, not adopted`() {
+        val restored = RegisteredSim(SimRef.INVALID_SUBSCRIPTION_ID, "Vodafone", "Voda AU", 100L)
+        assertEquals(
+            listOf(restored, RegisteredSim(1, "Telstra", "Telstra personal", 900L)),
+            listOf(restored).recordSeen(listOf(telstraActive), nowMillis = 900L),
+        )
+    }
+
+    @Test
     fun `no active sims leaves the registry untouched`() {
         val registry = listOf(RegisteredSim(1, "Telstra", "Telstra personal", 100L))
         assertEquals(registry, registry.recordSeen(emptyList(), nowMillis = 900L))

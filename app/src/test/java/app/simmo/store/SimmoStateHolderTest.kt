@@ -5,6 +5,7 @@ import app.simmo.domain.ActiveSim
 import app.simmo.domain.PhoneAccountRef
 import app.simmo.domain.RegisteredSim
 import app.simmo.domain.RuleAction
+import app.simmo.domain.RuleBook
 import app.simmo.domain.SimRef
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -35,14 +36,37 @@ class SimmoStateHolderTest {
 
     @Test
     fun `state starts null until the first load lands`() = runTest {
-        val holder = SimmoStateHolder(FakeDataStore(SimmoState()), backgroundScope)
+        val holder = SimmoStateHolder(FakeDataStore(SimmoState()), backgroundScope, installId = "install-1")
         assertNull(holder.current)
     }
 
     @Test
+    fun `state from another install gets its subscription ids invalidated`() = runTest {
+        val restored = SimmoState(
+            rules = RuleBook(
+                countryRules = mapOf("AU" to RuleAction.UseSim(SimRef(1, "Telstra", "Telstra personal"))),
+            ),
+            simRegistry = listOf(RegisteredSim(1, "Telstra", "Telstra personal", 100L)),
+            installId = "old-phone",
+        )
+        val holder = SimmoStateHolder(FakeDataStore(restored), backgroundScope, installId = "new-phone")
+
+        val migrated = holder.state.filterNotNull().first { it.installId == "new-phone" }
+        assertEquals(
+            RuleAction.UseSim(SimRef(SimRef.INVALID_SUBSCRIPTION_ID, "Telstra", "Telstra personal")),
+            migrated.rules.countryRules["AU"],
+        )
+        assertEquals(
+            listOf(RegisteredSim(SimRef.INVALID_SUBSCRIPTION_ID, "Telstra", "Telstra personal", 100L)),
+            migrated.simRegistry,
+        )
+    }
+
+    @Test
     fun `rule updates and sim capture land in the in-memory state`() = runTest {
-        val store = FakeDataStore(SimmoState())
-        val holder = SimmoStateHolder(store, backgroundScope)
+        // Already adopted by this install so the restore guard stays inert here.
+        val store = FakeDataStore(SimmoState(installId = "install-1"))
+        val holder = SimmoStateHolder(store, backgroundScope, installId = "install-1")
 
         val rule = RuleAction.UseSim(SimRef(1, "Telstra", "Telstra personal"))
         holder.updateRules { it.copy(countryRules = mapOf("AU" to rule)) }

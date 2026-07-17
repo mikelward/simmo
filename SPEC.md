@@ -199,7 +199,10 @@ UI is forbidden).
   included in Android backups and device-to-device transfers via explicit extraction
   rules scoped to exactly Simmo's own state files, so a phone upgrade keeps the rule
   set. The privacy line above is unaffected — dialed numbers are never persisted at
-  all, so no call data can ever reach a backup.
+  all, so no call data can ever reach a backup. Restored state never routes by the
+  old device's subscription IDs: a per-install marker (deliberately not backed up)
+  detects the restore and invalidates stored IDs, so rules re-bind by carrier +
+  display name per "SIM identity".
 
 ## Architecture
 
