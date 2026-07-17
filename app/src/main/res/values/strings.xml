@@ -48,8 +48,6 @@
     <!-- TODO: translate -->
     <string name="editor_do_label" tools:ignore="MissingTranslation">Use</string>
     <!-- TODO: translate -->
-    <string name="editor_action_use_sim" tools:ignore="MissingTranslation">A specific SIM</string>
-    <!-- TODO: translate -->
     <string name="editor_sim_disabled_suffix" tools:ignore="MissingTranslation">%1$s (disabled)</string>
     <!-- TODO: translate -->
     <string name="editor_save" tools:ignore="MissingTranslation">Save</string>
