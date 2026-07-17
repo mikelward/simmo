@@ -102,32 +102,42 @@ internal fun RuleEditorContent(
                 .fillMaxSize()
                 .safeDrawingPadding()
                 .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            Text(
-                text = stringResource(
-                    if (target is EditorTarget.Existing) R.string.editor_title_edit else R.string.editor_title_new,
-                ),
-                style = MaterialTheme.typography.headlineMedium,
-            )
+            // Everything above the button bar scrolls in one list, so no
+            // section can starve another or push the buttons off-screen.
+            LazyColumn(
+                modifier = Modifier.fillMaxWidth().weight(1f),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                item {
+                    Text(
+                        text = stringResource(
+                            if (target is EditorTarget.Existing) R.string.editor_title_edit
+                            else R.string.editor_title_new,
+                        ),
+                        style = MaterialTheme.typography.headlineMedium,
+                    )
+                }
 
-            Text(stringResource(R.string.editor_when_label), style = MaterialTheme.typography.titleMedium)
-            ChoiceRow(
-                selected = matchesAny,
-                text = stringResource(R.string.rule_matcher_any),
-                onSelect = { matchesAny = true },
-            )
-            ChoiceRow(
-                selected = !matchesAny,
-                text = stringResource(R.string.editor_when_country),
-                onSelect = { matchesAny = false },
-            )
-            if (!matchesAny) {
-                LazyColumn(
-                    modifier = Modifier.fillMaxWidth().weight(1f, fill = false),
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
-                ) {
-                    items(countryOptions) { option ->
+                item {
+                    Text(stringResource(R.string.editor_when_label), style = MaterialTheme.typography.titleMedium)
+                }
+                item {
+                    ChoiceRow(
+                        selected = matchesAny,
+                        text = stringResource(R.string.rule_matcher_any),
+                        onSelect = { matchesAny = true },
+                    )
+                }
+                item {
+                    ChoiceRow(
+                        selected = !matchesAny,
+                        text = stringResource(R.string.editor_when_country),
+                        onSelect = { matchesAny = false },
+                    )
+                }
+                if (!matchesAny) {
+                    items(countryOptions, key = { it.regionCode }) { option ->
                         ChoiceRow(
                             selected = region.equals(option.regionCode, ignoreCase = true),
                             text = option.label,
@@ -135,42 +145,55 @@ internal fun RuleEditorContent(
                         )
                     }
                 }
-            }
 
-            Text(stringResource(R.string.editor_do_label), style = MaterialTheme.typography.titleMedium)
-            ChoiceRow(
-                selected = actionChoice == ActionChoice.USE_SIM,
-                text = stringResource(R.string.editor_action_use_sim),
-                onSelect = { actionChoice = ActionChoice.USE_SIM },
-            )
-            if (actionChoice == ActionChoice.USE_SIM) {
-                for (option in simOptions) {
+                item {
+                    Text(stringResource(R.string.editor_do_label), style = MaterialTheme.typography.titleMedium)
+                }
+                item {
                     ChoiceRow(
-                        selected = simRef == option.ref,
-                        text = if (option.active) option.label
-                        else stringResource(R.string.editor_sim_disabled_suffix, option.label),
-                        onSelect = { simRef = option.ref },
+                        selected = actionChoice == ActionChoice.USE_SIM,
+                        text = stringResource(R.string.editor_action_use_sim),
+                        onSelect = { actionChoice = ActionChoice.USE_SIM },
+                    )
+                }
+                if (actionChoice == ActionChoice.USE_SIM) {
+                    items(simOptions, key = { "${it.ref.subscriptionId}|${it.ref.carrierName}|${it.ref.displayName}" }) { option ->
+                        ChoiceRow(
+                            selected = simRef == option.ref,
+                            text = if (option.active) option.label
+                            else stringResource(R.string.editor_sim_disabled_suffix, option.label),
+                            onSelect = { simRef = option.ref },
+                        )
+                    }
+                }
+                item {
+                    ChoiceRow(
+                        selected = actionChoice == ActionChoice.MATCHING_SIM,
+                        text = stringResource(R.string.rule_action_matching_sim),
+                        onSelect = { actionChoice = ActionChoice.MATCHING_SIM },
+                    )
+                }
+                item {
+                    ChoiceRow(
+                        selected = actionChoice == ActionChoice.ASK,
+                        text = stringResource(R.string.rule_action_ask),
+                        onSelect = { actionChoice = ActionChoice.ASK },
+                    )
+                }
+                item {
+                    ChoiceRow(
+                        selected = actionChoice == ActionChoice.SYSTEM_DEFAULT,
+                        text = stringResource(R.string.rule_action_system_default),
+                        onSelect = { actionChoice = ActionChoice.SYSTEM_DEFAULT },
                     )
                 }
             }
-            ChoiceRow(
-                selected = actionChoice == ActionChoice.MATCHING_SIM,
-                text = stringResource(R.string.rule_action_matching_sim),
-                onSelect = { actionChoice = ActionChoice.MATCHING_SIM },
-            )
-            ChoiceRow(
-                selected = actionChoice == ActionChoice.ASK,
-                text = stringResource(R.string.rule_action_ask),
-                onSelect = { actionChoice = ActionChoice.ASK },
-            )
-            ChoiceRow(
-                selected = actionChoice == ActionChoice.SYSTEM_DEFAULT,
-                text = stringResource(R.string.rule_action_system_default),
-                onSelect = { actionChoice = ActionChoice.SYSTEM_DEFAULT },
-            )
 
+            // Fixed button bar: always visible, never scrolled away.
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 if (onDelete != null) {
