@@ -205,20 +205,27 @@ can't dial an arbitrary number and are out of scope.
         vs pre-fill, and the installed-but-unprovisioned (no linked number / no Teams
         Phone plan / no Viber Out credit) behavior; and that background-activity-launch
         rules don't swallow the `startActivity` from the redirection service.
-  - [x] Surface hand-off launch failure: the service launches the app **before**
-        cancelling the carrier call, so a failed/blocked launch places the call
-        unmodified instead of stranding it, and posts a "Couldn't open <app>"
-        notification with **Settings** (fix the app) and **Redial** (retry). Applies to
-        the dial-intent and WhatsApp hand-offs. (The undetectable case — the app opens
-        to a setup screen because it isn't provisioned — still can't be surfaced
-        reactively; a proactive editor hint is the follow-up.)
+  - [x] Surface hand-off launch failure: the service resolves the target **before**
+        responding, so an unreachable target (uninstalled, deep link unhandled) proceeds
+        unmodified and posts a "Couldn't open <app>" notification — the common case, never
+        stranded. Otherwise it responds `cancelCall()` **first** (the hard deadline rules
+        out gating the response on the launch), then launches; a launch that then throws
+        can't be un-cancelled, so it surfaces the failure with a "Couldn't open <app>"
+        notification (**Settings** to fix the app, **Redial** to retry) and, permission-free,
+        drops the user in the dialer with the number. That recovery dialer mints a
+        wildcard pass token so the redial proceeds on the carrier instead of re-entering
+        the still-failing rule and looping. Applies to the dial-intent and WhatsApp
+        hand-offs. (The undetectable case — the app opens to a setup screen because it
+        isn't provisioned — still can't be surfaced reactively; a proactive editor hint
+        is the follow-up.)
   - [ ] Proactive readiness hint in the editor when a hand-off app is picked ("requires
         <app> set up to place calls") — the only honest coverage of the undetectable
         installed-but-unprovisioned case.
   - [ ] Background-activity-launch (BAL): a silently blocked `startActivity` from the
-        service returns without throwing, so the launch-before-cancel guard can't catch
-        it and would still cancel + strand. Device-QA whether the redirection binding
-        exempts us from BAL; if not, launch the hand-off via a full-screen-intent
+        service returns without throwing, so the cancel-first path can't detect it — the
+        carrier call is already cancelled and both the app launch and the permission-free
+        recovery dialer are blocked, stranding the call. Device-QA whether the redirection
+        binding exempts us from BAL; if not, launch the hand-off via a full-screen-intent
         notification (the sanctioned background-launch path) — see docs/qa-matrix.md.
 - [ ] Reachable-app discovery beyond "installed": resolve each candidate intent + detect
       readiness (linked number / calling plan) where possible, off the decision path.
