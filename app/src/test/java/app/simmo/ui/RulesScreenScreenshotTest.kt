@@ -112,35 +112,35 @@ class RulesScreenScreenshotTest {
 
     @Test
     fun overflowMenu_duplicateAndDisableInvokeCallbacks() {
-        var duplicated = -1
-        var toggled: Pair<Int, Boolean>? = null
+        var duplicated: String? = null
+        var toggled: Pair<String, Boolean>? = null
         composeRule.setContent {
             MaterialTheme {
                 RulesScreenContent(
-                    rows = listOf(RuleRowUi("+61 Australia", ActionUi.UseSim("Telstra"))),
+                    rows = listOf(RuleRowUi("+61 Australia", ActionUi.UseSim("Telstra"), id = "r0")),
                     onDuplicateRule = { duplicated = it },
-                    onSetRuleEnabled = { i, enabled -> toggled = i to enabled },
+                    onSetRuleEnabled = { id, enabled -> toggled = id to enabled },
                 )
             }
         }
 
-        // An enabled rule's menu offers Disable; picking it toggles off.
+        // An enabled rule's menu offers Disable; picking it toggles off — by id.
         composeRule.onNodeWithContentDescription("More options").performClick()
         composeRule.onNodeWithText("Disable").performClick()
-        composeRule.runOnIdle { assertEquals(0 to false, toggled) }
+        composeRule.runOnIdle { assertEquals("r0" to false, toggled) }
 
         composeRule.onNodeWithContentDescription("More options").performClick()
         composeRule.onNodeWithText("Duplicate").performClick()
-        composeRule.runOnIdle { assertEquals(0, duplicated) }
+        composeRule.runOnIdle { assertEquals("r0", duplicated) }
     }
 
     @Test
-    fun deletingARuleAsksToConfirmFirst() {
-        var deleted = -1
+    fun deletingARuleTakesEffectAtOnceWithNoConfirmDialog() {
+        var deleted: String? = null
         composeRule.setContent {
             MaterialTheme {
                 RulesScreenContent(
-                    rows = listOf(RuleRowUi("+61 Australia", ActionUi.UseSim("Telstra"))),
+                    rows = listOf(RuleRowUi("+61 Australia", ActionUi.UseSim("Telstra"), id = "r0")),
                     onDeleteRule = { deleted = it },
                 )
             }
@@ -148,12 +148,10 @@ class RulesScreenScreenshotTest {
 
         composeRule.onNodeWithContentDescription("More options").performClick()
         composeRule.onNodeWithText("Delete").performClick() // the menu item
-        // The confirm dialog appears and nothing is deleted yet.
-        composeRule.onNodeWithText("Delete this rule?").assertExists()
-        composeRule.runOnIdle { assertEquals(-1, deleted) }
-        // Confirming deletes.
-        composeRule.onNodeWithText("Delete").performClick()
-        composeRule.runOnIdle { assertEquals(0, deleted) }
+        // No confirm dialog — the delete fires immediately (by id), and the
+        // Undo bar (hosted by RulesScreen) is the safety net.
+        composeRule.onNodeWithText("Delete this rule?").assertDoesNotExist()
+        composeRule.runOnIdle { assertEquals("r0", deleted) }
     }
 
     private fun captureSnapshot(name: String, widthPx: Int = 1080, heightPx: Int = 1920) {

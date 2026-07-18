@@ -20,7 +20,6 @@ import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.DropdownMenu
@@ -40,7 +39,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -65,36 +63,51 @@ import app.simmo.domain.SimRef
 fun RulesScreen(
     viewModel: RulesViewModel,
     onAddRule: () -> Unit,
-    onEditRule: (Int) -> Unit,
+    onEditRule: (String) -> Unit,
     onOpenGroups: () -> Unit = {},
 ) {
     val rows by viewModel.rows.collectAsStateWithLifecycle()
     val dataRows by viewModel.dataRows.collectAsStateWithLifecycle()
     val newSimPrompts by viewModel.newSimPrompts.collectAsStateWithLifecycle()
     val tab by viewModel.rulesTab.collectAsStateWithLifecycle()
-    RulesScreenContent(
-        rows = rows,
-        dataRows = dataRows,
-        tab = tab,
-        onSelectTab = viewModel::selectRulesTab,
-        newSimPrompts = newSimPrompts,
-        onAddRule = onAddRule,
-        onEditRule = onEditRule,
-        onDuplicateRule = viewModel::duplicateRule,
-        onDeleteRule = viewModel::removeRule,
-        onSetRuleEnabled = viewModel::setRuleEnabled,
-        onMoveRule = viewModel::moveRule,
-        onAddDataRule = viewModel::openNewDataRule,
-        onEditDataRule = viewModel::openEditDataRule,
-        onDuplicateDataRule = viewModel::duplicateDataRule,
-        onDeleteDataRule = viewModel::removeDataRule,
-        onSetDataRuleEnabled = viewModel::setDataRuleEnabled,
-        onMoveDataRule = viewModel::moveDataRule,
-        onAddRuleForSim = viewModel::openNewRuleForSim,
-        onDismissNewSimPrompt = viewModel::dismissNewSimPrompt,
-        onOpenSettings = viewModel::openSettings,
-        onOpenGroups = onOpenGroups,
-    )
+    val pendingUndo by viewModel.pendingUndo.collectAsStateWithLifecycle()
+    Box(modifier = Modifier.fillMaxSize()) {
+        RulesScreenContent(
+            rows = rows,
+            dataRows = dataRows,
+            tab = tab,
+            onSelectTab = viewModel::selectRulesTab,
+            newSimPrompts = newSimPrompts,
+            onAddRule = onAddRule,
+            onEditRule = onEditRule,
+            onDuplicateRule = viewModel::duplicateRule,
+            onDeleteRule = viewModel::removeRule,
+            onSetRuleEnabled = viewModel::setRuleEnabled,
+            onMoveRule = viewModel::moveRule,
+            onAddDataRule = viewModel::openNewDataRule,
+            onEditDataRule = viewModel::openEditDataRule,
+            onDuplicateDataRule = viewModel::duplicateDataRule,
+            onDeleteDataRule = viewModel::removeDataRule,
+            onSetDataRuleEnabled = viewModel::setDataRuleEnabled,
+            onMoveDataRule = viewModel::moveDataRule,
+            onAddRuleForSim = viewModel::openNewRuleForSim,
+            onDismissNewSimPrompt = viewModel::dismissNewSimPrompt,
+            onOpenSettings = viewModel::openSettings,
+            onOpenGroups = onOpenGroups,
+        )
+        // The "Rule deleted — Undo" bar. Hosted here, so it shows over the rule
+        // list (including after an editor delete closes back to it) but never
+        // over the editor, Groups, or Settings, which aren't this composable.
+        DeletionUndoHost(
+            pending = pendingUndo,
+            onUndo = viewModel::undo,
+            onDismiss = viewModel::dismissUndo,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .safeDrawingPadding()
+                .padding(16.dp),
+        )
+    }
 }
 
 @Composable
@@ -105,27 +118,22 @@ internal fun RulesScreenContent(
     onSelectTab: (RulesTab) -> Unit = {},
     newSimPrompts: List<NewSimPromptUi> = emptyList(),
     onAddRule: () -> Unit = {},
-    onEditRule: (Int) -> Unit = {},
-    onDuplicateRule: (Int) -> Unit = {},
-    onDeleteRule: (Int) -> Unit = {},
-    onSetRuleEnabled: (Int, Boolean) -> Unit = { _, _ -> },
+    onEditRule: (String) -> Unit = {},
+    onDuplicateRule: (String) -> Unit = {},
+    onDeleteRule: (String) -> Unit = {},
+    onSetRuleEnabled: (String, Boolean) -> Unit = { _, _ -> },
     onMoveRule: (Int, Int) -> Unit = { _, _ -> },
     onAddDataRule: () -> Unit = {},
-    onEditDataRule: (Int) -> Unit = {},
-    onDuplicateDataRule: (Int) -> Unit = {},
-    onDeleteDataRule: (Int) -> Unit = {},
-    onSetDataRuleEnabled: (Int, Boolean) -> Unit = { _, _ -> },
+    onEditDataRule: (String) -> Unit = {},
+    onDuplicateDataRule: (String) -> Unit = {},
+    onDeleteDataRule: (String) -> Unit = {},
+    onSetDataRuleEnabled: (String, Boolean) -> Unit = { _, _ -> },
     onMoveDataRule: (Int, Int) -> Unit = { _, _ -> },
     onAddRuleForSim: (NewSimPromptUi) -> Unit = {},
     onDismissNewSimPrompt: (SimRef) -> Unit = {},
     onOpenSettings: () -> Unit = {},
     onOpenGroups: () -> Unit = {},
 ) {
-    // The rule a ⋮/long-press menu asked to delete, awaiting confirmation; per
-    // list, and saveable so a rotation mid-confirm keeps the dialog.
-    var pendingDeleteRule: Int? by rememberSaveable { mutableStateOf<Int?>(null) }
-    var pendingDeleteDataRule: Int? by rememberSaveable { mutableStateOf<Int?>(null) }
-
     Surface(modifier = Modifier.fillMaxSize()) {
         Box(modifier = Modifier.fillMaxSize()) {
             // The activity is edge-to-edge; keep the list clear of the status
@@ -202,10 +210,10 @@ internal fun RulesScreenContent(
                             enabled = row.enabled,
                             dragState = dragState,
                             index = index,
-                            onClick = { onEditRule(index) },
-                            onDuplicate = { onDuplicateRule(index) },
-                            onDelete = { pendingDeleteRule = index },
-                            onSetEnabled = { enabled -> onSetRuleEnabled(index, enabled) },
+                            onClick = { onEditRule(row.id) },
+                            onDuplicate = { onDuplicateRule(row.id) },
+                            onDelete = { onDeleteRule(row.id) },
+                            onSetEnabled = { enabled -> onSetRuleEnabled(row.id, enabled) },
                             modifier = modifier,
                         )
                     }
@@ -218,10 +226,10 @@ internal fun RulesScreenContent(
                             enabled = row.enabled,
                             dragState = dragState,
                             index = index,
-                            onClick = { onEditDataRule(index) },
-                            onDuplicate = { onDuplicateDataRule(index) },
-                            onDelete = { pendingDeleteDataRule = index },
-                            onSetEnabled = { enabled -> onSetDataRuleEnabled(index, enabled) },
+                            onClick = { onEditDataRule(row.id) },
+                            onDuplicate = { onDuplicateDataRule(row.id) },
+                            onDelete = { onDeleteDataRule(row.id) },
+                            onSetEnabled = { enabled -> onSetDataRuleEnabled(row.id, enabled) },
                             modifier = modifier,
                         )
                     }
@@ -240,18 +248,6 @@ internal fun RulesScreenContent(
                 )
             }
         }
-    }
-    pendingDeleteRule?.let { index ->
-        ConfirmDeleteRuleDialog(
-            onConfirm = { pendingDeleteRule = null; onDeleteRule(index) },
-            onDismiss = { pendingDeleteRule = null },
-        )
-    }
-    pendingDeleteDataRule?.let { index ->
-        ConfirmDeleteRuleDialog(
-            onConfirm = { pendingDeleteDataRule = null; onDeleteDataRule(index) },
-            onDismiss = { pendingDeleteDataRule = null },
-        )
     }
 }
 
@@ -287,21 +283,6 @@ private fun pauseLabel(enabled: Boolean, pause: RulePause?): String? = when {
     pause == RulePause.SIM_AMBIGUOUS -> stringResource(R.string.rule_sim_ambiguous)
     pause == RulePause.ACCOUNT_UNAVAILABLE -> stringResource(R.string.rule_account_unavailable)
     else -> null
-}
-
-@Composable
-private fun ConfirmDeleteRuleDialog(onConfirm: () -> Unit, onDismiss: () -> Unit) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.rule_delete_title)) },
-        text = { Text(stringResource(R.string.rule_delete_body)) },
-        confirmButton = {
-            TextButton(onClick = onConfirm) { Text(stringResource(R.string.editor_delete)) }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.editor_cancel)) }
-        },
-    )
 }
 
 /**

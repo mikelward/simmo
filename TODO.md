@@ -88,8 +88,22 @@ small stack), fully unit-tested, with `./gradlew test` and `./gradlew lint` gree
       on) that the engine skips over — kept in place and greyed with its own "Disabled"
       label, distinct from the automatic SIM-pause skips. Reorder stays on the drag
       handle, so long-press never contends with it.
-- [x] Confirm before deleting a rule (from the menu or the editor) or a custom group,
-      so a mistap can't silently drop a rule or break the rules that reference a group.
+- [x] Deleting a calling or data rule (from the menu or the editor) takes effect at once
+      with an **Undo** snackbar — no confirm dialog, no "can't be undone" wording. Undo
+      restores the rule to the spot it held. Deleting a **custom group** still confirms
+      first, since rules reference it and losing those references isn't undoable yet.
+  - [ ] Consider a strike-through in-place model for the undoable delete: mark the rule
+        `pendingRemoval` and render it struck-through instead of removing it, so Undo just
+        clears the flag (no re-insertion, no restore-position/anchoring machinery), the
+        evaluation engines skip it like a disabled rule, and it's purged on leaving the
+        rules page (retained across a crash). Naturally allows multiple pending undos.
+        Deferred: it changes the list's look and adds a decision-path skip, so it wants a
+        deliberate UX pass rather than shipping to dodge the (not-human-reachable)
+        reorder-vs-restore race in the current model.
+  - [ ] Consider making `RuleBook`/`DataRuleBook` rule lists private behind accessors so
+        every mutation routes through one guarded surface — the chooser's direct
+        `updateRules` bypassing view-model invariants is the pattern this would prevent
+        (id-minting already moved to the holder boundary for the same reason).
 - [x] Country picker search: a searchable full-screen subpage (reached from the editor's
       country row) that fuzzy-matches by name, dial code, ISO alpha-2/alpha-3, and aliases
       (UK/USA/America), ranked exact/prefix-first with capitals-match-capitals acronym

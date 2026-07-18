@@ -70,6 +70,17 @@ class DataRuleBookMutationTest {
     }
 
     @Test
+    fun `restoring re-inserts below its neighbor, idempotent on retry`() {
+        val a = rule("AU").copy(id = "a")
+        val c = rule("US").copy(id = "c")
+        val afterDelete = DataRuleBook(rules = listOf(a, c)) // "b" was deleted from between "a" and "c"
+        val b = rule("NZ").copy(id = "b")
+        val restored = afterDelete.withRuleRestored(b, afterId = "a", beforeId = "c")
+        assertEquals(listOf(a, b, c), restored.rules)
+        assertEquals(restored.rules, restored.withRuleRestored(b, afterId = "a", beforeId = "c").rules)
+    }
+
+    @Test
     fun `a blank id matches nothing, never every rule`() {
         val blanks = DataRuleBook(rules = listOf(rule("AU"), rule("NZ"))) // all id = ""
         assertEquals(blanks.rules, blanks.withRuleReplaced("", rule("FR")).rules)
