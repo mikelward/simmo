@@ -136,8 +136,10 @@ small stack), fully unit-tested, with `./gradlew test` and `./gradlew lint` gree
       decision path, the same as built-in groups resolve from the static table (the
       two id spaces are disjoint). Custom groups are selectable in the rule editor's
       country picker; a deleted group leaves referencing rules matching none of it.
-  - [ ] Create a group from within the picker (currently created on the Groups screen),
-        so a group can be made in the middle of scoping a rule without losing context.
+  - [x] Create a group from within the picker: a "New group" row in the rule editor's
+        country picker (blank query) opens the same group editor as a nested sub-step,
+        so a group can be built mid-rule; on save it's created and added to the rule
+        being scoped, without losing the editor's draft.
 - [ ] Per-contact rule overrides: consider letting a rule (or a quick action) target a
       specific contact — e.g. "always call Mum on Telstra" — layered above the
       country rules. Decide where it lives in the ordered rule model and how it reads on
