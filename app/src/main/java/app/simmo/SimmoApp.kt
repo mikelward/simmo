@@ -1,11 +1,16 @@
 package app.simmo
 
 import android.app.Application
+import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.database.ContentObserver
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
+import android.net.NetworkRequest
 import android.provider.ContactsContract
 import android.telephony.SubscriptionManager
 import android.telephony.TelephonyManager
@@ -25,10 +30,12 @@ import app.simmo.store.InstallMarker
 import app.simmo.store.SimmoStateHolder
 import app.simmo.store.simmoStateStore
 import app.simmo.telecom.ContactsReader
+import app.simmo.telecom.DataWatchReceiver
 import app.simmo.telecom.installedDialHandoffApps
 import app.simmo.telecom.HeldCallStore
 import app.simmo.telecom.PassTokenStore
 import app.simmo.telecom.RedirectionCoordinator
+import app.simmo.telecom.RoamingTransitions
 import app.simmo.telecom.SnapshotAssembler
 import app.simmo.telecom.TelephonyReader
 import kotlinx.coroutines.CancellationException
@@ -112,6 +119,13 @@ class SimmoApp : Application() {
      * [checkDataWatch]), so every serialized check evaluates fresh state.
      */
     private val dataWatchMutex = Mutex()
+
+    /**
+     * Per-network roaming state for the resident capability callback (see
+     * [registerConnectivityWatch]) — only a flip refreshes, not the constant
+     * validation/metering churn capability callbacks carry.
+     */
+    private val roamingTransitions = RoamingTransitions<Network>()
 
     lateinit var assembler: SnapshotAssembler
         private set
@@ -289,6 +303,12 @@ class SimmoApp : Application() {
                 }
             },
         )
+
+        // Binder work, so off the main thread like the refresh; isolated so a
+        // registration failure can't take startup down with it.
+        appScope.launch {
+            maintenanceStep("Connectivity watch") { registerConnectivityWatch() }
+        }
 
         // Roaming across a border changes the network country without any
         // subscription change; without this, national-format numbers keep
@@ -534,6 +554,85 @@ class SimmoApp : Application() {
         // re-nag.
         if (!holder.claimDataWatchMark(key)) return
         notifications.postDataWatch(verdict)
+    }
+
+    /**
+     * Lattice layer 3 (SPEC "Data-roaming visibility"), two registrations on
+     * one cellular request. A `PendingIntent` callback is the only wake for
+     * a same-timezone border crossing while the process is dead — no
+     * broadcast exists for "roaming started" itself — and covers the common
+     * crossing shape, where the home connection tears down and the roaming
+     * network *appears*. A live [ConnectivityManager.NetworkCallback] covers
+     * the shape the PendingIntent path can't (see the inline comment): the
+     * handover that keeps the same network alive and flips its roaming
+     * capability, observable only while the process is resident. Registered
+     * on every process start: the `PendingIntent` is its registration's
+     * identity, so this replaces rather than accumulates, and the
+     * `BOOT_COMPLETED` receiver exists precisely to cause a process start
+     * after reboot (registrations don't survive one). [DataWatchReceiver]
+     * filters the PendingIntent fires by roaming capability, so routine
+     * at-home connectivity churn doesn't spin the refresh pipeline.
+     */
+    private fun registerConnectivityWatch() {
+        val connectivity = getSystemService(ConnectivityManager::class.java) ?: return
+        val request = NetworkRequest.Builder()
+            .addTransportType(NetworkCapabilities.TRANSPORT_CELLULAR)
+            .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+            .build()
+        // Mutable because ConnectivityManager delivers EXTRA_NETWORK by
+        // fill-in; the base intent is explicit (component and action locked),
+        // so mutability can't retarget it.
+        val pending = PendingIntent.getBroadcast(
+            this,
+            /* requestCode = */ 0,
+            Intent(this, DataWatchReceiver::class.java)
+                .setAction(DataWatchReceiver.ACTION_CONNECTIVITY_EVENT),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE,
+        )
+        // A previous process's registration must not double-fire; unregister
+        // is best-effort (it may throw when nothing is registered).
+        runCatching { connectivity.unregisterNetworkCallback(pending) }
+        try {
+            connectivity.registerNetworkCallback(request, pending)
+            // The PendingIntent path reports networks *appearing* — it never
+            // delivers capability changes, so a border handover that keeps
+            // the same Network alive and merely drops NOT_ROAMING cannot
+            // wake a dead process, and no public API can (Codex on PR #56,
+            // twice — a home-only companion request was tried and is equally
+            // silent, since ceasing-to-match isn't delivered either). While
+            // the process is resident, this live callback observes exactly
+            // that flip; dead, the next wake — call, app open, timezone,
+            // boot, SIM event — runs the check instead.
+            connectivity.registerNetworkCallback(
+                request,
+                object : ConnectivityManager.NetworkCallback() {
+                    override fun onCapabilitiesChanged(
+                        network: Network,
+                        capabilities: NetworkCapabilities,
+                    ) {
+                        val notRoaming = capabilities
+                            .hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_ROAMING)
+                        if (roamingTransitions.isTransition(network, notRoaming)) {
+                            refreshTelephony()
+                        }
+                    }
+
+                    override fun onLost(network: Network) {
+                        roamingTransitions.forget(network)
+                        // Cellular vanished — the no-data nudge's moment; a
+                        // resident process checks now rather than at the
+                        // next wake. Bounded like every refresh, and the
+                        // arrival mark keeps repeats quiet.
+                        refreshTelephony()
+                    }
+                },
+            )
+        } catch (e: RuntimeException) {
+            // TooManyRequestsException or a binder hiccup: the rest of the
+            // lattice still covers arrivals; never take startup down for
+            // layer 3.
+            Log.e("SimmoApp", "Connectivity watch registration failed", e)
+        }
     }
 
     /**

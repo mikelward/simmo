@@ -491,14 +491,21 @@ awake:
    load/re-evaluation) and `ACTION_BOOT_COMPLETED` (to re-register the callback
    below).
 3. **A `ConnectivityManager` callback delivered by `PendingIntent`**, which fires
-   without the app running when matching (cellular) connectivity changes; the
-   receiver checks the roaming capability bit. This covers the remaining gap — a
-   same-timezone land border crossed while the process is dead. Registrations
-   don't survive reboot, hence the boot receiver; exact firing behavior across
-   carriers and handovers needs device QA. This layer is the one part of the
-   watch that needs a manifest addition: `ACCESS_NETWORK_STATE`, a normal
-   install-time permission (auto-granted, no dialog) required by both the
-   callback registration and the capability check.
+   without the app running when a cellular network newly appears — the common
+   shape of a same-timezone land border crossed while the process is dead, where
+   the home connection tears down and the roaming network attaches; the receiver
+   checks the roaming capability bit and skips verifiably-home fires. The
+   `PendingIntent` path reports networks *appearing*, never an existing network's
+   capabilities changing, so a handover that keeps the same network alive and
+   merely flips it to roaming cannot wake a dead process — no public API can.
+   That flip is covered while the process is resident (a live capability
+   callback watches for exactly it) and otherwise caught by the next wake from
+   layers 1–2. Registrations don't survive reboot, hence the boot receiver;
+   exact firing behavior across carriers and handovers needs device QA. This layer is the one part of the
+   watch that needs manifest additions: `ACCESS_NETWORK_STATE` for the callback
+   registration and the capability check, and `RECEIVE_BOOT_COMPLETED` for the
+   boot receiver that re-arms it — both normal install-time permissions
+   (auto-granted, no dialog).
 
 There is no broadcast for "roaming started" itself — service-state and
 airplane-mode changes cannot be manifest-registered — which is why this lattice
@@ -586,6 +593,11 @@ UI is forbidden).
   the phone grant is held (granted silently, same group). A denial just leaves the
   number off the row and degrades account labels to app names.
 - `CALL_PHONE` — re-place calls after Ask / enable flows.
+- `ACCESS_NETWORK_STATE` + `RECEIVE_BOOT_COMPLETED` — the roaming watch's
+  connectivity layer: registering the cellular network callback (and reading its
+  roaming capability), and waking after a reboot to re-register it (see
+  "Data-roaming visibility"). Both are normal install-time permissions —
+  auto-granted, no dialog, nothing for onboarding to ask.
 - `READ_CONTACTS` (optional, requested when a feature needs it — app-to-app hand-off, or
   same-contact number correction — and offered as an onboarding row) — the
   dialed-number→contact reverse lookup; a denial just disables those features.

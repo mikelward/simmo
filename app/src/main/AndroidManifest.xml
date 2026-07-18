@@ -32,6 +32,17 @@
          "new SIM seen". Optional; everything degrades to the in-app surfaces. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
+    <!-- The roaming watch's connectivity layer (SPEC "Data-roaming
+         visibility"): register the cellular network callback and read its
+         roaming capability. Normal install-time permission — auto-granted,
+         no dialog. -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <!-- Wake after reboot to re-register that callback (registrations don't
+         survive one). Normal install-time permission — auto-granted, no
+         dialog. -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
     <!-- Resolve a dialed number to a contact for app-to-app hand-off (e.g.
          WhatsApp); optional, requested at runtime when such a rule is created. -->
     <uses-permission android:name="android.permission.READ_CONTACTS" />
@@ -126,18 +137,23 @@
             </intent-filter>
         </service>
 
-        <!-- Roaming-watch wake-ups (SPEC "Data-roaming visibility"): both
-             actions are exempt from the implicit-broadcast restrictions, so
-             they start a dead process at the arrival moments — a timezone
-             change after landing, a SIM load. Not exported: the system
-             reaches a private receiver for its own broadcasts, and exporting
-             would let any app force telephony/DataStore work at will. -->
+        <!-- Roaming-watch wake-ups (SPEC "Data-roaming visibility"): all
+             three actions are exempt from the implicit-broadcast
+             restrictions, so they start a dead process at the moments that
+             matter — a timezone change after landing, a SIM load, and boot
+             (which re-registers the connectivity callback by starting the
+             process). The connectivity callback's own fires arrive as an
+             explicit PendingIntent broadcast, which needs no filter entry.
+             Not exported: the system reaches a private receiver for its own
+             broadcasts, and exporting would let any app force
+             telephony/DataStore work at will. -->
         <receiver
             android:name=".telecom.DataWatchReceiver"
             android:exported="false">
             <intent-filter>
                 <action android:name="android.intent.action.TIMEZONE_CHANGED" />
                 <action android:name="android.telephony.action.CARRIER_CONFIG_CHANGED" />
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
             </intent-filter>
         </receiver>
 
