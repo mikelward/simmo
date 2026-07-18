@@ -28,7 +28,11 @@ class SettingsScreenshotTest {
         composeRule.setContent {
             MaterialTheme {
                 SettingsContent(
-                    settings = CallSettingsUi(showCallToast = true, callDelaySeconds = 3),
+                    settings = CallSettingsUi(
+                        showCallToast = true,
+                        callDelaySeconds = 3,
+                        correctContactNumbers = true,
+                    ),
                 )
             }
         }
@@ -39,6 +43,7 @@ class SettingsScreenshotTest {
         composeRule.onNodeWithText("Show which SIM or app is used").assertExists()
         composeRule.onNodeWithText("Delay before calling").assertExists()
         composeRule.onNodeWithText("3 seconds").assertExists()
+        composeRule.onNodeWithText("Use contacts' local numbers").assertExists()
         captureSnapshot("settings.png")
     }
 

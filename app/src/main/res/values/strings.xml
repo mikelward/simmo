@@ -168,6 +168,18 @@
     <!-- TODO: translate -->
     <string name="delayed_call_now" tools:ignore="MissingTranslation">Call now</string>
     <!-- TODO: translate -->
+    <string name="settings_local_numbers_label" tools:ignore="MissingTranslation">Use contacts\' local numbers</string>
+    <!-- TODO: translate -->
+    <string name="settings_local_numbers_description" tools:ignore="MissingTranslation">Call a contact\'s local number when the dialed one is overseas</string>
+    <!-- TODO: translate -->
+    <string name="settings_local_numbers_hint" tools:ignore="MissingTranslation">Needs access to your contacts</string>
+    <!-- TODO: translate -->
+    <string name="settings_local_numbers_allow" tools:ignore="MissingTranslation">Allow</string>
+    <!-- TODO: translate -->
+    <string name="chooser_number_local" tools:ignore="MissingTranslation">%1$s\'s local number</string>
+    <!-- TODO: translate -->
+    <string name="chooser_number_as_dialed" tools:ignore="MissingTranslation">As dialed</string>
+    <!-- TODO: translate -->
     <string name="sim_registry_title" tools:ignore="MissingTranslation">SIMs</string>
     <!-- TODO: translate -->
     <string name="sim_registry_explainer" tools:ignore="MissingTranslation">Every SIM Simmo has seen. Rules can use a SIM even while it\'s disabled.</string>

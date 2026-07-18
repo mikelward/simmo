@@ -234,14 +234,27 @@ hard to notice from the driver's seat. Simmo sees every outgoing number *after* 
 upstream contact-number choice but *before* the call dials, so it can still intervene.
 Two mechanisms, independently toggleable:
 
-- **Same-contact number correction** (if feasible): when the dialed number is overseas
-  but the contact it belongs to also has a number local to the default region, redirect
-  the call to the local number. Needs optional `READ_CONTACTS` (a reverse lookup kept in
-  the warm snapshot — the decision path never queries the contacts provider live), and
-  is constrained by the non-interactive rules below: where a confirmation can't be
-  shown, correction only happens when the mapping is unambiguous. Whether upstream
-  (choosing the right number at contact level, before Simmo is ever consulted) is also
-  fixable is an open question.
+- **Same-contact number correction** (shipped; the Settings toggle "Use contacts'
+  local numbers", off by default): when the dialed number is overseas relative to the
+  default region but the contact it belongs to also has a number local to that region,
+  Simmo routes the local number instead. Interactively, the correction is never
+  silent — the chooser opens to confirm, listing the contact's local number(s) (the
+  first preselected) with "as dialed" one tap away; the SIM tapped there places the
+  selected number. A number listed by **more than one contact** (a shared line) is
+  confirm-only: the chooser labels each owner's local numbers by contact, and where
+  no confirmation can be shown such a line is never corrected — whose number to call
+  is the user's guess to make. Where no confirmation can be shown (Bluetooth,
+  Android Auto — or no chooser target to offer), the correction applies silently and
+  only when the mapping is unambiguous: one owning contact with exactly one local
+  number. A silent
+  correction uses Telecom's redirect (never cancel-and-re-place), carries any
+  rule-chosen SIM in the same redirect, and the rules evaluate the *corrected*
+  number — so a localized call matches the local rules, including the
+  matching-country default. Needs optional `READ_CONTACTS` (requested when the
+  toggle is switched on); each contact number's region is resolved when the warm
+  index is built, so the decision path stays an in-memory lookup. Whether upstream
+  (choosing the right number at contact level, before Simmo is ever consulted) is
+  also fixable is an open question.
 - **Hands-free call guard** (opt-in): when the call is placed from a non-interactive
   context (Bluetooth, Android Auto), block calls that are overseas relative to the
   default region, and/or calls whose matching rule requires a currently disabled SIM.

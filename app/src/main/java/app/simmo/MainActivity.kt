@@ -144,6 +144,14 @@ class MainActivity : ComponentActivity() {
 
                         settingsOpen -> SettingsScreen(
                             viewModel = vm,
+                            contactsGranted = contactsGranted,
+                            // Same handler as onboarding's contacts row: sync
+                            // the router's copy and build the warm index the
+                            // correction reads.
+                            onContactsGranted = {
+                                contactsGranted = isContactsPermissionGranted()
+                                (application as SimmoApp).refreshContacts()
+                            },
                             onOpenSims = vm::openSimRegistry,
                             onBack = vm::closeSettings,
                         )

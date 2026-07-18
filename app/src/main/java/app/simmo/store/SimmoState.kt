@@ -48,6 +48,14 @@ data class SimmoState(
      * as. Readers clamp to [MAX_CALL_DELAY_SECONDS].
      */
     val callDelaySeconds: Int = 0,
+    /**
+     * Settings "Use contacts' local numbers" (SPEC "Hands-free and Android
+     * Auto safeguards"): when a dialed number is overseas but its contact
+     * also has a local number, route the local number instead. Off by
+     * default (and for pre-field state); inert without READ_CONTACTS — the
+     * warm contact index is simply empty then.
+     */
+    val correctContactNumbers: Boolean = false,
 ) {
     companion object {
         /** Ceiling for [callDelaySeconds]; also the settings slider's range. */

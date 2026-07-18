@@ -285,6 +285,7 @@ class SnapshotAssembler(
             // Clamped here so restored or hand-edited state can't make the
             // countdown absurd; the store's own setter clamps writes too.
             callDelaySeconds = state.callDelaySeconds.coerceIn(0, SimmoState.MAX_CALL_DELAY_SECONDS),
+            correctContactNumbers = state.correctContactNumbers,
         )
     }
 }

@@ -1,7 +1,9 @@
 package app.simmo.ui
 
 import app.simmo.domain.ActiveSim
+import app.simmo.domain.CorrectionCandidate
 import app.simmo.domain.CountryVerdict
+import app.simmo.domain.NumberCorrection
 import app.simmo.domain.PhoneAccountRef
 import app.simmo.domain.SimRef
 import org.junit.Assert.assertEquals
@@ -60,6 +62,41 @@ class ChooserStateTest {
             ),
         )
         assertEquals(listOf("Voda AU", "Optus"), state.skippedSimNames)
+    }
+
+    @Test
+    fun `a number correction leads with the local numbers, then as dialed`() {
+        val state = buildChooserUiState(
+            dialedNumber = "+442071234567",
+            country = CountryVerdict.Country("GB"),
+            activeSims = listOf(telstra),
+            skippedInactiveSims = emptyList(),
+            numberCorrection = NumberCorrection(listOf(CorrectionCandidate("Mum", "+61412345678"))),
+        )
+        assertEquals(
+            listOf(
+                // The local number is first — the default pick.
+                NumberChoiceUi("+61412345678", contactName = "Mum"),
+                NumberChoiceUi("+442071234567", contactName = null),
+            ),
+            state.numberChoices,
+        )
+        // The destination still shows, but a one-off correction must not
+        // offer to learn a GB rule (Codex on PR #41).
+        assertEquals("+44 United Kingdom", state.countryLabel)
+        assertNull(state.rememberRegion)
+        assertNull(state.rememberCountryName)
+    }
+
+    @Test
+    fun `a plain Ask chooser offers no number choices`() {
+        val state = buildChooserUiState(
+            dialedNumber = "+61412345678",
+            country = CountryVerdict.Country("AU"),
+            activeSims = listOf(telstra),
+            skippedInactiveSims = emptyList(),
+        )
+        assertEquals(emptyList<NumberChoiceUi>(), state.numberChoices)
     }
 
     @Test

@@ -60,6 +60,14 @@ data class DecisionSnapshot(
      * feedback and delay").
      */
     val callDelaySeconds: Int = 0,
+    /**
+     * Settings "Use contacts' local numbers" (SPEC "Hands-free and Android
+     * Auto safeguards"): when a dialed number is overseas but its contact
+     * also has a number local to the default region, route the local number
+     * instead — confirmed via the chooser interactively, silently (and only
+     * when unambiguous) otherwise.
+     */
+    val correctContactNumbers: Boolean = false,
 )
 
 /** The one answer per call; total, and never a silent drop (SPEC invariants). */
@@ -82,11 +90,23 @@ sealed interface Verdict {
      * the SIM for the "Calling using <SIM>" toast when
      * [DecisionSnapshot.announceCalls] is on and the target is an active SIM
      * (a hand-off phone account is announced by the app opening, not a toast).
+     * [newNumber] is set (E.164) when same-contact number correction also
+     * rewrote the number — the redirect carries both changes at once.
      */
     data class RedirectToAccount(
         val account: PhoneAccountRef,
         val announceSim: String? = null,
+        val newNumber: String? = null,
     ) : Verdict
+
+    /**
+     * Same-contact number correction without a SIM change: redirect the call
+     * to [newNumberE164] on whatever account the platform was already using
+     * (SPEC "Hands-free and Android Auto safeguards"). Produced only where no
+     * confirmation can be shown — interactive corrections go through the
+     * chooser instead.
+     */
+    data class RedirectNumber(val newNumberE164: String) : Verdict
 
     /**
      * Cancel the carrier call and show the delayed-call countdown instead of
@@ -139,9 +159,16 @@ sealed interface Verdict {
      * Cancel the carrier call and open Simmo's chooser. [skippedInactiveSims]
      * carries the SIMs that higher-priority rules wanted but which are
      * currently disabled, so the chooser can offer enabling them
-     * (SPEC "Disabled-SIM assist").
+     * (SPEC "Disabled-SIM assist"). [numberCorrection] is set when the
+     * chooser opened to confirm a same-contact number correction — it offers
+     * the contact's local number(s) beside the number as dialed; rule
+     * evaluation didn't run for such a verdict, so [skippedInactiveSims] is
+     * empty there.
      */
-    data class OpenChooser(val skippedInactiveSims: List<SimRef> = emptyList()) : Verdict
+    data class OpenChooser(
+        val skippedInactiveSims: List<SimRef> = emptyList(),
+        val numberCorrection: NumberCorrection? = null,
+    ) : Verdict
 }
 
 enum class ProceedReason {
@@ -182,16 +209,48 @@ class DecisionEngine(private val countryDetector: CountryDetector) {
         }
 
         val destination = (country as? CountryVerdict.Country)?.regionCode
+
+        // Same-contact number correction (SPEC "Hands-free and Android Auto
+        // safeguards"), before rules: the corrected number is the call the
+        // rules should route. Only for determined, non-local destinations.
+        var effectiveNumber = call.dialedNumber
+        var effectiveDestination = destination
+        var correctedNumber: String? = null
+        if (snapshot.correctContactNumbers && destination != null &&
+            !destination.equals(snapshot.defaultRegion.trim(), ignoreCase = true)
+        ) {
+            val correction =
+                snapshot.contacts.localCorrectionFor(call.dialedNumber, snapshot.defaultRegion)
+            if (correction != null) {
+                if (call.interactive && snapshot.activeSims.isNotEmpty()) {
+                    // Never rewrite a number silently where UI can ask: the
+                    // chooser confirms, offering the local number(s) beside
+                    // the number as dialed (TODO Phase 6) — including for a
+                    // shared line, whose candidates it labels per contact
+                    // (maintainer: shared lines are confirm-only). The
+                    // user's pick there supersedes rule evaluation.
+                    return Verdict.OpenChooser(numberCorrection = correction)
+                }
+                if (!correction.sharedLine && correction.candidates.size == 1) {
+                    // No confirmation possible: correct only when unambiguous —
+                    // one owning contact, one local number.
+                    correctedNumber = correction.candidates.single().number
+                    effectiveNumber = correctedNumber
+                    effectiveDestination = snapshot.defaultRegion.trim().uppercase()
+                }
+            }
+        }
+
         val skippedInactiveSims = mutableListOf<SimRef>()
 
         for (rule in snapshot.rules.rules) {
             // A user-disabled rule is kept in the list but never acts.
             if (!rule.enabled) continue
-            if (!rule.matcher.matches(destination, snapshot.customGroups)) continue
+            if (!rule.matcher.matches(effectiveDestination, snapshot.customGroups)) continue
             when (val action = rule.action) {
                 is RuleAction.UseSim -> when (val resolved = resolveSim(action.sim, snapshot.activeSims)) {
                     is SimResolution.Active ->
-                        return routeToAccount(call, resolved.sim.phoneAccount, snapshot)
+                        return routeToAccount(call, resolved.sim.phoneAccount, snapshot, correctedNumber)
                     // Disabled or ambiguous: skip, but remember disabled SIMs
                     // so the chooser can offer enabling them.
                     SimResolution.Inactive -> skippedInactiveSims += action.sim
@@ -199,17 +258,17 @@ class DecisionEngine(private val countryDetector: CountryDetector) {
                 }
 
                 RuleAction.UseMatchingCountrySim -> {
-                    val matching = destination?.let { region ->
+                    val matching = effectiveDestination?.let { region ->
                         snapshot.activeSims.filter { it.countryIso.equals(region, ignoreCase = true) }
                     }
                     if (matching?.size == 1) {
-                        return routeToAccount(call, matching.single().phoneAccount, snapshot)
+                        return routeToAccount(call, matching.single().phoneAccount, snapshot, correctedNumber)
                     }
                 }
 
                 is RuleAction.HandOff.ViaPhoneAccount ->
                     if (action.account in snapshot.handOffAccounts) {
-                        return routeToAccount(call, action.account, snapshot)
+                        return routeToAccount(call, action.account, snapshot, correctedNumber)
                     }
 
                 is RuleAction.HandOff.ViaDialIntent ->
@@ -221,7 +280,7 @@ class DecisionEngine(private val countryDetector: CountryDetector) {
                     // strand the call. E.164 comes from the same warm parse the
                     // contact index uses — no fresh metadata load on the path.
                     if (call.interactive && action.app.packageName in snapshot.handOffApps) {
-                        normalizeToE164(call.dialedNumber, snapshot.defaultRegion)?.let { e164 ->
+                        normalizeToE164(effectiveNumber, snapshot.defaultRegion)?.let { e164 ->
                             return Verdict.ForwardToApp(
                                 action.app.packageName,
                                 action.app.launchUri(e164),
@@ -238,7 +297,7 @@ class DecisionEngine(private val countryDetector: CountryDetector) {
                     // Otherwise skip — a non-contact number falls through to the
                     // lower rules rather than stranding the call.
                     if (call.interactive) {
-                        snapshot.contacts.lookup(call.dialedNumber, snapshot.defaultRegion)
+                        snapshot.contacts.lookup(effectiveNumber, snapshot.defaultRegion)
                             ?.callActions?.get(action.app)
                             ?.let { dataRowId ->
                                 return Verdict.ForwardToContactApp(
@@ -262,10 +321,14 @@ class DecisionEngine(private val countryDetector: CountryDetector) {
                     }
 
                 RuleAction.SystemDefault ->
-                    return Verdict.Proceed(ProceedReason.SYSTEM_DEFAULT)
+                    // "No change" is about the account; a corrected number
+                    // still goes out (on the platform's own account).
+                    return correctedNumber?.let { Verdict.RedirectNumber(it) }
+                        ?: Verdict.Proceed(ProceedReason.SYSTEM_DEFAULT)
             }
         }
-        return Verdict.Proceed(ProceedReason.NO_APPLICABLE_RULE)
+        return correctedNumber?.let { Verdict.RedirectNumber(it) }
+            ?: Verdict.Proceed(ProceedReason.NO_APPLICABLE_RULE)
     }
 
     private fun RuleMatcher.matches(
@@ -293,24 +356,33 @@ class DecisionEngine(private val countryDetector: CountryDetector) {
      * Only an active SIM gets a name — a hand-off phone account announces
      * itself by the app opening.
      */
-    private fun routeToAccount(call: PlacedCall, target: PhoneAccountRef, snapshot: DecisionSnapshot): Verdict {
+    private fun routeToAccount(
+        call: PlacedCall,
+        target: PhoneAccountRef,
+        snapshot: DecisionSnapshot,
+        correctedNumber: String? = null,
+    ): Verdict {
         val simName = snapshot.activeSims
             .firstOrNull { it.phoneAccount == target }
             ?.let { it.displayName.ifBlank { it.carrierName } }
         val announce = if (snapshot.announceCalls) simName else null
-        if (call.currentAccount == target) {
+        if (correctedNumber == null && call.currentAccount == target) {
             // Nothing is being changed, so there is nothing to give the user
-            // a chance to cancel — no delay, just the optional toast.
+            // a chance to cancel — no delay, just the optional toast. (A
+            // corrected number IS a change, so it never passes through here.)
             return Verdict.Proceed(ProceedReason.ALREADY_ON_TARGET, announceSim = announce)
         }
         // The delay needs UI (its countdown screen), so non-interactive calls
         // (Bluetooth, Android Auto) redirect immediately rather than stranding
         // behind a screen that can't be shown; hand-off phone accounts
-        // (simName == null) keep their own flow.
-        if (simName != null && snapshot.callDelaySeconds > 0 && call.interactive) {
+        // (simName == null) keep their own flow. Corrected calls never delay:
+        // interactive corrections already went through the chooser.
+        if (correctedNumber == null && simName != null &&
+            snapshot.callDelaySeconds > 0 && call.interactive
+        ) {
             return Verdict.DelayedRedirect(target, simName, snapshot.callDelaySeconds)
         }
-        return Verdict.RedirectToAccount(target, announceSim = announce)
+        return Verdict.RedirectToAccount(target, announceSim = announce, newNumber = correctedNumber)
     }
 
     private fun PassToken.matches(call: PlacedCall, nowMillis: Long): Boolean =

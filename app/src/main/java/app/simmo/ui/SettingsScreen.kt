@@ -1,6 +1,9 @@
 package app.simmo.ui
 
+import android.Manifest
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -17,6 +20,7 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -38,6 +42,8 @@ data class CallSettingsUi(
     val showCallToast: Boolean = false,
     /** Seconds of cancelable countdown before a rule-picked call; 0 = off. */
     val callDelaySeconds: Int = 0,
+    /** Same-contact number correction (SPEC "Hands-free and Android Auto safeguards"). */
+    val correctContactNumbers: Boolean = false,
 )
 
 /**
@@ -48,14 +54,33 @@ data class CallSettingsUi(
 @Composable
 fun SettingsScreen(
     viewModel: RulesViewModel,
+    contactsGranted: Boolean,
+    onContactsGranted: () -> Unit,
     onOpenSims: () -> Unit,
     onBack: () -> Unit,
 ) {
     val settings by viewModel.callSettings.collectAsStateWithLifecycle()
+    val contactsLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        if (granted) onContactsGranted()
+    }
     SettingsContent(
         settings = settings,
+        contactsGranted = contactsGranted,
         onShowCallToastChange = viewModel::setShowCallToast,
         onCallDelayChange = viewModel::setCallDelaySeconds,
+        onCorrectContactNumbersChange = { enabled ->
+            viewModel.setCorrectContactNumbers(enabled)
+            // The correction reads the warm contact index, so ask for the
+            // permission the moment the feature is switched on (SPEC:
+            // READ_CONTACTS is requested when a feature needs it). A denial
+            // leaves the toggle on but inert; the hint row keeps offering it.
+            if (enabled && !contactsGranted) {
+                contactsLauncher.launch(Manifest.permission.READ_CONTACTS)
+            }
+        },
+        onRequestContacts = { contactsLauncher.launch(Manifest.permission.READ_CONTACTS) },
         onOpenSims = onOpenSims,
         onBack = onBack,
     )
@@ -64,8 +89,11 @@ fun SettingsScreen(
 @Composable
 internal fun SettingsContent(
     settings: CallSettingsUi = CallSettingsUi(),
+    contactsGranted: Boolean = true,
     onShowCallToastChange: (Boolean) -> Unit = {},
     onCallDelayChange: (Int) -> Unit = {},
+    onCorrectContactNumbersChange: (Boolean) -> Unit = {},
+    onRequestContacts: () -> Unit = {},
     onOpenSims: () -> Unit = {},
     onBack: () -> Unit = {},
 ) {
@@ -178,6 +206,54 @@ internal fun SettingsContent(
                     steps = SimmoState.MAX_CALL_DELAY_SECONDS - 1,
                     modifier = Modifier.padding(top = 4.dp),
                 )
+            }
+            // Same-contact number correction (SPEC "Hands-free and Android
+            // Auto safeguards"); the whole row toggles, like the rows above.
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .toggleable(
+                        value = settings.correctContactNumbers,
+                        role = Role.Switch,
+                        onValueChange = onCorrectContactNumbersChange,
+                    )
+                    .padding(vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.settings_local_numbers_label),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                    Text(
+                        text = stringResource(R.string.settings_local_numbers_description),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Switch(
+                    checked = settings.correctContactNumbers,
+                    onCheckedChange = null,
+                )
+            }
+            if (settings.correctContactNumbers && !contactsGranted) {
+                // On but inert: the correction reads the warm contact index,
+                // which is empty without READ_CONTACTS. Keep offering the
+                // grant instead of silently doing nothing.
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = stringResource(R.string.settings_local_numbers_hint),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.weight(1f),
+                    )
+                    TextButton(onClick = onRequestContacts) {
+                        Text(stringResource(R.string.settings_local_numbers_allow))
+                    }
+                }
             }
         }
     }

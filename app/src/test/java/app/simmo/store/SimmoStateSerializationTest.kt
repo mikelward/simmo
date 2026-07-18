@@ -49,6 +49,7 @@ class SimmoStateSerializationTest {
         analyticsOptIn = false,
         showCallToast = true,
         callDelaySeconds = 5,
+        correctContactNumbers = true,
     )
 
     private suspend fun roundTrip(state: SimmoState): SimmoState {
@@ -184,6 +185,7 @@ class SimmoStateSerializationTest {
         val read = SimmoStateSerializer.readFrom(ByteArrayInputStream(json.encodeToByteArray()))
         assertEquals(false, read.showCallToast)
         assertEquals(0, read.callDelaySeconds)
+        assertEquals(false, read.correctContactNumbers)
     }
 
     @Test
