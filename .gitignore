@@ -24,6 +24,9 @@ app/build
 *.keystore
 *.jks
 
+# Firebase config; per-machine build opt-in, never committed (see SETUP.md).
+google-services.json
+
 # JVM fatal-error / replay crash dumps from forked test workers
 hs_err_pid*.log
 replay_pid*.log

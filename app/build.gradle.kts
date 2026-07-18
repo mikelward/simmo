@@ -4,6 +4,14 @@ plugins {
     id("org.jetbrains.kotlin.plugin.serialization") version "2.2.20"
 }
 
+// Firebase (Crashlytics + Analytics) activates per build: these plugins wire
+// the config and mapping upload only when the untracked google-services.json
+// is present, so fresh clones and CI build with Firebase dormant. See SETUP.md.
+if (file("google-services.json").exists()) {
+    apply(plugin = libs.plugins.google.services.get().pluginId)
+    apply(plugin = libs.plugins.firebase.crashlytics.get().pluginId)
+}
+
 android {
     namespace = "app.simmo"
     // Latest platform the remote-session provisioning hook seeds; bump to the
@@ -73,6 +81,11 @@ dependencies {
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.datastore)
+    // Compiled into every build so the telemetry wiring compiles, but inert
+    // (never initialized) unless the build had a google-services.json.
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.analytics)
+    implementation(libs.firebase.crashlytics)
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.kotlinx.serialization.json)

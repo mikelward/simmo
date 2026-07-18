@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <!-- Enumerate subscriptions and phone accounts for the snapshot. -->
     <uses-permission android:name="android.permission.READ_PHONE_STATE" />
@@ -7,6 +8,18 @@
     <!-- Show each SIM's own number on the SIMs screen. Optional; requested
          there (silently granted alongside READ_PHONE_STATE — same group). -->
     <uses-permission android:name="android.permission.READ_PHONE_NUMBERS" />
+
+    <!-- Simmo shows no ads: strip the advertising-ID and ad-attribution
+         permissions the Firebase Analytics dependency would otherwise merge in. -->
+    <uses-permission
+        android:name="com.google.android.gms.permission.AD_ID"
+        tools:node="remove" />
+    <uses-permission
+        android:name="android.permission.ACCESS_ADSERVICES_AD_ID"
+        tools:node="remove" />
+    <uses-permission
+        android:name="android.permission.ACCESS_ADSERVICES_ATTRIBUTION"
+        tools:node="remove" />
 
     <!-- Re-place calls from the chooser (TelecomManager.placeCall); requested
          at runtime on first use. -->
@@ -45,6 +58,20 @@
         android:label="@string/app_name"
         android:supportsRtl="true"
         android:theme="@style/Theme.Simmo">
+
+        <!-- Telemetry never starts on its own: collection stays off until
+             SimmoApp applies the persisted "Make Simmo better" choice, and
+             both SDKs then remember the applied value across process starts.
+             Inert in builds without a Firebase config (see SETUP.md). -->
+        <meta-data
+            android:name="firebase_analytics_collection_enabled"
+            android:value="false" />
+        <meta-data
+            android:name="firebase_crashlytics_collection_enabled"
+            android:value="false" />
+        <meta-data
+            android:name="google_analytics_default_allow_ad_personalization_signals"
+            android:value="false" />
 
         <activity
             android:name=".MainActivity"

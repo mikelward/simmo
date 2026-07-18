@@ -17,4 +17,6 @@ re-enable a disabled eSIM profile when a rule needs it.
 ./gradlew lint            # lint
 ```
 
-Requires JDK 17+ and an Android SDK (`ANDROID_HOME`).
+Requires JDK 17+ and an Android SDK (`ANDROID_HOME`). Optional per-machine
+configuration — enabling Firebase crash reporting and analytics — is in
+[SETUP.md](SETUP.md).

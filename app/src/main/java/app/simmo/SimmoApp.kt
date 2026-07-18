@@ -10,6 +10,7 @@ import android.provider.ContactsContract
 import android.telephony.SubscriptionManager
 import android.telephony.TelephonyManager
 import androidx.core.content.ContextCompat
+import app.simmo.analytics.TelemetryGate
 import app.simmo.domain.ActiveSim
 import app.simmo.domain.CountryVerdict
 import app.simmo.domain.DecisionEngine
@@ -128,6 +129,17 @@ class SimmoApp : Application() {
         appScope.launch {
             detector.warmUp()
             metadataWarm = true
+        }
+        appScope.launch {
+            // Crash reporting and analytics follow the persisted "Make Simmo
+            // better" choice; until the state loads, the manifest keeps
+            // collection off. No-op in builds without a Firebase config.
+            val telemetry = TelemetryGate.firebase(this@SimmoApp) ?: return@launch
+            telemetry.follow(
+                stateHolderFlow.filterNotNull().first().state
+                    .filterNotNull()
+                    .map { it.analyticsOptIn },
+            )
         }
         refreshTelephony()
 

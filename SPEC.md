@@ -371,19 +371,24 @@ UI is forbidden).
   show. Also an optional onboarding row ("Show errors and shortcuts"). A denial (or a
   blocked channel) never blocks a feature; the failure notice degrades to a toast (see
   "Hand-off to another app").
-- **No `INTERNET` permission.** Everything (parsing, rules, registry) is on-device;
-  dialed numbers never leave the phone (hand-off passes the number to the app the
-  user chose, on-device). The app works fully offline and is auditable as such from
-  its manifest. *Under consideration* (maintainer, 2026-07): crash reporting (e.g.
-  Crashlytics) and usage analytics, which would add the `INTERNET` permission and
-  revise this stance. Candidate analytics signals: SIM name × destination country
-  routing counts and call completion/failure rates — never contact names, contact
-  numbers, or dialed numbers themselves. `docs/PRIVACY.md` already flags this as a
-  possible future change and must be updated in the same release as any such
-  addition. Onboarding already records a "Make Simmo better" opt-in (default on,
-  persisted with settings, so it survives backup/restore); nothing is collected
-  today, and any analytics that ship must honor the stored choice — including one
-  made before the feature existed.
+- **Crash reporting and usage analytics (Firebase), governed by the user's
+  choice.** Decided (maintainer, 2026-07): Firebase Crashlytics and Analytics are
+  compiled in — which adds the `INTERNET` permission — but a build only carries a
+  Firebase config when it was made with the untracked `google-services.json`
+  (`SETUP.md`); without one Firebase never initializes and nothing is collected.
+  Core behavior is unchanged and stays on-device: parsing, rules, and the registry
+  work fully offline, and dialed numbers, contact names, and contact numbers are
+  never collected or transmitted (hand-off passes the number to the app the user
+  chose, on-device). Collection is disabled in the manifest and follows the
+  persisted "Make Simmo better" opt-in (default on, persisted with settings, so it
+  survives backup/restore) — honoring a choice made before the feature existed;
+  both SDKs remember the applied value, so it also holds during early startup
+  before the state loads. Only automatic telemetry ships today (crash traces,
+  first-open/screen/session events); the advertising ID is stripped and ad
+  personalization disabled. Candidate future signals: SIM name × destination
+  country routing counts and call completion/failure rates — never dialed numbers.
+  `docs/PRIVACY.md` and the Play data safety form must describe the collection in
+  any release built with Firebase enabled.
 - **Onboarding asks for little and never rushes.** Required rows are
   `READ_PHONE_STATE` then the role — seeing the SIMs before routing between them, the
   user's mental model; `POST_NOTIFICATIONS`, `CALL_PHONE`, and `READ_CONTACTS` are
