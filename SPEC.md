@@ -16,8 +16,11 @@ where several eSIM profiles can be installed at once and swapped in Settings.
 ### Rules
 
 Rules are an **ordered list**, evaluated top to bottom for every outgoing call; the
-first *applicable* rule decides the call and evaluation stops. The user drags to
-reorder. A rule pairs a **matcher** with an **action**:
+first *applicable* rule decides the call and evaluation stops. The user drags a rule's
+handle to reorder, taps it to edit, and reaches a per-rule menu (its ⋮ button or a
+long-press) to **edit, duplicate, enable/disable, or delete** it — duplicate drops a
+copy directly below the original as the starting point for a variant. A rule pairs a
+**matcher** with an **action**:
 
 - **Matcher**: one or more destination countries (ISO regions, shown with their
   calling codes — "+61 Australia"), or **any destination** (used by the preseeded
@@ -86,6 +89,10 @@ reorder. A rule pairs a **matcher** with an **action**:
 **Applicability (skip semantics).** A rule that cannot act right now is skipped and
 evaluation continues with the next rule:
 
+- the user has **turned the rule off** — a disabled rule stays in place (its order,
+  target, and settings intact) but never acts, so it can be switched back on without
+  being rebuilt. This is distinct from the *automatic* skips below, which the rule
+  can't control; a disabled rule shows greyed with its own "Disabled" label;
 - its SIM is currently disabled or can't be re-bound unambiguously (such rules show
   greyed out in the list and are kept for when the SIM is re-enabled);
 - its hand-off target is no longer reachable;
