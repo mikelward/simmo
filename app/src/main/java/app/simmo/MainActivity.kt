@@ -47,6 +47,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
+import app.simmo.ui.DataRuleEditorScreen
 import app.simmo.ui.EditorTarget
 import app.simmo.ui.GroupsScreen
 import app.simmo.ui.RuleEditorScreen
@@ -69,10 +70,24 @@ class MainActivity : ComponentActivity() {
      */
     private var manageSimsRequested by mutableStateOf(false)
 
+    /**
+     * Set when the data-watch notification asked for the data rules screen
+     * (its Rules action and body tap); same lifecycle rules as
+     * [manageSimsRequested] — a recreation must not resurrect a consumed
+     * request, and a tap that lands on onboarding survives there.
+     */
+    private var dataRulesRequested by mutableStateOf(false)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         manageSimsRequested = pendingManageSimsRequest(savedInstanceState, intent?.action)
+        dataRulesRequested = pendingRequest(
+            savedInstanceState,
+            STATE_DATA_RULES_REQUESTED,
+            intent?.action,
+            ACTION_DATA_RULES,
+        )
         setContent {
             MaterialTheme {
                 var phoneGranted by remember { mutableStateOf(isPhonePermissionGranted()) }
@@ -161,7 +176,16 @@ class MainActivity : ComponentActivity() {
                             vm.openSimRegistryFromShortcut()
                         }
                     }
+                    // The notification's request likewise waits out onboarding.
+                    LaunchedEffect(dataRulesRequested) {
+                        if (dataRulesRequested) {
+                            dataRulesRequested = false
+                            vm.openDataRules()
+                        }
+                    }
                     val editing = target
+                    val dataEditing by vm.dataEditorTarget.collectAsStateWithLifecycle()
+                    val editingData = dataEditing
                     when {
                         // The editor wins: it can only be open from the rules
                         // list, and registry state is preserved beneath it.
@@ -171,6 +195,15 @@ class MainActivity : ComponentActivity() {
                                 viewModel = vm,
                                 target = editing,
                                 onDone = vm::closeEditor,
+                            )
+                        }
+
+                        editingData != null -> {
+                            BackHandler { vm.closeDataEditor() }
+                            DataRuleEditorScreen(
+                                viewModel = vm,
+                                target = editingData,
+                                onDone = vm::closeDataEditor,
                             )
                         }
 
@@ -268,16 +301,21 @@ class MainActivity : ComponentActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        // The tile tapped while this activity is foreground: SINGLE_TOP
-        // routes the relaunch here instead of stacking a second instance.
+        // The tile (or notification) tapped while this activity is
+        // foreground: SINGLE_TOP routes the relaunch here instead of
+        // stacking a second instance.
         if (intent.action == ACTION_MANAGE_SIMS) {
             manageSimsRequested = true
+        }
+        if (intent.action == ACTION_DATA_RULES) {
+            dataRulesRequested = true
         }
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         outState.putBoolean(STATE_MANAGE_SIMS_REQUESTED, manageSimsRequested)
+        outState.putBoolean(STATE_DATA_RULES_REQUESTED, dataRulesRequested)
     }
 
     private fun isRedirectionRoleHeld(): Boolean =
@@ -304,7 +342,11 @@ class MainActivity : ComponentActivity() {
         /** Sent by the Quick Settings tile: open straight onto the SIMs screen. */
         const val ACTION_MANAGE_SIMS = "app.simmo.action.MANAGE_SIMS"
 
+        /** Sent by the data-watch notification: land on the data rules list. */
+        const val ACTION_DATA_RULES = "app.simmo.action.DATA_RULES"
+
         private const val STATE_MANAGE_SIMS_REQUESTED = "manage_sims_requested"
+        private const val STATE_DATA_RULES_REQUESTED = "data_rules_requested"
 
         /**
          * Whether a tile request is pending at creation. A fresh launch reads
@@ -312,8 +354,15 @@ class MainActivity : ComponentActivity() {
          * intent must not resurrect a request that was already consumed.
          */
         internal fun pendingManageSimsRequest(saved: Bundle?, intentAction: String?): Boolean =
-            saved?.getBoolean(STATE_MANAGE_SIMS_REQUESTED, false)
-                ?: (intentAction == ACTION_MANAGE_SIMS)
+            pendingRequest(saved, STATE_MANAGE_SIMS_REQUESTED, intentAction, ACTION_MANAGE_SIMS)
+
+        /** The same consumed-request rules, for any launch action. */
+        internal fun pendingRequest(
+            saved: Bundle?,
+            stateKey: String,
+            intentAction: String?,
+            action: String,
+        ): Boolean = saved?.getBoolean(stateKey, false) ?: (intentAction == action)
     }
 }
 

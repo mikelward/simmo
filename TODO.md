@@ -445,9 +445,9 @@ System settings.
       verdict shape + data SIM + country, so a new country/SIM/problem re-arms);
       state-based, so Wi-Fi carrying the traffic doesn't suppress it. Two actions
       (maintainer): Enable/Switch — the verb matching the message — jumps to
-      system SIM settings, Rules (and the body tap) opens Simmo; re-point Rules
-      at the data rules screen when it lands (the triage card is also the
-      notifications-off degradation, owed with that slice).
+      system SIM settings, Rules (and the body tap) deep-links to the data
+      rules list (the triage card is also the notifications-off degradation,
+      owed with that slice).
 - [ ] Let users turn off the "Using non-preferred SIM" nudge (maintainer: it
       fires on every arrival where a use-SIM rule is unmet, which could get
       annoying) — an in-app Settings toggle, or its own notification channel so
@@ -482,11 +482,14 @@ System settings.
       roaming transitions between wake-ups). Device QA owed: connectivity
       callback firing behavior across carriers/handovers, boot re-register,
       and end-to-end warning latency with a dead process.
-- [ ] Data rules UI: a Data list beside Calling on the rules home (terminology per
-      SPEC "Product behavior": Calling rules / Data rules / System settings; exact
-      navigation shape decided at build time), list + editor reusing the country
-      picker, groups, reorder, and per-rule menu; screenshot tests + their CI
-      steps.
+- [x] Data rules UI: Calling / Data tabs on the rules home (terminology per SPEC
+      "Product behavior": Calling rules / Data rules / System settings), the data
+      list and editor reusing the country picker, groups, reorder, and per-rule
+      menu; plain country names on the data side (where you are, not who you
+      call); the notification's Rules action and body tap deep-link here;
+      screenshot tests + their CI steps. Multi-SIM Roaming OK scopes are kept
+      verbatim by the editor (single-SIM scopes are editable); revisit if
+      multi-SIM editing is ever needed.
 - [ ] Triage card at the top of the data rules screen: which SIM carries data,
       where, roaming or not, which active SIM is local; "This is OK" creates the
       prefilled Roaming OK rule with group-widening suggestions, "System settings"

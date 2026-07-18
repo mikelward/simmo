@@ -1,6 +1,5 @@
 package app.simmo.ui
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -31,6 +30,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -54,10 +55,11 @@ import app.simmo.R
 import app.simmo.domain.SimRef
 
 /**
- * The home screen: the ordered rule list, first match wins (SPEC "Calling rules").
- * Tapping a row edits it; dragging a row's handle reorders it; the add button
- * prepends a new rule. Rules whose SIM is disabled render greyed out and are
- * skipped during evaluation.
+ * The home screen: two ordered rule lists side by side — Calling and Data
+ * (SPEC "Product behavior" terminology) — each first match wins. Tapping a
+ * row edits it; dragging a row's handle reorders it; the add button prepends
+ * a new rule to the visible list. Rules that can't act render greyed out and
+ * are skipped during evaluation.
  */
 @Composable
 fun RulesScreen(
@@ -67,9 +69,14 @@ fun RulesScreen(
     onOpenGroups: () -> Unit = {},
 ) {
     val rows by viewModel.rows.collectAsStateWithLifecycle()
+    val dataRows by viewModel.dataRows.collectAsStateWithLifecycle()
     val newSimPrompts by viewModel.newSimPrompts.collectAsStateWithLifecycle()
+    val tab by viewModel.rulesTab.collectAsStateWithLifecycle()
     RulesScreenContent(
         rows = rows,
+        dataRows = dataRows,
+        tab = tab,
+        onSelectTab = viewModel::selectRulesTab,
         newSimPrompts = newSimPrompts,
         onAddRule = onAddRule,
         onEditRule = onEditRule,
@@ -77,6 +84,12 @@ fun RulesScreen(
         onDeleteRule = viewModel::removeRule,
         onSetRuleEnabled = viewModel::setRuleEnabled,
         onMoveRule = viewModel::moveRule,
+        onAddDataRule = viewModel::openNewDataRule,
+        onEditDataRule = viewModel::openEditDataRule,
+        onDuplicateDataRule = viewModel::duplicateDataRule,
+        onDeleteDataRule = viewModel::removeDataRule,
+        onSetDataRuleEnabled = viewModel::setDataRuleEnabled,
+        onMoveDataRule = viewModel::moveDataRule,
         onAddRuleForSim = viewModel::openNewRuleForSim,
         onDismissNewSimPrompt = viewModel::dismissNewSimPrompt,
         onOpenSettings = viewModel::openSettings,
@@ -87,6 +100,9 @@ fun RulesScreen(
 @Composable
 internal fun RulesScreenContent(
     rows: List<RuleRowUi>,
+    dataRows: List<DataRuleRowUi> = emptyList(),
+    tab: RulesTab = RulesTab.CALLING,
+    onSelectTab: (RulesTab) -> Unit = {},
     newSimPrompts: List<NewSimPromptUi> = emptyList(),
     onAddRule: () -> Unit = {},
     onEditRule: (Int) -> Unit = {},
@@ -94,34 +110,21 @@ internal fun RulesScreenContent(
     onDeleteRule: (Int) -> Unit = {},
     onSetRuleEnabled: (Int, Boolean) -> Unit = { _, _ -> },
     onMoveRule: (Int, Int) -> Unit = { _, _ -> },
+    onAddDataRule: () -> Unit = {},
+    onEditDataRule: (Int) -> Unit = {},
+    onDuplicateDataRule: (Int) -> Unit = {},
+    onDeleteDataRule: (Int) -> Unit = {},
+    onSetDataRuleEnabled: (Int, Boolean) -> Unit = { _, _ -> },
+    onMoveDataRule: (Int, Int) -> Unit = { _, _ -> },
     onAddRuleForSim: (NewSimPromptUi) -> Unit = {},
     onDismissNewSimPrompt: (SimRef) -> Unit = {},
     onOpenSettings: () -> Unit = {},
     onOpenGroups: () -> Unit = {},
 ) {
-    val listState = rememberLazyListState()
-    val currentRows by rememberUpdatedState(rows)
-    // The order shown while a drag is live (and until the committed order
-    // flows back), so a drag never waits on a disk write per crossing and the
-    // drop doesn't visibly snap back while the write round-trips.
-    var workingRows by remember { mutableStateOf<List<RuleRowUi>?>(null) }
-    val dragState = remember(listState) {
-        DragReorderState(
-            listState = listState,
-            onDragMove = { from, to -> workingRows = (workingRows ?: currentRows).movedItem(from, to) },
-            onDrop = { from, to -> onMoveRule(from, to) },
-            onCancel = { workingRows = null },
-        )
-    }
-    // Adopt every fresh upstream order once no drag is live: the committed
-    // reorder catching up, and any unrelated change (SIM state, edits).
-    LaunchedEffect(rows) {
-        if (dragState.draggingIndex == null) workingRows = null
-    }
-    val displayRows = workingRows ?: rows
-    // The rule the ⋮/long-press menu asked to delete, awaiting confirmation;
-    // saveable so a rotation mid-confirm keeps the dialog rather than dropping it.
+    // The rule a ⋮/long-press menu asked to delete, awaiting confirmation; per
+    // list, and saveable so a rotation mid-confirm keeps the dialog.
     var pendingDeleteRule: Int? by rememberSaveable { mutableStateOf<Int?>(null) }
+    var pendingDeleteDataRule: Int? by rememberSaveable { mutableStateOf<Int?>(null) }
 
     Surface(modifier = Modifier.fillMaxSize()) {
         Box(modifier = Modifier.fillMaxSize()) {
@@ -140,7 +143,9 @@ internal fun RulesScreenContent(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        text = stringResource(R.string.rules_title),
+                        text = stringResource(
+                            if (tab == RulesTab.CALLING) R.string.rules_title else R.string.data_rules_title,
+                        ),
                         style = MaterialTheme.typography.headlineMedium,
                         modifier = Modifier.weight(1f),
                     )
@@ -157,45 +162,73 @@ internal fun RulesScreenContent(
                         )
                     }
                 }
+                TabRow(
+                    selectedTabIndex = tab.ordinal,
+                    modifier = Modifier.padding(bottom = 16.dp),
+                ) {
+                    Tab(
+                        selected = tab == RulesTab.CALLING,
+                        onClick = { onSelectTab(RulesTab.CALLING) },
+                        text = { Text(stringResource(R.string.rules_tab_calling)) },
+                    )
+                    Tab(
+                        selected = tab == RulesTab.DATA,
+                        onClick = { onSelectTab(RulesTab.DATA) },
+                        text = { Text(stringResource(R.string.rules_tab_data)) },
+                    )
+                }
                 Text(
-                    text = stringResource(R.string.rules_explainer),
+                    text = stringResource(
+                        if (tab == RulesTab.CALLING) R.string.rules_explainer else R.string.data_rules_explainer,
+                    ),
                     style = MaterialTheme.typography.bodyMedium,
                     modifier = Modifier.padding(bottom = 16.dp),
                 )
-                // Outside the LazyColumn so rule indices stay list-relative
-                // for editing and dragging.
-                newSimPrompts.forEach { prompt ->
-                    NewSimPromptCard(
-                        prompt = prompt,
-                        onAddRule = { onAddRuleForSim(prompt) },
-                        onDismiss = { onDismissNewSimPrompt(prompt.ref) },
-                    )
-                }
-                LazyColumn(state = listState, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    itemsIndexed(displayRows) { index, row ->
-                        val dragging = dragState.draggingIndex == index
-                        RuleRow(
-                            row = row,
+                if (tab == RulesTab.CALLING) {
+                    // Outside the LazyColumn so rule indices stay list-relative
+                    // for editing and dragging.
+                    newSimPrompts.forEach { prompt ->
+                        NewSimPromptCard(
+                            prompt = prompt,
+                            onAddRule = { onAddRuleForSim(prompt) },
+                            onDismiss = { onDismissNewSimPrompt(prompt.ref) },
+                        )
+                    }
+                    ReorderableRuleList(rows = rows, onMove = onMoveRule) { index, row, dragState, modifier ->
+                        RuleListRow(
+                            title = row.matcherCountryLabel ?: stringResource(R.string.rule_matcher_any),
+                            subtitle = callingActionLabel(row.action),
+                            statusLabel = pauseLabel(row.enabled, row.pause),
+                            enabled = row.enabled,
                             dragState = dragState,
                             index = index,
                             onClick = { onEditRule(index) },
                             onDuplicate = { onDuplicateRule(index) },
                             onDelete = { pendingDeleteRule = index },
                             onSetEnabled = { enabled -> onSetRuleEnabled(index, enabled) },
-                            modifier = Modifier
-                                // Draw the dragged row above its neighbors. The
-                                // translation is read inside the layer block so
-                                // each drag frame costs a redraw, not a recompose.
-                                .zIndex(if (dragging) 1f else 0f)
-                                .graphicsLayer {
-                                    translationY = if (dragging) dragState.draggingOffset else 0f
-                                },
+                            modifier = modifier,
+                        )
+                    }
+                } else {
+                    ReorderableRuleList(rows = dataRows, onMove = onMoveDataRule) { index, row, dragState, modifier ->
+                        RuleListRow(
+                            title = row.matcherCountryLabel ?: stringResource(R.string.data_rule_matcher_any),
+                            subtitle = dataExpectationLabel(row.expectation),
+                            statusLabel = pauseLabel(row.enabled, row.pause),
+                            enabled = row.enabled,
+                            dragState = dragState,
+                            index = index,
+                            onClick = { onEditDataRule(index) },
+                            onDuplicate = { onDuplicateDataRule(index) },
+                            onDelete = { pendingDeleteDataRule = index },
+                            onSetEnabled = { enabled -> onSetDataRuleEnabled(index, enabled) },
+                            modifier = modifier,
                         )
                     }
                 }
             }
             FloatingActionButton(
-                onClick = onAddRule,
+                onClick = if (tab == RulesTab.CALLING) onAddRule else onAddDataRule,
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .safeDrawingPadding()
@@ -209,26 +242,114 @@ internal fun RulesScreenContent(
         }
     }
     pendingDeleteRule?.let { index ->
-        AlertDialog(
-            onDismissRequest = { pendingDeleteRule = null },
-            title = { Text(stringResource(R.string.rule_delete_title)) },
-            text = { Text(stringResource(R.string.rule_delete_body)) },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        pendingDeleteRule = null
-                        onDeleteRule(index)
-                    },
-                ) {
-                    Text(stringResource(R.string.editor_delete))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { pendingDeleteRule = null }) {
-                    Text(stringResource(R.string.editor_cancel))
-                }
-            },
+        ConfirmDeleteRuleDialog(
+            onConfirm = { pendingDeleteRule = null; onDeleteRule(index) },
+            onDismiss = { pendingDeleteRule = null },
         )
+    }
+    pendingDeleteDataRule?.let { index ->
+        ConfirmDeleteRuleDialog(
+            onConfirm = { pendingDeleteDataRule = null; onDeleteDataRule(index) },
+            onDismiss = { pendingDeleteDataRule = null },
+        )
+    }
+}
+
+@Composable
+private fun callingActionLabel(action: ActionUi): String = when (action) {
+    is ActionUi.UseSim -> stringResource(R.string.rule_action_use_sim, action.simName)
+    ActionUi.MatchingCountrySim -> stringResource(R.string.rule_action_matching_sim)
+    is ActionUi.HandOffApp -> stringResource(R.string.rule_action_hand_off, action.target)
+    ActionUi.Ask -> stringResource(R.string.rule_action_ask)
+    ActionUi.SystemDefault -> stringResource(R.string.rule_action_system_default)
+}
+
+@Composable
+internal fun dataExpectationLabel(expectation: DataExpectationUi): String = when (expectation) {
+    is DataExpectationUi.UseSimForData ->
+        stringResource(R.string.data_rule_use_sim, expectation.simName)
+    DataExpectationUi.RoamingOkAnySim -> stringResource(R.string.data_rule_roaming_ok_any)
+    DataExpectationUi.RoamingOkHomedInMatched ->
+        stringResource(R.string.data_rule_roaming_ok_homed)
+    is DataExpectationUi.RoamingOkSims ->
+        stringResource(R.string.data_rule_roaming_ok_sims, expectation.simNames)
+    DataExpectationUi.AlwaysWarn -> stringResource(R.string.data_rule_warn)
+}
+
+/**
+ * The greyed row's status line. The user-off state reads first: it overrides
+ * why the rule can't act (an off rule wouldn't act even with its SIM enabled).
+ */
+@Composable
+private fun pauseLabel(enabled: Boolean, pause: RulePause?): String? = when {
+    !enabled -> stringResource(R.string.rule_disabled)
+    pause == RulePause.SIM_DISABLED -> stringResource(R.string.rule_sim_disabled)
+    pause == RulePause.SIM_AMBIGUOUS -> stringResource(R.string.rule_sim_ambiguous)
+    pause == RulePause.ACCOUNT_UNAVAILABLE -> stringResource(R.string.rule_account_unavailable)
+    else -> null
+}
+
+@Composable
+private fun ConfirmDeleteRuleDialog(onConfirm: () -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.rule_delete_title)) },
+        text = { Text(stringResource(R.string.rule_delete_body)) },
+        confirmButton = {
+            TextButton(onClick = onConfirm) { Text(stringResource(R.string.editor_delete)) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.editor_cancel)) }
+        },
+    )
+}
+
+/**
+ * The drag-to-reorder list host shared by both tabs: shows [rows] reordered
+ * live while a drag is in flight (and until the committed order flows back),
+ * so a drag never waits on a disk write per crossing and the drop doesn't
+ * visibly snap back while the write round-trips.
+ */
+@Composable
+private fun <T> ReorderableRuleList(
+    rows: List<T>,
+    onMove: (Int, Int) -> Unit,
+    rowContent: @Composable (index: Int, item: T, dragState: DragReorderState, modifier: Modifier) -> Unit,
+) {
+    val listState = rememberLazyListState()
+    val currentRows by rememberUpdatedState(rows)
+    var workingRows by remember { mutableStateOf<List<T>?>(null) }
+    val dragState = remember(listState) {
+        DragReorderState(
+            listState = listState,
+            onDragMove = { from, to -> workingRows = (workingRows ?: currentRows).movedItem(from, to) },
+            onDrop = { from, to -> onMove(from, to) },
+            onCancel = { workingRows = null },
+        )
+    }
+    // Adopt every fresh upstream order once no drag is live: the committed
+    // reorder catching up, and any unrelated change (SIM state, edits).
+    LaunchedEffect(rows) {
+        if (dragState.draggingIndex == null) workingRows = null
+    }
+    val displayRows = workingRows ?: rows
+    LazyColumn(state = listState, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        itemsIndexed(displayRows) { index, row ->
+            val dragging = dragState.draggingIndex == index
+            rowContent(
+                index,
+                row,
+                dragState,
+                Modifier
+                    // Draw the dragged row above its neighbors. The
+                    // translation is read inside the layer block so each drag
+                    // frame costs a redraw, not a recompose.
+                    .zIndex(if (dragging) 1f else 0f)
+                    .graphicsLayer {
+                        translationY = if (dragging) dragState.draggingOffset else 0f
+                    },
+            )
+        }
     }
 }
 
@@ -265,9 +386,13 @@ private fun NewSimPromptCard(
     }
 }
 
+/** One row of either rule list; the caller resolves all text beforehand. */
 @Composable
-private fun RuleRow(
-    row: RuleRowUi,
+private fun RuleListRow(
+    title: String,
+    subtitle: String,
+    statusLabel: String?,
+    enabled: Boolean,
     dragState: DragReorderState,
     index: Int,
     onClick: () -> Unit,
@@ -282,11 +407,10 @@ private fun RuleRow(
     // the pointer coroutine mid-drag would cancel the drag.
     val currentIndex by rememberUpdatedState(index)
     var menuOpen by remember { mutableStateOf(false) }
-    // Greyed when the rule can't act — either the user turned it off or an
-    // automatic pause (disabled SIM, ambiguous re-bind) applies. Applied to the
+    // Greyed when the rule can't act — statusLabel carries why. Applied to the
     // handle and content, not the whole row, so the actions menu button stays
     // legible enough to re-enable a disabled rule.
-    val contentAlpha = if (!row.enabled || row.pause != null) 0.4f else 1f
+    val contentAlpha = if (statusLabel != null) 0.4f else 1f
     Row(
         modifier = modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
@@ -313,39 +437,10 @@ private fun RuleRow(
                 .combinedClickable(onClick = onClick, onLongClick = { menuOpen = true })
                 .alpha(contentAlpha),
         ) {
-            Text(
-                text = row.matcherCountryLabel ?: stringResource(R.string.rule_matcher_any),
-                style = MaterialTheme.typography.titleMedium,
-            )
-            Text(
-                text = when (val a = row.action) {
-                    is ActionUi.UseSim -> stringResource(R.string.rule_action_use_sim, a.simName)
-                    ActionUi.MatchingCountrySim -> stringResource(R.string.rule_action_matching_sim)
-                    is ActionUi.HandOffApp -> stringResource(R.string.rule_action_hand_off, a.target)
-                    ActionUi.Ask -> stringResource(R.string.rule_action_ask)
-                    ActionUi.SystemDefault -> stringResource(R.string.rule_action_system_default)
-                },
-                style = MaterialTheme.typography.bodyMedium,
-            )
-            // The user-off state reads first: it overrides why the rule can't
-            // act (an off rule wouldn't act even with its SIM enabled).
-            when {
-                !row.enabled -> Text(
-                    text = stringResource(R.string.rule_disabled),
-                    style = MaterialTheme.typography.labelMedium,
-                )
-                row.pause == RulePause.SIM_DISABLED -> Text(
-                    text = stringResource(R.string.rule_sim_disabled),
-                    style = MaterialTheme.typography.labelMedium,
-                )
-                row.pause == RulePause.SIM_AMBIGUOUS -> Text(
-                    text = stringResource(R.string.rule_sim_ambiguous),
-                    style = MaterialTheme.typography.labelMedium,
-                )
-                row.pause == RulePause.ACCOUNT_UNAVAILABLE -> Text(
-                    text = stringResource(R.string.rule_account_unavailable),
-                    style = MaterialTheme.typography.labelMedium,
-                )
+            Text(text = title, style = MaterialTheme.typography.titleMedium)
+            Text(text = subtitle, style = MaterialTheme.typography.bodyMedium)
+            statusLabel?.let {
+                Text(text = it, style = MaterialTheme.typography.labelMedium)
             }
         }
         // The row's actions. The menu is not dimmed with the rule — it must
@@ -370,11 +465,11 @@ private fun RuleRow(
                     text = {
                         Text(
                             stringResource(
-                                if (row.enabled) R.string.rule_menu_disable else R.string.rule_menu_enable,
+                                if (enabled) R.string.rule_menu_disable else R.string.rule_menu_enable,
                             ),
                         )
                     },
-                    onClick = { menuOpen = false; onSetEnabled(!row.enabled) },
+                    onClick = { menuOpen = false; onSetEnabled(!enabled) },
                 )
                 DropdownMenuItem(
                     text = { Text(stringResource(R.string.rule_menu_delete)) },

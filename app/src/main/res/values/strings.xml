@@ -26,6 +26,34 @@
     <!-- TODO: translate -->
     <string name="rules_explainer" tools:ignore="MissingTranslation">Checked top to bottom for every call; the first rule that can act wins.</string>
     <!-- TODO: translate -->
+    <string name="data_rules_title" tools:ignore="MissingTranslation">Data rules</string>
+    <!-- TODO: translate -->
+    <string name="rules_tab_calling" tools:ignore="MissingTranslation">Calling</string>
+    <!-- TODO: translate -->
+    <string name="rules_tab_data" tools:ignore="MissingTranslation">Data</string>
+    <!-- TODO: translate -->
+    <string name="data_rules_explainer" tools:ignore="MissingTranslation">Checked top to bottom when you arrive; the first rule that can act wins.</string>
+    <!-- TODO: translate -->
+    <string name="data_rule_matcher_any" tools:ignore="MissingTranslation">Anywhere</string>
+    <!-- TODO: translate -->
+    <string name="data_rule_use_sim" tools:ignore="MissingTranslation">Use %1$s for data</string>
+    <!-- TODO: translate -->
+    <string name="data_rule_roaming_ok_any" tools:ignore="MissingTranslation">Roaming OK on any SIM</string>
+    <!-- TODO: translate -->
+    <string name="data_rule_roaming_ok_homed" tools:ignore="MissingTranslation">Roaming OK on SIMs homed in these countries</string>
+    <!-- TODO: translate -->
+    <string name="data_rule_roaming_ok_sims" tools:ignore="MissingTranslation">Roaming OK on %1$s</string>
+    <!-- TODO: translate -->
+    <string name="data_rule_warn" tools:ignore="MissingTranslation">Always warn</string>
+    <!-- TODO: translate -->
+    <string name="data_editor_title_new" tools:ignore="MissingTranslation">New data rule</string>
+    <!-- TODO: translate -->
+    <string name="data_editor_title_edit" tools:ignore="MissingTranslation">Edit data rule</string>
+    <!-- TODO: translate -->
+    <string name="data_editor_when_label" tools:ignore="MissingTranslation">When in</string>
+    <!-- TODO: translate -->
+    <string name="data_editor_expect_label" tools:ignore="MissingTranslation">Expect</string>
+    <!-- TODO: translate -->
     <string name="rule_matcher_any" tools:ignore="MissingTranslation">Any country</string>
     <!-- TODO: translate -->
     <string name="rule_action_use_sim" tools:ignore="MissingTranslation">Call with %1$s</string>
