@@ -40,18 +40,23 @@ class SimmoCallRedirectionService : CallRedirectionService() {
         // Scoped to this call: concurrent redirections each get their own
         // watchdog, and finishing one must not cancel another's fallback.
         val watchdogToken = Any()
-        fun respond(action: () -> Unit) {
-            if (responded.compareAndSet(false, true)) {
-                mainHandler.removeCallbacksAndMessages(watchdogToken)
-                try {
-                    action()
-                } catch (e: RuntimeException) {
-                    // The response call itself failed (e.g. a stale handle);
-                    // responded is already latched, so the watchdog can't save
-                    // us — try the safe response directly as a last resort.
-                    Log.e(TAG, "Redirection response failed; placing unmodified", e)
-                    runCatching { placeCallUnmodified() }
-                }
+        // Returns true only when THIS action won the race and completed —
+        // callers announcing what happened (the "Calling using" toast) must
+        // not claim an action the watchdog preempted or that fell back to
+        // placeCallUnmodified (Codex on PR #38).
+        fun respond(action: () -> Unit): Boolean {
+            if (!responded.compareAndSet(false, true)) return false
+            mainHandler.removeCallbacksAndMessages(watchdogToken)
+            return try {
+                action()
+                true
+            } catch (e: RuntimeException) {
+                // The response call itself failed (e.g. a stale handle);
+                // responded is already latched, so the watchdog can't save
+                // us — try the safe response directly as a last resort.
+                Log.e(TAG, "Redirection response failed; placing unmodified", e)
+                runCatching { placeCallUnmodified() }
+                false
             }
         }
 
@@ -141,16 +146,19 @@ class SimmoCallRedirectionService : CallRedirectionService() {
             when (verdict) {
                 is Verdict.Proceed -> {
                     verdict.consumedToken?.let(app.passTokens::consume)
-                    respond { placeCallUnmodified() }
-                    // After responding — the toast must never delay the answer.
-                    verdict.announceSim?.let(app.notifications::toastCallingUsing)
+                    // Toast only after responding (it must never delay the
+                    // answer) and only if this response actually landed.
+                    if (respond { placeCallUnmodified() }) {
+                        verdict.announceSim?.let(app.notifications::toastCallingUsing)
+                    }
                 }
 
                 is Verdict.RedirectToAccount -> {
                     val target = app.assembler.handleFor(verdict.account)
                     if (target != null) {
-                        respond { redirectCall(handle, target, /* confirmFirst = */ false) }
-                        verdict.announceSim?.let(app.notifications::toastCallingUsing)
+                        if (respond { redirectCall(handle, target, /* confirmFirst = */ false) }) {
+                            verdict.announceSim?.let(app.notifications::toastCallingUsing)
+                        }
                     } else {
                         // The account vanished between snapshot refreshes;
                         // never gamble with the user's call.
