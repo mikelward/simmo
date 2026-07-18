@@ -16,6 +16,7 @@ import android.telephony.SubscriptionManager
 import android.telephony.TelephonyManager
 import android.util.Log
 import androidx.core.content.ContextCompat
+import androidx.datastore.core.DataStore
 import app.simmo.analytics.TelemetryGate
 import app.simmo.domain.ActiveSim
 import app.simmo.domain.CountryVerdict
@@ -27,6 +28,7 @@ import app.simmo.domain.PhoneNumberCountryDetector
 import app.simmo.domain.pendingNewSimNotifications
 import app.simmo.notify.SimNotifications
 import app.simmo.store.InstallMarker
+import app.simmo.store.SimmoState
 import app.simmo.store.SimmoStateHolder
 import app.simmo.store.simmoStateStore
 import app.simmo.telecom.ContactsReader
@@ -67,7 +69,7 @@ import kotlinx.coroutines.sync.withLock
  * metadata is pre-loaded, and telephony state is cached and refreshed on
  * subscription changes. Nothing in [coordinator]'s read path blocks.
  */
-class SimmoApp : Application() {
+open class SimmoApp : Application() {
 
     /**
      * Background maintenance (state load, telephony refreshes, contact index,
@@ -146,6 +148,17 @@ class SimmoApp : Application() {
 
     /** For the UI, which needs to react when the holder becomes available. */
     fun stateHolders(): StateFlow<SimmoStateHolder?> = stateHolderFlow
+
+    /**
+     * The persisted-state store the holder loads at startup. Overridable so a
+     * Robolectric test can substitute an isolated in-memory store: the real
+     * [simmoStateStore] is a process-wide singleton, and reusing it across
+     * tests can bind it to a torn-down context whose every read then fails —
+     * which [SimmoStateHolder]'s unbounded read retry turns into a state that
+     * never loads, hanging any `state` await for the whole run. Production is
+     * unchanged; see TestSimmoApp for the test override.
+     */
+    internal open fun createStateStore(): DataStore<SimmoState> = simmoStateStore
 
     /**
      * The best-known choice right now from memory alone — never disk, so UI
@@ -228,7 +241,7 @@ class SimmoApp : Application() {
             // for the rest of the process lifetime.
             val holder = retryUntilDone("State load") {
                 val installId = InstallMarker.get(this@SimmoApp)
-                SimmoStateHolder(simmoStateStore, appScope, installId)
+                SimmoStateHolder(createStateStore(), appScope, installId)
             }
             stateHolderFlow.value = holder
             maintenanceStep("Registry capture") { recordSims() }
