@@ -439,23 +439,42 @@ System settings.
       the registry records data-only subscriptions too — flagged, never
       offered as calling-rule targets — so the no-data nudge can name a
       disabled local profile (both flagged by Codex on PR #52).
-- [ ] Warning notification: "Using data roaming" naming SIM and country, one
-      Settings action into the data rules screen; fires once per SIM-and-country
-      arrival (persisted dedupe, cleared when the country changes or a covering
-      rule lands); state-based, so Wi-Fi carrying the traffic doesn't suppress it;
-      degrades to the in-app triage card when notifications are off.
+- [x] Warning notification: "Using data roaming" naming SIM and country, plus the
+      wrong-data-SIM and no-data nudges, on their own data_watch channel; fires
+      once per SIM-and-country arrival (persisted `dataWatchMark`, keyed by
+      verdict shape + data SIM + country, so a new country/SIM/problem re-arms);
+      state-based, so Wi-Fi carrying the traffic doesn't suppress it. Two actions
+      (maintainer): Enable/Switch — the verb matching the message — jumps to
+      system SIM settings, Rules (and the body tap) opens Simmo; re-point Rules
+      at the data rules screen when it lands (the triage card is also the
+      notifications-off degradation, owed with that slice).
+- [ ] Let users turn off the "Using non-preferred SIM" nudge (maintainer: it
+      fires on every arrival where a use-SIM rule is unmet, which could get
+      annoying) — an in-app Settings toggle, or its own notification channel so
+      the system's per-channel controls handle it; decide alongside the data
+      rules UI, where a per-rule "don't nudge" option is the third candidate.
+- [ ] Urgency-gated variant of that nudge (maintainer): fire only when the
+      rule is unmet AND the SIM carrying data has no service/coverage — the
+      arrangement isn't just non-preferred, it's broken and the user is
+      effectively offline. Candidate signals under `READ_PHONE_STATE`: the
+      data sub's service state or data-connection state, or the active
+      network losing validated cellular; device QA per usual. Could be the
+      nudge's default mode, making the disable item above a three-state
+      choice (always / only when broken / never).
 - [ ] No-data nudge (rule-less): data roaming off on a non-local data SIM means no
       mobile data — nudge with the local SIM to switch to, or to *enable first*
       when the local SIM is a registered-but-disabled profile (registry home
       country); only when such a SIM exists; same triage flow and per-country
       opt-out.
-- [ ] Wake-up lattice (SPEC): roaming check on every telephony refresh; manifest
-      receivers for `TIMEZONE_CHANGED`, `CARRIER_CONFIG_CHANGED`, `BOOT_COMPLETED`;
-      service-state listener while resident; spike the `ConnectivityManager`
-      PendingIntent callback (registered at boot, roaming-capability check in the
-      receiver — declare the normal `ACCESS_NETWORK_STATE` permission both need,
-      flagged by Codex on PR #47). Device QA owed: firing behavior across
-      carriers/handovers, and end-to-end warning latency with a dead process.
+- [ ] Wake-up lattice (SPEC): roaming check on every telephony refresh and
+      manifest receivers for `TIMEZONE_CHANGED` + `CARRIER_CONFIG_CHANGED`
+      landed (`DataWatchReceiver`); still owed: the `BOOT_COMPLETED` receiver
+      (needs `RECEIVE_BOOT_COMPLETED`), the service-state listener while
+      resident, and the `ConnectivityManager` PendingIntent callback spike
+      (registered at boot, roaming-capability check in the receiver — declare
+      the normal `ACCESS_NETWORK_STATE` permission both need, flagged by Codex
+      on PR #47). Device QA owed: firing behavior across carriers/handovers,
+      and end-to-end warning latency with a dead process.
 - [ ] Data rules UI: a Data list beside Calling on the rules home (terminology per
       SPEC "Product behavior": Calling rules / Data rules / System settings; exact
       navigation shape decided at build time), list + editor reusing the country

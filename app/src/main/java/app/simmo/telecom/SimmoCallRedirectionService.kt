@@ -283,6 +283,14 @@ class SimmoCallRedirectionService : CallRedirectionService() {
                     app.notifications.postLocalNumberOffer(missed, handle)
                 }
             }
+            // An outgoing call is one of the process wakes the roaming watch
+            // rides (SPEC "Data-roaming visibility") — some transitions, like
+            // domestic roaming flipping on in the same country, fire no
+            // broadcast at all, so without this the watch would sit on the
+            // last unrelated refresh's state (Codex on PR #55). Only after
+            // the response above: the refresh does blocking telephony reads
+            // and must never sit between Telecom's question and the answer.
+            app.refreshTelephony()
         }
     }
 

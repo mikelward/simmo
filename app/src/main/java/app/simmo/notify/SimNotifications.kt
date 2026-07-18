@@ -10,6 +10,7 @@ import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
+import android.telephony.euicc.EuiccManager
 import android.widget.Toast
 import androidx.core.app.NotificationChannelCompat
 import androidx.core.app.NotificationCompat
@@ -17,12 +18,15 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import app.simmo.MainActivity
 import app.simmo.R
+import app.simmo.domain.ActiveSim
+import app.simmo.domain.DataVerdict
 import app.simmo.domain.GuardBlockReason
 import app.simmo.domain.HeldCall
 import app.simmo.domain.NumberCorrection
 import app.simmo.domain.Verdict
 import app.simmo.ui.ChooserActivity
 import app.simmo.ui.countryDisplayName
+import app.simmo.ui.simSettingsIntentCandidates
 
 /**
  * The SIM-assist notifications (SPEC "Disabled-SIM assist", "On SIM change"):
@@ -143,11 +147,139 @@ class SimNotifications(private val context: Context) {
         }
     }
 
-    /** Whether the sim_assist channel exists but the user has blocked it. */
-    private fun isChannelBlocked(): Boolean =
+    /** Whether [channelId] exists but the user has blocked it. */
+    private fun isChannelBlocked(channelId: String = CHANNEL_ID): Boolean =
         NotificationManagerCompat.from(context)
-            .getNotificationChannelCompat(CHANNEL_ID)
+            .getNotificationChannelCompat(channelId)
             ?.importance == NotificationManagerCompat.IMPORTANCE_NONE
+
+    /**
+     * Whether a data-watch warning would actually reach the user right now.
+     * The watch consults this before consuming its once-per-arrival mark: no
+     * in-app fallback exists until the triage card lands, so an arrival
+     * claimed while nothing can surface would be lost even after a later
+     * permission grant (Codex on PR #55).
+     */
+    fun canPostDataWatch(): Boolean = canPost() && !isChannelBlocked(DATA_CHANNEL_ID)
+
+    /**
+     * The roaming watch's warnings (SPEC "Data rules"): "Using data roaming",
+     * the wrong-data-SIM arrival nudge, and the rule-less no-data nudge, all
+     * on their own channel so travelers who only want the call assists can
+     * silence data warnings alone. Two actions (maintainer, 2026-07): the
+     * doing-action — **Enable** when the fix is a disabled local profile,
+     * **Switch** otherwise — jumps to the system SIM settings where data
+     * switches actually flip, and **Rules** (also the body tap) opens Simmo,
+     * where the data rules screen and its triage card land next. One tag for
+     * all three: a new arrival replaces the previous warning. Optional like
+     * the SIM-assist nudges — no permission, no toast; the in-app surface
+     * shows the same state.
+     */
+    fun postDataWatch(verdict: DataVerdict) {
+        val (title, body) = when (verdict) {
+            DataVerdict.Silent -> return
+            is DataVerdict.RoamingWarning ->
+                context.getString(R.string.notification_data_roaming_title) to
+                    context.getString(
+                        R.string.notification_data_roaming_body,
+                        verdict.dataSim.label(),
+                        countryDisplayName(verdict.country),
+                    )
+            is DataVerdict.WrongDataSim ->
+                // Situation first, action question second (maintainer): the
+                // title states what's happening, the body carries the verb
+                // the Switch button matches.
+                context.getString(R.string.notification_wrong_data_sim_title) to
+                    context.getString(
+                        R.string.notification_wrong_data_sim_body,
+                        verdict.wantedSim.label(),
+                    )
+            is DataVerdict.NoDataNudge -> {
+                // The body's verb matches the action button (maintainer,
+                // 2026-07): switch to an active local SIM when one exists,
+                // else enable the disabled local profile. The engine only
+                // nudges when one of the two exists.
+                val body = verdict.switchTo.firstOrNull()?.label()
+                    ?.let { context.getString(R.string.notification_no_data_switch_body, it) }
+                    ?: verdict.enableFirst.firstOrNull()
+                        ?.let { it.displayName.ifBlank { it.carrierName } }
+                        ?.let { context.getString(R.string.notification_no_data_enable_body, it) }
+                    ?: return
+                context.getString(R.string.notification_no_data_title) to body
+            }
+        }
+        if (!canPost() || isChannelBlocked(DATA_CHANNEL_ID)) return
+        val manager = NotificationManagerCompat.from(context)
+        manager.createNotificationChannel(
+            NotificationChannelCompat.Builder(DATA_CHANNEL_ID, NotificationManagerCompat.IMPORTANCE_DEFAULT)
+                .setName(context.getString(R.string.data_watch_channel_name))
+                .build(),
+        )
+        // "Enable" only when enabling is the whole fix — a disabled local
+        // profile and nothing active to switch to; everything else is a
+        // switch in the same system screen.
+        val doLabel = if (verdict is DataVerdict.NoDataNudge &&
+            verdict.switchTo.isEmpty() && verdict.enableFirst.isNotEmpty()
+        ) {
+            R.string.notification_action_enable
+        } else {
+            R.string.notification_action_switch
+        }
+        val rules = activityPending(
+            "$TAG_DATA_WATCH:rules",
+            Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+        )
+        val notification = NotificationCompat.Builder(context, DATA_CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_launcher_monochrome)
+            .setContentTitle(title)
+            .setContentText(body)
+            .setContentIntent(rules)
+            .setAutoCancel(true)
+            .addAction(
+                0,
+                context.getString(doLabel),
+                activityPending("$TAG_DATA_WATCH:settings", simSettingsLaunchIntent()),
+            )
+            .addAction(0, context.getString(R.string.notification_action_rules), rules)
+            .build()
+        try {
+            manager.notify(TAG_DATA_WATCH, NOTIFICATION_ID, notification)
+        } catch (_: SecurityException) {
+            // Permission revoked between the check and the post; optional
+            // surface, the in-app state remains.
+        }
+    }
+
+    /**
+     * Removes a posted data-watch warning: the watch calls this when it
+     * clears a stale arrival mark — the user left the marked country or the
+     * data SIM changed — because a present-tense "Using data roaming" sitting
+     * in the shade after the trip is over would be false (Codex on PR #55).
+     * Cancelling an absent notification is a no-op, so this needs no
+     * was-posted bookkeeping.
+     */
+    fun cancelDataWatch() {
+        NotificationManagerCompat.from(context).cancel(TAG_DATA_WATCH, NOTIFICATION_ID)
+    }
+
+    /**
+     * The best system SIM-settings screen as a single launchable intent — a
+     * notification action can't run [openSimSettings]'s try-next fallback, so
+     * the chain is resolved once at post time.
+     */
+    private fun simSettingsLaunchIntent(): Intent {
+        val euiccEnabled = try {
+            context.getSystemService(EuiccManager::class.java)?.isEnabled == true
+        } catch (_: UnsupportedOperationException) {
+            false
+        }
+        return simSettingsIntentCandidates(euiccEnabled)
+            .firstOrNull { it.resolveActivity(context.packageManager) != null }
+            .let { it ?: Intent(Settings.ACTION_WIRELESS_SETTINGS) }
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    }
+
+    private fun ActiveSim.label(): String = displayName.ifBlank { carrierName }
 
     /**
      * "Call <contact>'s local number?" — a same-contact correction existed
@@ -274,12 +406,13 @@ class SimNotifications(private val context: Context) {
         body: String,
         contentIntent: Intent,
         timeoutMillis: Long? = null,
+        channelId: String = CHANNEL_ID,
     ) {
         // Failure is fine for the optional notifications: the in-app
         // surfaces still cover the same information. The guard's block uses
         // [tryPost] directly, because for it failure must fall back to a
         // toast instead of vanishing.
-        tryPost(tag, title, body, contentIntent, timeoutMillis)
+        tryPost(tag, title, body, contentIntent, timeoutMillis, channelId)
     }
 
     /**
@@ -294,12 +427,18 @@ class SimNotifications(private val context: Context) {
         body: String,
         contentIntent: Intent,
         timeoutMillis: Long? = null,
+        channelId: String = CHANNEL_ID,
     ): Boolean {
-        if (!canPost() || isChannelBlocked()) return false
+        if (!canPost() || isChannelBlocked(channelId)) return false
         val manager = NotificationManagerCompat.from(context)
         manager.createNotificationChannel(
-            NotificationChannelCompat.Builder(CHANNEL_ID, NotificationManagerCompat.IMPORTANCE_DEFAULT)
-                .setName(context.getString(R.string.notification_channel_name))
+            NotificationChannelCompat.Builder(channelId, NotificationManagerCompat.IMPORTANCE_DEFAULT)
+                .setName(
+                    context.getString(
+                        if (channelId == DATA_CHANNEL_ID) R.string.data_watch_channel_name
+                        else R.string.notification_channel_name,
+                    ),
+                )
                 .build(),
         )
         val pending = PendingIntent.getActivity(
@@ -308,7 +447,7 @@ class SimNotifications(private val context: Context) {
             contentIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
-        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+        val notification = NotificationCompat.Builder(context, channelId)
             .setSmallIcon(R.drawable.ic_launcher_monochrome)
             .setContentTitle(title)
             .setContentText(body)
@@ -329,8 +468,12 @@ class SimNotifications(private val context: Context) {
         /** Shared with the editor's notifications hint, which must treat a
          * blocked channel the same as notifications-off (Codex on PR #32). */
         internal const val CHANNEL_ID = "sim_assist"
+
+        /** The roaming watch's own channel, so it can be silenced alone. */
+        internal const val DATA_CHANNEL_ID = "data_watch"
         private const val NOTIFICATION_ID = 1
         private const val TAG_HELD_CALL = "held_call"
+        private const val TAG_DATA_WATCH = "data_watch"
         private const val TAG_NEW_SIM = "new_sim:"
         private const val TAG_HANDOFF_FAILED = "handoff_failed:"
         private const val TAG_LOCAL_NUMBER = "local_number:"

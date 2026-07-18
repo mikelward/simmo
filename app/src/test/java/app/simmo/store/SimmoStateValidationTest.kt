@@ -46,6 +46,7 @@ class SimmoStateValidationTest {
             ) + DataRuleBook.defaultDataRules(),
         ),
         defaultRegionOverride = "AU",
+        dataWatchMark = "roaming:2:AU",
         installId = "old-phone",
     )
 
@@ -80,6 +81,10 @@ class SimmoStateValidationTest {
         )
         assertEquals("new-phone", migrated.installId)
         assertEquals("AU", migrated.defaultRegionOverride)
+        // The arrival mark embeds a subscription id from the old device; a
+        // stale one could suppress the first genuine warning on the new
+        // phone, so adoption clears it.
+        assertEquals(null, migrated.dataWatchMark)
     }
 
     @Test

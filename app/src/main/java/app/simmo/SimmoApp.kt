@@ -15,6 +15,9 @@ import app.simmo.analytics.TelemetryGate
 import app.simmo.domain.ActiveSim
 import app.simmo.domain.CountryVerdict
 import app.simmo.domain.DecisionEngine
+import app.simmo.domain.arrivalKey
+import app.simmo.domain.evaluateDataRules
+import app.simmo.domain.isMarkStale
 import app.simmo.domain.PhoneNumberCountryDetector
 import app.simmo.domain.pendingNewSimNotifications
 import app.simmo.notify.SimNotifications
@@ -47,6 +50,8 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /**
  * Process-wide wiring. Everything the redirection service will read is
@@ -98,6 +103,15 @@ class SimmoApp : Application() {
     /** Trailing-edge debounce for the contacts-change observer; latest wins. */
     @Volatile
     private var contactRefreshJob: Job? = null
+
+    /**
+     * Serializes roaming-watch checks (same shape as the assembler's
+     * contacts mutex): overlapping startup/listener/broadcast checks could
+     * otherwise interleave so an older check claims after a newer one and
+     * posts a stale warning. Reads happen inside the lock (see
+     * [checkDataWatch]), so every serialized check evaluates fresh state.
+     */
+    private val dataWatchMutex = Mutex()
 
     lateinit var assembler: SnapshotAssembler
         private set
@@ -203,7 +217,17 @@ class SimmoApp : Application() {
                 SimmoStateHolder(simmoStateStore, appScope, installId)
             }
             stateHolderFlow.value = holder
-            recordSims()
+            maintenanceStep("Registry capture") { recordSims() }
+            // The watch runs from both ends of the startup race: this launch
+            // and the telephony refresh (reads cached, state maybe still
+            // loading). Publishing the holder only *starts* the eager read,
+            // so wait for the first real emission first — a check against a
+            // null state is no check at all, and both ends returning early
+            // would drop the very arrival a manifest wake exists to catch
+            // (Codex on PR #55, twice). Whichever end finishes second has
+            // both inputs; the atomic claim keeps them from double-posting.
+            holder.state.filterNotNull().first()
+            maintenanceStep("Roaming watch") { checkDataWatch() }
             // Publishing the holder only *starts* the async DataStore read
             // (its `state` begins at null), so `current.defaultRegionOverride`
             // isn't available yet. Rebuild the contact index once the state has
@@ -316,20 +340,34 @@ class SimmoApp : Application() {
      * subscription-change event fires for a permission grant.
      */
     fun refreshTelephony() {
-        appScope.launch {
-            assembler.refresh()
-            recordSims()
-            // Cache which dial-intent hand-off apps (Google Voice, Teams) are
-            // reachable — installed and resolving their launch intent — so the
-            // decision path can skip a rule whose target is gone. A
-            // PackageManager query — fine here, off the decision path.
-            assembler.setHandOffApps(
-                installedDialHandoffApps(packageManager).mapTo(HashSet()) { it.packageName },
-            )
-            // Rebuild the contact index after the region is set; it feeds
-            // app-to-app hand-off and degrades to empty without READ_CONTACTS.
-            assembler.refreshContacts()
-        }
+        appScope.launch { refreshTelephonyNow() }
+    }
+
+    /**
+     * The suspend body of [refreshTelephony], for callers that must outlast
+     * it — the wake-up receiver holds its broadcast alive (`goAsync`) until
+     * this returns, because after `onReceive` returns nothing else keeps a
+     * receiver-started process running long enough to read telephony, claim
+     * the arrival mark, and post the warning.
+     */
+    suspend fun refreshTelephonyNow() {
+        // Under the same mutex as the watch check: each refresh's read and
+        // publish become atomic, so an older blocking telephony read can't
+        // overwrite a newer cache for the next check to evaluate as if
+        // current (Codex on PR #55) — whichever refresh runs last read last.
+        dataWatchMutex.withLock { assembler.refresh() }
+        maintenanceStep("Registry capture") { recordSims() }
+        maintenanceStep("Roaming watch") { checkDataWatch() }
+        // Cache which dial-intent hand-off apps (Google Voice, Teams) are
+        // reachable — installed and resolving their launch intent — so the
+        // decision path can skip a rule whose target is gone. A
+        // PackageManager query — fine here, off the decision path.
+        assembler.setHandOffApps(
+            installedDialHandoffApps(packageManager).mapTo(HashSet()) { it.packageName },
+        )
+        // Rebuild the contact index after the region is set; it feeds
+        // app-to-app hand-off and degrades to empty without READ_CONTACTS.
+        assembler.refreshContacts()
     }
 
     /**
@@ -371,6 +409,24 @@ class SimmoApp : Application() {
         // the tap.
         optInTaps.value = enabled
         telemetry?.set(enabled)
+    }
+
+    /**
+     * Runs one background maintenance step, isolating its failure: every step
+     * self-heals on a later trigger, and one step's transient failure must
+     * not suppress the steps after it — in particular a registry-capture
+     * write failing must not swallow the arrival check that follows it, on
+     * either end of the startup race (Codex on PR #55). Cancellation still
+     * propagates.
+     */
+    private suspend fun maintenanceStep(what: String, block: suspend () -> Unit) {
+        try {
+            block()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.e("SimmoApp", "$what failed", e)
+        }
     }
 
     private suspend fun recordSims() {
@@ -415,6 +471,69 @@ class SimmoApp : Application() {
             notifications.postNewSim(sim.displayName.ifBlank { sim.carrierName })
         }
         holder.markNewSimsNotified(pending.map { it.ref() })
+    }
+
+    /**
+     * The roaming watch (SPEC "Data rules"): evaluates the data rules against
+     * the freshly cached data state — on every telephony refresh, so it rides
+     * the same wake-ups the snapshot does and never touches the decision
+     * path. The persisted once-per-arrival mark keeps constantly-firing
+     * refreshes from re-nagging, and is only claimed when a warning can
+     * actually surface: no in-app fallback exists until the triage card
+     * lands, so consuming an arrival that reached nobody would lose it even
+     * after a later permission grant (Codex on PR #55) — same stance as the
+     * new-SIM nudge. Revisit when the triage card ships: displaying the card
+     * should claim the arrival too.
+     */
+    private suspend fun checkDataWatch() = dataWatchMutex.withLock {
+        // All reads happen INSIDE the lock: serialization alone would still
+        // let an older-scheduled check evaluate its stale capture after a
+        // newer one claimed — this way every check evaluates the freshest
+        // state, so a late resume can't repost an arrival that's over or
+        // seesaw the mark (Codex on PR #55).
+        val holder = stateHolderFlow.value ?: return@withLock
+        val state = holder.current ?: return@withLock
+        val snapshot = assembler.currentDataSnapshot() ?: return@withLock
+        val verdict = evaluateDataRules(state.dataRules, snapshot)
+        // Housekeeping before ANY early return: a mark whose arrival is over
+        // — the user moved country or the data SIM changed — clears, so a
+        // later *return* to the marked place warns once again (SPEC: cleared
+        // when the country changes). It must run on the unpostable path too:
+        // a stale mark held while notifications were blocked would otherwise
+        // suppress the warning once they're re-enabled back in the marked
+        // country (Codex on PR #55). A mark for the same place keeps: a
+        // flapping roaming flag must not re-nag mid-trip. Compare-and-swap
+        // on the observed mark, so a concurrent refresh's fresh claim is
+        // never deleted.
+        val observed = state.dataWatchMark
+        if (observed != null && isMarkStale(observed, snapshot)) {
+            // The winner also takes down the posted warning: the arrival it
+            // describes is over, and a present-tense "Using data roaming"
+            // lingering after the trip would be false (Codex on PR #55). A
+            // lost CAS means a fresh claim already posted its replacement —
+            // cancelling then would tear the new warning down. A mark kept
+            // for the same place keeps its notification too: dismissing it
+            // on a flapping roaming flag would silently eat the one warning
+            // this arrival gets. If a new arrival follows below, its post
+            // replaces this cancel under the same tag.
+            if (holder.clearDataWatchMark(observed)) {
+                notifications.cancelDataWatch()
+            }
+        }
+        val key = verdict.arrivalKey() ?: return
+        // Unpostable (permission denied, channel blocked): leave the mark
+        // unclaimed so a later grant still warns about this arrival. The
+        // tiny window where a revocation lands between this check and the
+        // post can still lose one warning — bounded, and the next arrival
+        // recovers.
+        if (!notifications.canPostDataWatch()) return
+        // Atomic claim, not read-then-write: overlapping refreshes (startup,
+        // the first subscription callback, a wake broadcast) may all see the
+        // same stale mark; only the transaction that changed it posts. Claim
+        // before posting: a crash in between costs one notification, never a
+        // re-nag.
+        if (!holder.claimDataWatchMark(key)) return
+        notifications.postDataWatch(verdict)
     }
 
     /**

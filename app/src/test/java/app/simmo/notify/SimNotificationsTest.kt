@@ -7,9 +7,13 @@ import android.app.NotificationManager
 import android.content.Context
 import android.net.Uri
 import android.os.Looper
+import app.simmo.domain.ActiveSim
 import app.simmo.domain.CorrectionCandidate
+import app.simmo.domain.DataVerdict
 import app.simmo.domain.GuardBlockReason
 import app.simmo.domain.NumberCorrection
+import app.simmo.domain.PhoneAccountRef
+import app.simmo.domain.RegisteredSim
 import app.simmo.domain.SimRef
 import app.simmo.domain.Verdict
 import androidx.core.app.NotificationChannelCompat
@@ -35,6 +39,11 @@ class SimNotificationsTest {
 
     private val app: Application = ApplicationProvider.getApplicationContext()
     private val notifications = SimNotifications(app)
+
+    private val telstra =
+        ActiveSim(1, "Telstra", "Telstra AU", PhoneAccountRef("subscription:1"), countryIso = "au")
+    private val tmobile =
+        ActiveSim(2, "T-Mobile", "T-Mobile US", PhoneAccountRef("subscription:2"), countryIso = "us")
 
     private fun postedNotifications() =
         shadowOf(app.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
@@ -209,6 +218,118 @@ class SimNotificationsTest {
             "Blocked a call: Voda AU is disabled",
             postedNotifications().single().extras.getCharSequence(Notification.EXTRA_TITLE)?.toString(),
         )
+    }
+
+    @Test
+    fun `the roaming warning posts on its own channel, naming SIM and country`() {
+        shadowOf(app).grantPermissions(Manifest.permission.POST_NOTIFICATIONS)
+        notifications.postDataWatch(
+            DataVerdict.RoamingWarning(tmobile, "AU", localSims = listOf(telstra)),
+        )
+        shadowOf(Looper.getMainLooper()).idle()
+        val posted = postedNotifications().single()
+        assertEquals(
+            "Using data roaming",
+            posted.extras.getCharSequence(Notification.EXTRA_TITLE)?.toString(),
+        )
+        assertEquals(
+            "T-Mobile US in Australia",
+            posted.extras.getCharSequence(Notification.EXTRA_TEXT)?.toString(),
+        )
+        // Its own channel, so travelers can silence data warnings alone.
+        assertEquals("data_watch", posted.channelId)
+    }
+
+    @Test
+    fun `the wrong-data-SIM nudge asks with the rule's SIM and offers Switch`() {
+        shadowOf(app).grantPermissions(Manifest.permission.POST_NOTIFICATIONS)
+        notifications.postDataWatch(DataVerdict.WrongDataSim(tmobile, telstra, "AU"))
+        shadowOf(Looper.getMainLooper()).idle()
+        val posted = postedNotifications().single()
+        assertEquals(
+            "Using non-preferred SIM",
+            posted.extras.getCharSequence(Notification.EXTRA_TITLE)?.toString(),
+        )
+        assertEquals(
+            "Switch to Telstra AU for data?",
+            posted.extras.getCharSequence(Notification.EXTRA_TEXT)?.toString(),
+        )
+        // The action verb matches the message's verb (maintainer direction).
+        assertEquals(listOf("Switch", "Rules"), posted.actions.map { it.title.toString() })
+    }
+
+    @Test
+    fun `the no-data nudge offers Enable for a disabled local profile`() {
+        shadowOf(app).grantPermissions(Manifest.permission.POST_NOTIFICATIONS)
+        notifications.postDataWatch(
+            DataVerdict.NoDataNudge(
+                tmobile,
+                "FR",
+                enableFirst = listOf(RegisteredSim(7, "Orange", "Orange Holiday", 0L, countryIso = "fr")),
+            ),
+        )
+        shadowOf(Looper.getMainLooper()).idle()
+        val posted = postedNotifications().single()
+        assertEquals(
+            "No data here",
+            posted.extras.getCharSequence(Notification.EXTRA_TITLE)?.toString(),
+        )
+        assertEquals(
+            "Enable Orange Holiday",
+            posted.extras.getCharSequence(Notification.EXTRA_TEXT)?.toString(),
+        )
+        assertEquals(listOf("Enable", "Rules"), posted.actions.map { it.title.toString() })
+    }
+
+    @Test
+    fun `the no-data nudge offers Switch when an active local SIM exists`() {
+        shadowOf(app).grantPermissions(Manifest.permission.POST_NOTIFICATIONS)
+        notifications.postDataWatch(
+            DataVerdict.NoDataNudge(tmobile, "AU", switchTo = listOf(telstra)),
+        )
+        shadowOf(Looper.getMainLooper()).idle()
+        val posted = postedNotifications().single()
+        assertEquals(
+            "Switch to Telstra AU",
+            posted.extras.getCharSequence(Notification.EXTRA_TEXT)?.toString(),
+        )
+        assertEquals(listOf("Switch", "Rules"), posted.actions.map { it.title.toString() })
+    }
+
+    @Test
+    fun `the watch reports unpostable when its channel is blocked`() {
+        // The once-per-arrival mark must not be consumed while nothing can
+        // surface; canPostDataWatch is what the watch consults first.
+        assertEquals(false, notifications.canPostDataWatch())
+        shadowOf(app).grantPermissions(Manifest.permission.POST_NOTIFICATIONS)
+        assertEquals(true, notifications.canPostDataWatch())
+        NotificationManagerCompat.from(app).createNotificationChannel(
+            NotificationChannelCompat.Builder("data_watch", NotificationManagerCompat.IMPORTANCE_NONE)
+                .setName("Data roaming")
+                .build(),
+        )
+        assertEquals(false, notifications.canPostDataWatch())
+    }
+
+    @Test
+    fun `cancelling the data watch removes the posted warning`() {
+        // The arrival ended (stale mark cleared): the shade must not keep a
+        // present-tense "Using data roaming" after the trip is over.
+        shadowOf(app).grantPermissions(Manifest.permission.POST_NOTIFICATIONS)
+        notifications.postDataWatch(DataVerdict.RoamingWarning(tmobile, "AU"))
+        shadowOf(Looper.getMainLooper()).idle()
+        assertEquals(1, postedNotifications().size)
+        notifications.cancelDataWatch()
+        shadowOf(Looper.getMainLooper()).idle()
+        assertEquals(0, postedNotifications().size)
+    }
+
+    @Test
+    fun `a silent verdict never posts`() {
+        shadowOf(app).grantPermissions(Manifest.permission.POST_NOTIFICATIONS)
+        notifications.postDataWatch(DataVerdict.Silent)
+        shadowOf(Looper.getMainLooper()).idle()
+        assertEquals(0, postedNotifications().size)
     }
 
     @Test
