@@ -464,7 +464,10 @@ awake:
    receiver checks the roaming capability bit. This covers the remaining gap — a
    same-timezone land border crossed while the process is dead. Registrations
    don't survive reboot, hence the boot receiver; exact firing behavior across
-   carriers and handovers needs device QA.
+   carriers and handovers needs device QA. This layer is the one part of the
+   watch that needs a manifest addition: `ACCESS_NETWORK_STATE`, a normal
+   install-time permission (auto-granted, no dialog) required by both the
+   callback registration and the capability check.
 
 There is no broadcast for "roaming started" itself — service-state and
 airplane-mode changes cannot be manifest-registered — which is why this lattice
