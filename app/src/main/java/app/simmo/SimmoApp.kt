@@ -194,8 +194,9 @@ class SimmoApp : Application() {
             assembler.refresh()
             recordSims()
             // Cache which dial-intent hand-off apps (Google Voice, Teams) are
-            // installed, so the decision path can skip a rule whose target is
-            // gone. A PackageManager query — fine here, off the decision path.
+            // reachable — installed and resolving their launch intent — so the
+            // decision path can skip a rule whose target is gone. A
+            // PackageManager query — fine here, off the decision path.
             assembler.setHandOffApps(
                 installedDialHandoffApps(packageManager).mapTo(HashSet()) { it.packageName },
             )

@@ -177,7 +177,7 @@ internal fun RuleEditorContent(
     groupOptions: List<CountryGroupOptionUi> = emptyList(),
     /** Installed app-to-app hand-off targets; each is offered as an action. */
     handOffApps: Set<ContactCallApp> = emptySet(),
-    /** Installed dial-intent hand-off targets (Google Voice, Teams); each is an action. */
+    /** Reachable dial-intent hand-off targets (Google Voice, Teams); each is an action. */
     dialHandoffApps: Set<DialHandoffApp> = emptySet(),
     /** Invoked when a contact-app action is picked, to request READ_CONTACTS. */
     onRequestContactsAccess: () -> Unit = {},

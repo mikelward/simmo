@@ -58,7 +58,9 @@ without `+`; `«E164enc»` = URL-encoded for a query value (`+` → `%2B`, e.g.
 **Status:** Google Voice, Teams, Viber, and Yolla are **implemented** as cancel-and-forward
 targets (`DialHandoffApp`, `RuleAction.HandOff.ViaDialIntent`) — the number is normalized
 to E.164 off the fast path, the deep link resolved before the carrier call is cancelled,
-and each is offered in the editor only when installed. The device-test checklist below is
+and each is offered in the editor only when its number-carrying intent resolves (not a
+package-exists check — an installed build that can't receive the deep link is not
+offered). The device-test checklist below is
 still owed; the launch behavior (app vs browser, auto-dial vs pre-fill, unprovisioned
 handling) is unconfirmed.
 
@@ -97,7 +99,7 @@ handling) is unconfirmed.
 | | |
 |---|---|
 | **Launch** | `ACTION_VIEW`, `tel:«E164»`, `setPackage("com.yollacalls")` — the generic fallback below; no public custom scheme or app-link found. |
-| **What happens** | Expected to open Yolla at the number (pre-fill vs auto-dial unknown). If the installed build doesn't receive `VIEW tel:`, the intent doesn't resolve and Simmo proceeds unmodified — Yolla is then simply never a usable hand-off (fix would be a probed custom scheme, if one exists). |
+| **What happens** | Expected to open Yolla at the number (pre-fill vs auto-dial unknown). If the installed build doesn't receive `VIEW tel:`, the intent doesn't resolve, so discovery never offers Yolla in the editor and a stale rule proceeds unmodified — never a stranded call, just no Yolla option (fix would be a probed custom scheme, if one exists). |
 | **Requires** | Yolla installed and signed in. Yolla-to-Yolla is free; calling a **phone number needs paid Yolla credit**. Credit balance isn't detectable from the intent ("resolves ≠ ready"). |
 | **Notes** | Yolla (Yolla Calls International) publishes no deep-link documentation; searches turned up neither a `yolla://` dial form nor an app-link. So this target rides on the tel: fallback and is the row most in need of the device check — record whether `VIEW tel:` resolves at all, and what surface it opens. |
 | **Confidence** | Low — the tel: handling is unverified; only the safe-degrade path (unresolved → proceed unmodified) is certain. |
@@ -174,7 +176,7 @@ pre-fill vs browser).
 | 4 | Teams (no plan) | Same | Confirm it fails gracefully (no crash); decide whether to hide Teams when no plan is detectable | |
 | 5 | Viber | Launch `viber://keypad?number=«digits»` with `setPackage` | Opens Viber **keypad** pre-filled with the number (not the add-contact surface) | |
 | 6 | Viber Out | Same, then tap call to a non-Viber number | Placed via Viber Out credit (or prompts to buy) | |
-| 7 | Yolla | Launch `tel:«E164»` with `setPackage("com.yollacalls")` | First: does it **resolve at all**? If yes, opens Yolla at the number (record pre-fill vs auto-dial); if no, Simmo proceeds unmodified and Yolla needs a probed custom scheme instead | |
+| 7 | Yolla | Launch `tel:«E164»` with `setPackage("com.yollacalls")` | First: does it **resolve at all**? If yes, opens Yolla at the number (record pre-fill vs auto-dial); if no, Yolla is never offered in the editor and needs a probed custom scheme instead | |
 | 8 | Yolla credit | Same, then place the call with and without credit | Placed via credit; without, a top-up prompt (record whether the number survives to redial) | |
 | 9 | Fallback | Launch a target with only `tel:«E164»` + `setPackage` | Note which apps honor `tel:` vs ignore it | |
 | 10 | Launcher-only | An app with no number-carrying intent (only a launcher) | Treated as **unreachable** — not offered, and the carrier call is **not** cancelled (never dropped at an app home screen) | |

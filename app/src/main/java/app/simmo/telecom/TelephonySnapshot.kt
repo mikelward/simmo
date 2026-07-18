@@ -151,9 +151,10 @@ class SnapshotAssembler(
     private val contactsFlow = MutableStateFlow(ContactNumberIndex.EMPTY)
 
     /**
-     * Package names of installed dial-intent hand-off apps (Google Voice, Teams).
-     * The decision path reads it to skip a hand-off rule whose target isn't
-     * installed; populated off-path from [installedDialHandoffApps].
+     * Package names of reachable dial-intent hand-off apps (Google Voice, Teams)
+     * — installed and able to receive their launch intent. The decision path
+     * reads it to skip a hand-off rule whose target isn't reachable; populated
+     * off-path from [installedDialHandoffApps].
      */
     @Volatile
     private var handOffApps: Set<String> = emptySet()

@@ -206,7 +206,7 @@ can't dial an arbitrary number and are out of scope.
       number-carrying deep link, resolving the intent **before** cancelling so an
       unreachable target proceeds unmodified. Interactive-only; a non-E.164 number (short
       code) skips the rule. The snapshot's `handOffApps` caches installed targets (off the
-      decision path), the editor offers each only when installed (`<queries>` +
+      decision path), the editor offers each only when its launch intent resolves (`<queries>` +
       PackageManager), and the deep-link templates are unit-tested.
   - [ ] **Device QA owed** (docs/handoff-intents.md checklist): confirm the Google Voice,
         Teams, and Viber deep links open the app (not a browser) at the number, auto-dial
