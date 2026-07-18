@@ -29,6 +29,7 @@ import app.simmo.domain.Rule
 import app.simmo.domain.RuleAction
 import app.simmo.domain.SimRef
 import app.simmo.domain.countryMatcher
+import app.simmo.retryUntilDone
 import app.simmo.telecom.replaceCallOrOpenDialer
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.filterNotNull
@@ -188,9 +189,15 @@ class ChooserActivity : ComponentActivity() {
             val action = target.sim?.let { RuleAction.UseSim(it) }
                 ?: RuleAction.HandOff.ViaPhoneAccount(target.account, target.label)
             // On appScope: the write must outlive this finishing activity.
+            // And retried: this is a durable user intent, so a transient
+            // write failure must keep trying in the background rather than
+            // fall into the scope handler's log and silently drop the rule
+            // (Codex on PR #52).
             app.appScope.launch {
-                app.stateHolders().filterNotNull().first().updateRules {
-                    it.withRuleAdded(Rule(countryMatcher(listOf(rememberRegion)), action))
+                retryUntilDone("Remember rule") {
+                    app.stateHolders().filterNotNull().first().updateRules {
+                        it.withRuleAdded(Rule(countryMatcher(listOf(rememberRegion)), action))
+                    }
                 }
             }
         }

@@ -1,5 +1,6 @@
 package app.simmo.store
 
+import android.util.Log
 import androidx.datastore.core.DataStore
 import app.simmo.domain.ActiveSim
 import app.simmo.domain.CustomGroup
@@ -12,9 +13,11 @@ import app.simmo.domain.withNewSimNotified
 import app.simmo.domain.withRulePromptCleared
 import app.simmo.domain.withoutSim
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.retryWhen
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -48,6 +51,17 @@ class SimmoStateHolder(
      */
     val state: StateFlow<SimmoState?> =
         store.data
+            // A transient read failure must not kill the eager collector: the
+            // exception would land in the scope's handler, this StateFlow
+            // would stay null for the whole process, and every call would
+            // proceed ruleless (Codex on PR #52). Corruption never gets here —
+            // the store's corruption handler replaces the file before the flow
+            // emits — so what's retried is genuine I/O, with capped backoff.
+            .retryWhen { cause, attempt ->
+                Log.e("SimmoStateHolder", "State read failed; retrying", cause)
+                delay((1_000L shl attempt.coerceAtMost(6L).toInt()).coerceAtMost(60_000L))
+                true
+            }
             .map { it.withInstallValidated(installId) }
             .stateIn(scope, SharingStarted.Eagerly, initialValue = null)
 
