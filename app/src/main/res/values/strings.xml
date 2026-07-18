@@ -14,6 +14,10 @@
     <!-- TODO: translate -->
     <string name="onboarding_granted" tools:ignore="MissingTranslation">Done</string>
     <!-- TODO: translate -->
+    <string name="onboarding_analytics_label" tools:ignore="MissingTranslation">Make Simmo better</string>
+    <!-- TODO: translate -->
+    <string name="onboarding_analytics_description" tools:ignore="MissingTranslation">Share anonymous usage stats — never the numbers you call</string>
+    <!-- TODO: translate -->
     <string name="onboarding_ready" tools:ignore="MissingTranslation">All set. Your calls now follow your rules.</string>
     <!-- TODO: translate -->
     <string name="rules_title" tools:ignore="MissingTranslation">Rules</string>

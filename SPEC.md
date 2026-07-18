@@ -307,7 +307,10 @@ UI is forbidden).
   routing counts and call completion/failure rates — never contact names, contact
   numbers, or dialed numbers themselves. `docs/PRIVACY.md` already flags this as a
   possible future change and must be updated in the same release as any such
-  addition.
+  addition. Onboarding already records a "Make Simmo better" opt-in (default on,
+  persisted with settings, so it survives backup/restore); nothing is collected
+  today, and any analytics that ship must honor the stored choice — including one
+  made before the feature existed.
 - **Backups are on** (maintainer decision): rules, the SIM registry, and settings are
   included in Android backups and device-to-device transfers via explicit extraction
   rules scoped to exactly Simmo's own state files, so a phone upgrade keeps the rule

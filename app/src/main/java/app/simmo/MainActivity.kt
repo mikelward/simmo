@@ -18,8 +18,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -36,6 +38,8 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.activity.compose.BackHandler
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 import app.simmo.ui.EditorTarget
 import app.simmo.ui.RuleEditorScreen
 import app.simmo.ui.RulesScreen
@@ -114,6 +118,15 @@ class MainActivity : ComponentActivity() {
                         )
                     }
                 } else {
+                    // Mirrors the persisted opt-in once the eager load lands;
+                    // until then the stored default (opted in) is shown.
+                    var analyticsOptIn by remember { mutableStateOf(true) }
+                    LaunchedEffect(Unit) {
+                        val app = application as SimmoApp
+                        app.stateHolders().filterNotNull().first().state
+                            .filterNotNull()
+                            .collect { analyticsOptIn = it.analyticsOptIn }
+                    }
                     OnboardingScreen(
                         isRoleHeld = ::isRedirectionRoleHeld,
                         isPhonePermissionGranted = ::isPhonePermissionGranted,
@@ -132,6 +145,11 @@ class MainActivity : ComponentActivity() {
                             (application as SimmoApp).refreshTelephony()
                         },
                         onAllGranted = { ready = true },
+                        analyticsOptIn = analyticsOptIn,
+                        onAnalyticsOptInChange = { enabled ->
+                            analyticsOptIn = enabled
+                            (application as SimmoApp).setAnalyticsOptIn(enabled)
+                        },
                     )
                 }
             }
@@ -173,6 +191,8 @@ internal fun OnboardingScreen(
     onAllGranted: () -> Unit = {},
     isNotificationsGranted: () -> Boolean = { true },
     isCallPermissionGranted: () -> Boolean = { true },
+    analyticsOptIn: Boolean = true,
+    onAnalyticsOptInChange: (Boolean) -> Unit = {},
 ) {
     var roleHeld by remember { mutableStateOf(isRoleHeld()) }
     var phoneGranted by remember { mutableStateOf(isPhonePermissionGranted()) }
@@ -257,6 +277,27 @@ internal fun OnboardingScreen(
                 buttonText = stringResource(R.string.onboarding_call_permission_button),
                 onRequest = { callLauncher.launch(Manifest.permission.CALL_PHONE) },
             )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.onboarding_analytics_label),
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                    Text(
+                        text = stringResource(R.string.onboarding_analytics_description),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Switch(
+                    checked = analyticsOptIn,
+                    onCheckedChange = onAnalyticsOptInChange,
+                )
+            }
             if (roleHeld && phoneGranted) {
                 Text(
                     text = stringResource(R.string.onboarding_ready),

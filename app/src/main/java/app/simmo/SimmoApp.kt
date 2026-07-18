@@ -36,6 +36,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
@@ -218,6 +219,17 @@ class SimmoApp : Application() {
      * volatile write; no coroutine needed).
      */
     fun clearContacts() = assembler.clearContacts()
+
+    /**
+     * Persists the "Make Simmo better" onboarding choice. Waits for the state
+     * holder rather than dropping the write — the toggle can be flipped in the
+     * first seconds after install, before the eager load has published.
+     */
+    fun setAnalyticsOptIn(enabled: Boolean) {
+        appScope.launch {
+            stateHolderFlow.filterNotNull().first().setAnalyticsOptIn(enabled)
+        }
+    }
 
     private suspend fun recordSims() {
         val active = assembler.activeSims()

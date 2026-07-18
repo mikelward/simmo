@@ -40,6 +40,8 @@ class SimmoStateSerializationTest {
             RegisteredSim(2, "T-Mobile", "T-Mobile US", 2_000L),
         ),
         defaultRegionOverride = "AU",
+        // Non-default so the round trip proves the field is actually written.
+        analyticsOptIn = false,
     )
 
     private suspend fun roundTrip(state: SimmoState): SimmoState {
@@ -100,6 +102,17 @@ class SimmoStateSerializationTest {
             listOf(Rule(RuleMatcher.Countries(listOf("FR", "DE")), RuleAction.SystemDefault)),
             read.rules.rules,
         )
+    }
+
+    @Test
+    fun `state written before the analytics preference decodes as opted in`() = runTest {
+        // Bytes as written before analyticsOptIn existed: existing users must
+        // come up opted in, matching the default a fresh install gets.
+        val json = """
+            {"rules":{"rules":[]},"simRegistry":[],"defaultRegionOverride":null,"installId":null}
+        """.trimIndent()
+        val read = SimmoStateSerializer.readFrom(ByteArrayInputStream(json.encodeToByteArray()))
+        assertEquals(true, read.analyticsOptIn)
     }
 
     @Test
