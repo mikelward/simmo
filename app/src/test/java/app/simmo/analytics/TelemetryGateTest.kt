@@ -1,6 +1,8 @@
 package app.simmo.analytics
 
+import android.content.Context
 import androidx.test.core.app.ApplicationProvider
+import com.google.firebase.FirebaseApp
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runCurrent
@@ -33,10 +35,13 @@ class TelemetryGateTest {
     }
 
     @Test
-    fun `no gate in a build without a Firebase config`() {
-        // The test APK is built without google-services.json, so this is the
-        // exact degraded path production takes in such builds: no gate, no
-        // Firebase calls, no crash.
-        assertNull(TelemetryGate.firebase(ApplicationProvider.getApplicationContext()))
+    fun `no gate without an initialized Firebase app`() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        // A machine with a local google-services.json (SETUP.md) builds a test
+        // APK whose default FirebaseApp initializes even under Robolectric;
+        // drop any apps first so this asserts the degraded no-config path —
+        // no gate, no Firebase calls, no crash — in every setup.
+        FirebaseApp.getApps(context).forEach { it.delete() }
+        assertNull(TelemetryGate.firebase(context))
     }
 }
