@@ -59,10 +59,15 @@ sealed interface Verdict {
     /**
      * Cancel the carrier call and forward the dialed number to a calling app by
      * launching its number-carrying deep link [uri], scoped to [packageName]
-     * (e.g. Google Voice, Teams). Only produced when the number normalized to
-     * E.164 and the target app is installed.
+     * (e.g. Google Voice, Teams). [appLabel] names it for a hand-off-failed
+     * notification. Only produced when the number normalized to E.164 and the
+     * target app is installed.
      */
-    data class ForwardToApp(val packageName: String, val uri: String) : Verdict
+    data class ForwardToApp(
+        val packageName: String,
+        val uri: String,
+        val appLabel: String,
+    ) : Verdict
 
     /**
      * Cancel the carrier call and place it to a contact via an app's per-contact
@@ -76,6 +81,7 @@ sealed interface Verdict {
         val packageName: String,
         val mimeType: String,
         val dataRowId: Long,
+        val appLabel: String,
     ) : Verdict
 
     /**
@@ -163,7 +169,11 @@ class DecisionEngine(private val countryDetector: CountryDetector) {
                     // contact index uses — no fresh metadata load on the path.
                     if (call.interactive && action.app.packageName in snapshot.handOffApps) {
                         normalizeToE164(call.dialedNumber, snapshot.defaultRegion)?.let { e164 ->
-                            return Verdict.ForwardToApp(action.app.packageName, action.app.launchUri(e164))
+                            return Verdict.ForwardToApp(
+                                action.app.packageName,
+                                action.app.launchUri(e164),
+                                action.app.label,
+                            )
                         }
                     }
 
@@ -181,6 +191,7 @@ class DecisionEngine(private val countryDetector: CountryDetector) {
                                     action.app.packageName,
                                     action.app.dataMimeType,
                                     dataRowId,
+                                    action.app.label,
                                 )
                             }
                     }

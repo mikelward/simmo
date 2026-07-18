@@ -77,6 +77,7 @@ class DecisionEngineTest {
                 "com.whatsapp",
                 ContactCallApp.WHATSAPP.dataMimeType,
                 7L,
+                ContactCallApp.WHATSAPP.label,
             ),
             engine.decide(call(auNumber), snapshot(rules, contacts = whatsAppContact(auNumber, 7L)), now),
         )
@@ -452,7 +453,7 @@ class DecisionEngineTest {
         val gv = DialHandoffApp.GOOGLE_VOICE
         val rules = listOf(country("US", RuleAction.HandOff.ViaDialIntent(gv)))
         assertEquals(
-            Verdict.ForwardToApp(gv.packageName, gv.launchUri(normalizeToE164(usNumber, "AU")!!)),
+            Verdict.ForwardToApp(gv.packageName, gv.launchUri(normalizeToE164(usNumber, "AU")!!), gv.label),
             engine.decide(call(usNumber), snapshot(rules, handOffApps = setOf(gv.packageName)), now),
         )
     }
@@ -462,7 +463,7 @@ class DecisionEngineTest {
         val teams = DialHandoffApp.TEAMS
         val rules = listOf(country("US", RuleAction.HandOff.ViaDialIntent(teams)))
         assertEquals(
-            Verdict.ForwardToApp(teams.packageName, teams.launchUri(normalizeToE164(usNumber, "AU")!!)),
+            Verdict.ForwardToApp(teams.packageName, teams.launchUri(normalizeToE164(usNumber, "AU")!!), teams.label),
             engine.decide(call(usNumber), snapshot(rules, handOffApps = setOf(teams.packageName)), now),
         )
     }

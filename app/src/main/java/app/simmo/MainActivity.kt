@@ -118,6 +118,7 @@ class MainActivity : ComponentActivity() {
                         isRoleHeld = ::isRedirectionRoleHeld,
                         isPhonePermissionGranted = ::isPhonePermissionGranted,
                         isNotificationsGranted = ::isNotificationsGranted,
+                        isCallPermissionGranted = ::isCallPermissionGranted,
                         requestRoleIntent = {
                             getSystemService(RoleManager::class.java)
                                 .createRequestRoleIntent(RoleManager.ROLE_CALL_REDIRECTION)
@@ -152,6 +153,10 @@ class MainActivity : ComponentActivity() {
     private fun isContactsPermissionGranted(): Boolean =
         ContextCompat.checkSelfPermission(this, Manifest.permission.READ_CONTACTS) ==
             PackageManager.PERMISSION_GRANTED
+
+    private fun isCallPermissionGranted(): Boolean =
+        ContextCompat.checkSelfPermission(this, Manifest.permission.CALL_PHONE) ==
+            PackageManager.PERMISSION_GRANTED
 }
 
 /**
@@ -167,13 +172,16 @@ internal fun OnboardingScreen(
     onPhonePermissionGranted: () -> Unit,
     onAllGranted: () -> Unit = {},
     isNotificationsGranted: () -> Boolean = { true },
+    isCallPermissionGranted: () -> Boolean = { true },
 ) {
     var roleHeld by remember { mutableStateOf(isRoleHeld()) }
     var phoneGranted by remember { mutableStateOf(isPhonePermissionGranted()) }
     var notificationsGranted by remember { mutableStateOf(isNotificationsGranted()) }
+    var callGranted by remember { mutableStateOf(isCallPermissionGranted()) }
     OnResume {
         roleHeld = isRoleHeld()
         notificationsGranted = isNotificationsGranted()
+        callGranted = isCallPermissionGranted()
         val nowGranted = isPhonePermissionGranted()
         // Any transition made in Settings (grant or revoke) must refresh the
         // telephony cache, same as the launcher path.
@@ -199,6 +207,11 @@ internal fun OnboardingScreen(
         ActivityResultContracts.RequestPermission(),
     ) { granted ->
         notificationsGranted = granted
+    }
+    val callLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        callGranted = granted
     }
 
     Surface(modifier = Modifier.fillMaxSize()) {
@@ -235,6 +248,14 @@ internal fun OnboardingScreen(
                 onRequest = {
                     notificationsLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                 },
+            )
+            // Optional: lets a "Couldn't open <app>" notification's Redial re-place
+            // the call in one tap (ACTION_CALL); without it Redial opens the dialer.
+            GrantRow(
+                granted = callGranted,
+                label = stringResource(R.string.onboarding_call_permission_label),
+                buttonText = stringResource(R.string.onboarding_call_permission_button),
+                onRequest = { callLauncher.launch(Manifest.permission.CALL_PHONE) },
             )
             if (roleHeld && phoneGranted) {
                 Text(
