@@ -12,8 +12,8 @@ reporting and usage statistics, controlled by the "Make Simmo better" switch.**
 
 - The numbers you dial, your contacts, and your rules are **never** collected or
   shared with anyone, including us.
-- Simmo contains no advertising, and requests that the advertising ID never be
-  available to the app.
+- Simmo contains no third-party ad networks and no ad tracking, and requests
+  that the advertising ID never be available to the app.
 - If the "Make Simmo better" switch is on, Simmo collects crash reports and
   anonymous usage statistics — see the next section.
 
@@ -115,6 +115,12 @@ country, and how often calls complete or fail — never contact names, contact
 numbers, or the phone numbers you dial. These would be covered by the same "Make
 Simmo better" switch. If they ship, this policy will be updated at the same time
 to describe exactly what is collected and why, and the effective date will change.
+
+We may also add links to useful travel products, such as buying a travel eSIM,
+and some of those may be affiliate links (meaning we can earn a commission on
+purchases). Opening such a link would never send the numbers you dial, your
+contacts, or your rules to anyone. If a link ever shares any other data from
+your device, this policy will be updated first to say exactly what and why.
 
 ## Changes to this policy
 
