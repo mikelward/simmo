@@ -5,11 +5,13 @@ import android.os.Looper
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import androidx.test.core.app.ApplicationProvider
+import app.simmo.STATE_LOAD_TIMEOUT_MS
 import app.simmo.SimmoApp
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import org.junit.After
 import org.junit.Assert.assertFalse
 import org.junit.Test
@@ -50,29 +52,36 @@ class SettingsAnalyticsToggleTest {
 
     @Test
     fun `an opt-out loaded while Settings is closed reaches the first frame`() = runBlocking {
-        val app = ApplicationProvider.getApplicationContext<SimmoApp>()
-        vm = RulesViewModel(app, SavedStateHandle())
-        // A marker-less opt-out (restore) written straight to the state after
-        // the view model exists but with the Settings screen closed.
-        val holder = app.stateHolders().filterNotNull().first()
-        holder.setAnalyticsOptIn(false)
+        // Bound the whole body: both the holder publish and the suspending
+        // state write wait on the store, so a stalled load fails here in
+        // seconds instead of hanging until the CI job's own timeout (matches
+        // TelemetryMarkerTest). The poll loop has no suspension points, so it
+        // stays self-bounded by its own deadline.
+        withTimeout(STATE_LOAD_TIMEOUT_MS) {
+            val app = ApplicationProvider.getApplicationContext<SimmoApp>()
+            vm = RulesViewModel(app, SavedStateHandle())
+            // A marker-less opt-out (restore) written straight to the state
+            // after the view model exists but with the Settings screen closed.
+            val holder = app.stateHolders().filterNotNull().first()
+            holder.setAnalyticsOptIn(false)
 
-        // The eagerly-shared flow must reflect it without any subscriber —
-        // .value is what the screen's first frame renders, so poll it rather
-        // than collect (a subscriber would mask an Eagerly -> WhileSubscribed
-        // regression). The choice crosses background dispatchers before the
-        // view model's main-dispatcher collector applies it, and under
-        // Robolectric's paused looper a hop posted to the main queue never
-        // runs during a wall-clock sleep — idle the looper between polls so
-        // the wait drains deterministically. The deadline is only a hang
-        // guard; the passing path converges in milliseconds.
-        val mainLooper = shadowOf(Looper.getMainLooper())
-        val deadline = System.currentTimeMillis() + 30_000
-        while (vm.settings.value.analyticsOptIn && System.currentTimeMillis() < deadline) {
-            mainLooper.idle()
-            Thread.sleep(1)
+            // The eagerly-shared flow must reflect it without any subscriber —
+            // .value is what the screen's first frame renders, so poll it rather
+            // than collect (a subscriber would mask an Eagerly -> WhileSubscribed
+            // regression). The choice crosses background dispatchers before the
+            // view model's main-dispatcher collector applies it, and under
+            // Robolectric's paused looper a hop posted to the main queue never
+            // runs during a wall-clock sleep — idle the looper between polls so
+            // the wait drains deterministically. The deadline is only a hang
+            // guard; the passing path converges in milliseconds.
+            val mainLooper = shadowOf(Looper.getMainLooper())
+            val deadline = System.currentTimeMillis() + 30_000
+            while (vm.settings.value.analyticsOptIn && System.currentTimeMillis() < deadline) {
+                mainLooper.idle()
+                Thread.sleep(1)
+            }
+            assertFalse(vm.settings.value.analyticsOptIn)
         }
-        assertFalse(vm.settings.value.analyticsOptIn)
     }
 
     @Test
