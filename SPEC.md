@@ -53,8 +53,11 @@ copy directly below the original as the starting point for a variant. A rule pai
   are added beside the group as ordinary entries. The **shipped** groups are chosen
   to be label-faithful, stable sets; carrier-specific zone lists ("Tier 1" countries)
   differ per carrier, so those are **custom groups** the user builds instead — a named
-  set of countries (e.g. "Vodafone Zone 1") created on the Country groups screen and
-  then selectable in a rule exactly like a built-in group. A custom group is stored
+  set of countries (e.g. "Vodafone Zone 1") created on the Country groups screen — or
+  from a "New group" entry in the rule editor's picker, which builds the group mid-rule
+  and adds it to the rule being scoped (that group is committed together with the rule
+  when the rule is saved, so cancelling the rule leaves no orphan group) — and then
+  selectable in a rule exactly like a built-in group. A custom group is stored
   under a stable id (disjoint from the built-in ids), and its membership resolves on
   the decision path from the same in-memory snapshot the built-ins resolve from — never
   from I/O. Deleting a group leaves rules that referenced it matching none of its
