@@ -466,14 +466,21 @@ System settings.
       when the local SIM is a registered-but-disabled profile (registry home
       country); only when such a SIM exists; same triage flow and per-country
       opt-out.
-- [ ] Wake-up lattice (SPEC): roaming check on every telephony refresh and
-      manifest receivers for `TIMEZONE_CHANGED` + `CARRIER_CONFIG_CHANGED`
-      landed (`DataWatchReceiver`); still owed: the `BOOT_COMPLETED` receiver
-      (needs `RECEIVE_BOOT_COMPLETED`), the service-state listener while
-      resident, and the `ConnectivityManager` PendingIntent callback spike
-      (registered at boot, roaming-capability check in the receiver — declare
-      the normal `ACCESS_NETWORK_STATE` permission both need, flagged by Codex
-      on PR #47). Device QA owed: firing behavior across carriers/handovers,
+- [x] Wake-up lattice (SPEC): roaming check on every telephony refresh
+      (outgoing calls included — the service kicks an off-path refresh after
+      responding), manifest receivers for `TIMEZONE_CHANGED` +
+      `CARRIER_CONFIG_CHANGED` + `BOOT_COMPLETED`, and the
+      `ConnectivityManager` PendingIntent callback (flagged by Codex on
+      PR #47): registered on every process start — the boot receiver's job is
+      causing one after reboot — with the receiver skipping fires whose
+      network is verifiably not roaming and checking everything uncertain;
+      `ACCESS_NETWORK_STATE` + `RECEIVE_BOOT_COMPLETED` declared (normal,
+      auto-granted). A resident capability callback catches the one shape
+      PendingIntent delivery can't (same network flips to roaming without
+      detaching — undetectable with a dead process, per SPEC).
+- [ ] Lattice remainder: the service-state listener while resident (real-time
+      roaming transitions between wake-ups). Device QA owed: connectivity
+      callback firing behavior across carriers/handovers, boot re-register,
       and end-to-end warning latency with a dead process.
 - [ ] Data rules UI: a Data list beside Calling on the rules home (terminology per
       SPEC "Product behavior": Calling rules / Data rules / System settings; exact
