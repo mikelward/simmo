@@ -168,16 +168,26 @@ class SimmoCallRedirectionService : CallRedirectionService() {
 
                 // Delay before calling: cancel and show the countdown screen,
                 // which re-places on the SIM (or recovers via the dialer if
-                // the SIM's handle vanished meanwhile). The response is never
-                // delayed — only the re-place is. Same BAL caveat as the
-                // chooser's startActivity below.
-                is Verdict.DelayedRedirect -> respond {
-                    cancelCall()
-                    startActivity(
-                        DelayedCallActivity
-                            .launchIntent(this@SimmoCallRedirectionService, handle, verdict)
-                            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
-                    )
+                // the SIM's handle vanishes mid-countdown). The response is
+                // never delayed — only the re-place is. Same BAL caveat as
+                // the chooser's startActivity below.
+                is Verdict.DelayedRedirect -> {
+                    // Same stale-account guard as the redirect branch above
+                    // (Codex on PR #38): if the SIM vanished between the
+                    // snapshot and now, proceeding unmodified beats canceling
+                    // into a countdown whose only recovery is the dialer.
+                    if (app.assembler.handleFor(verdict.account) == null) {
+                        respond { placeCallUnmodified() }
+                    } else {
+                        respond {
+                            cancelCall()
+                            startActivity(
+                                DelayedCallActivity
+                                    .launchIntent(this@SimmoCallRedirectionService, handle, verdict)
+                                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                            )
+                        }
+                    }
                 }
 
                 is Verdict.ForwardToApp -> handOff(
