@@ -9,6 +9,7 @@ import android.database.ContentObserver
 import android.provider.ContactsContract
 import android.telephony.SubscriptionManager
 import android.telephony.TelephonyManager
+import android.util.Log
 import androidx.core.content.ContextCompat
 import app.simmo.analytics.TelemetryGate
 import app.simmo.domain.ActiveSim
@@ -27,6 +28,8 @@ import app.simmo.telecom.PassTokenStore
 import app.simmo.telecom.RedirectionCoordinator
 import app.simmo.telecom.SnapshotAssembler
 import app.simmo.telecom.TelephonyReader
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -54,7 +57,22 @@ import kotlinx.coroutines.launch
  */
 class SimmoApp : Application() {
 
-    val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    /**
+     * Background maintenance (state load, telephony refreshes, contact index,
+     * registry capture). The handler keeps a failed refresh from killing the
+     * process: this is the process that answers Telecom, and the honest
+     * degradation for a background read blowing up mid-race (telephony going
+     * away, permission revoked between check and read) is a stale snapshot —
+     * calls proceed unmodified — never a crash. It also keeps a refresh
+     * outliving a Robolectric test from failing the *next* test as an
+     * uncaught exception when it hits the torn-down sandbox.
+     */
+    val appScope = CoroutineScope(
+        SupervisorJob() + Dispatchers.Default +
+            CoroutineExceptionHandler { _, e ->
+                Log.e("SimmoApp", "Background maintenance failed", e)
+            },
+    )
     val passTokens = PassTokenStore()
     val heldCalls = HeldCallStore()
     val notifications by lazy { SimNotifications(this) }
@@ -176,9 +194,14 @@ class SimmoApp : Application() {
 
         appScope.launch {
             // Blocking file read, deliberately off the main thread; until it
-            // completes the snapshot is null and calls proceed unmodified.
-            val installId = InstallMarker.get(this@SimmoApp)
-            val holder = SimmoStateHolder(simmoStateStore, appScope, installId)
+            // completes the snapshot is null and calls proceed unmodified —
+            // which is why this one-shot retries rather than trusting the
+            // scope handler: logged-and-abandoned here would mean no rules
+            // for the rest of the process lifetime.
+            val holder = retryUntilDone("State load") {
+                val installId = InstallMarker.get(this@SimmoApp)
+                SimmoStateHolder(simmoStateStore, appScope, installId)
+            }
             stateHolderFlow.value = holder
             recordSims()
             // Publishing the holder only *starts* the async DataStore read
@@ -194,7 +217,9 @@ class SimmoApp : Application() {
                 .collect { assembler.refreshContacts() }
         }
         appScope.launch {
-            detector.warmUp()
+            // Retried for the same reason as the state load: without warm
+            // metadata the coordinator never sees a snapshot.
+            retryUntilDone("Parser warm-up") { detector.warmUp() }
             metadataWarm = true
         }
         appScope.launch {
@@ -220,7 +245,14 @@ class SimmoApp : Application() {
             // newest value — the only one that matters. (The durable marker
             // is committed in the tap handler itself; see setAnalyticsOptIn.)
             optInTaps.filterNotNull().collect { enabled ->
-                stateHolderFlow.filterNotNull().first().setAnalyticsOptIn(enabled)
+                // A durable user choice, so a transient write failure retries
+                // instead of killing this collector — which would silently
+                // stop persisting every later tap too (Codex on PR #52). The
+                // conflated StateFlow keeps a retry from delaying anything
+                // but itself; the durable marker already holds the truth.
+                retryUntilDone("Persist analytics choice") {
+                    stateHolderFlow.filterNotNull().first().setAnalyticsOptIn(enabled)
+                }
             }
         }
         refreshTelephony()
@@ -410,5 +442,30 @@ class SimmoApp : Application() {
         /** The telemetry choice's own durable copy (see [setAnalyticsOptIn]). */
         const val TELEMETRY_PREFS = "telemetry"
         const val KEY_OPT_IN = "optIn"
+    }
+}
+
+/**
+ * Retries a critical one-shot initialization until it succeeds. The app
+ * scope's exception handler keeps a failed background job from crashing the
+ * process, but for the one-shots that gate the snapshot a transient failure
+ * would otherwise leave the app degraded for the whole process lifetime — no
+ * rules, every call proceeding unmodified (Codex on PR #52); the repeatable
+ * maintenance jobs (telephony refreshes, registry capture) self-heal on their
+ * next trigger and don't need this. Exponential backoff, capped at a minute;
+ * cancellation propagates.
+ */
+internal suspend fun <T> retryUntilDone(what: String, block: suspend () -> T): T {
+    var backoffMillis = 1_000L
+    while (true) {
+        try {
+            return block()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.e("SimmoApp", "$what failed; retrying in ${backoffMillis}ms", e)
+            delay(backoffMillis)
+            backoffMillis = (backoffMillis * 2).coerceAtMost(60_000L)
+        }
     }
 }
