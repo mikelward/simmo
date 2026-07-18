@@ -51,6 +51,7 @@ import app.simmo.ui.GroupsScreen
 import app.simmo.ui.RuleEditorScreen
 import app.simmo.ui.RulesScreen
 import app.simmo.ui.RulesViewModel
+import app.simmo.ui.SettingsScreen
 import app.simmo.ui.SimRegistryScreen
 
 class MainActivity : ComponentActivity() {
@@ -115,6 +116,7 @@ class MainActivity : ComponentActivity() {
                     val target by vm.editorTarget.collectAsStateWithLifecycle()
                     val registryOpen by vm.registryOpen.collectAsStateWithLifecycle()
                     val groupsOpen by vm.groupsOpen.collectAsStateWithLifecycle()
+                    val settingsOpen by vm.settingsOpen.collectAsStateWithLifecycle()
                     val editing = target
                     when {
                         // The editor wins: it can only be open from the rules
@@ -128,6 +130,8 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
+                        // Above Settings: the SIMs screen is opened from it,
+                        // so closing lands back on Settings.
                         registryOpen -> SimRegistryScreen(
                             viewModel = vm,
                             onBack = vm::closeSimRegistry,
@@ -136,6 +140,11 @@ class MainActivity : ComponentActivity() {
                         groupsOpen -> GroupsScreen(
                             viewModel = vm,
                             onBack = vm::closeGroups,
+                        )
+
+                        settingsOpen -> SettingsScreen(
+                            onOpenSims = vm::openSimRegistry,
+                            onBack = vm::closeSettings,
                         )
 
                         else -> RulesScreen(

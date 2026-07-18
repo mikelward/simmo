@@ -77,7 +77,7 @@ fun RulesScreen(
         onMoveRule = viewModel::moveRule,
         onAddRuleForSim = viewModel::openNewRuleForSim,
         onDismissNewSimPrompt = viewModel::dismissNewSimPrompt,
-        onOpenSimRegistry = viewModel::openSimRegistry,
+        onOpenSettings = viewModel::openSettings,
         onOpenGroups = onOpenGroups,
     )
 }
@@ -94,7 +94,7 @@ internal fun RulesScreenContent(
     onMoveRule: (Int, Int) -> Unit = { _, _ -> },
     onAddRuleForSim: (NewSimPromptUi) -> Unit = {},
     onDismissNewSimPrompt: (SimRef) -> Unit = {},
-    onOpenSimRegistry: () -> Unit = {},
+    onOpenSettings: () -> Unit = {},
     onOpenGroups: () -> Unit = {},
 ) {
     val listState = rememberLazyListState()
@@ -145,10 +145,10 @@ internal fun RulesScreenContent(
                             contentDescription = stringResource(R.string.groups_open),
                         )
                     }
-                    IconButton(onClick = onOpenSimRegistry) {
+                    IconButton(onClick = onOpenSettings) {
                         Icon(
                             imageVector = Icons.Filled.Settings,
-                            contentDescription = stringResource(R.string.sim_registry_open),
+                            contentDescription = stringResource(R.string.settings_open),
                         )
                     }
                 }

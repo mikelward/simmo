@@ -159,6 +159,9 @@ small stack), fully unit-tested, with `./gradlew test` and `./gradlew lint` gree
 - [x] SIMs screen rows show each SIM's own number and country (last-known,
       captured into the registry while the SIM was active; the number needs
       optional `READ_PHONE_NUMBERS`, requested silently on that screen).
+- [x] Settings screen behind the rules list's gear: the home for app-level
+      options (the default-region override is the next candidate), with the
+      SIM registry reached through it instead of directly from the gear.
 - [ ] Rename SIMs on the registry screen (maintainer: deferred). Must be a
       *nickname* layered over the stored identity, never an edit of
       displayName — carrier + display name is the re-binding ladder (SPEC "SIM

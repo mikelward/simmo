@@ -258,6 +258,19 @@ class RulesViewModel(
         savedState[KEY_REGISTRY_OPEN] = open
     }
 
+    /** Whether the Settings screen is open; saved like [registryOpen]. */
+    private val _settingsOpen = MutableStateFlow(savedState.get<Boolean>(KEY_SETTINGS_OPEN) ?: false)
+    val settingsOpen: StateFlow<Boolean> = _settingsOpen
+
+    fun openSettings() = setSettingsOpen(true)
+
+    fun closeSettings() = setSettingsOpen(false)
+
+    private fun setSettingsOpen(open: Boolean) {
+        _settingsOpen.value = open
+        savedState[KEY_SETTINGS_OPEN] = open
+    }
+
     fun deleteRegisteredSim(ref: SimRef) {
         viewModelScope.launch {
             app.stateHolders().filterNotNull().first().deleteRegisteredSim(ref)
@@ -390,6 +403,7 @@ class RulesViewModel(
         const val KEY_EDITOR_TARGET = "editor_target"
         const val KEY_REGISTRY_OPEN = "registry_open"
         const val KEY_GROUPS_OPEN = "groups_open"
+        const val KEY_SETTINGS_OPEN = "settings_open"
 
         /** How many contact-derived countries the "Suggested" bucket shows. */
         const val SUGGESTED_COUNTRY_LIMIT = 5
