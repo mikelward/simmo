@@ -37,6 +37,7 @@ class SimRegistryScreenshotTest {
                             ref = SimRef(1, "Telstra", "Telstra personal"),
                             name = "Telstra personal",
                             carrier = "Telstra",
+                            detail = "+61 412 345 678 · Australia",
                             active = true,
                             lastSeenLabel = "Jul 17, 2026",
                         ),
@@ -44,6 +45,7 @@ class SimRegistryScreenshotTest {
                             ref = SimRef(2, "T-Mobile", ""),
                             name = "T-Mobile",
                             carrier = null,
+                            detail = "United States",
                             active = false,
                             lastSeenLabel = "Jul 10, 2026",
                         ),
@@ -51,6 +53,7 @@ class SimRegistryScreenshotTest {
                             ref = SimRef(8, "Optus", "Optus travel"),
                             name = "Optus travel",
                             carrier = "Optus",
+                            detail = null,
                             active = false,
                             lastSeenLabel = "Mar 2, 2026",
                         ),
@@ -62,6 +65,7 @@ class SimRegistryScreenshotTest {
 
         composeRule.onNodeWithText("Telstra personal").assertExists()
         composeRule.onNodeWithText("Active").assertExists()
+        composeRule.onNodeWithText("+61 412 345 678 · Australia").assertExists()
         composeRule.onNodeWithText("Last seen Mar 2, 2026").assertExists()
         captureSnapshot("sim_registry.png")
     }

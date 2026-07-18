@@ -4,6 +4,10 @@
     <!-- Enumerate subscriptions and phone accounts for the snapshot. -->
     <uses-permission android:name="android.permission.READ_PHONE_STATE" />
 
+    <!-- Show each SIM's own number on the SIMs screen. Optional; requested
+         there (silently granted alongside READ_PHONE_STATE — same group). -->
+    <uses-permission android:name="android.permission.READ_PHONE_NUMBERS" />
+
     <!-- Re-place calls from the chooser (TelecomManager.placeCall); requested
          at runtime on first use. -->
     <uses-permission android:name="android.permission.CALL_PHONE" />

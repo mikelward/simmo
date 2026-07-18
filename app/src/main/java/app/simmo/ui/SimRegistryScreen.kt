@@ -1,6 +1,10 @@
 package app.simmo.ui
 
+import android.Manifest
+import android.content.pm.PackageManager
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -20,6 +24,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.Saver
@@ -27,7 +32,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.core.content.ContextCompat
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.simmo.R
@@ -44,6 +51,8 @@ data class RegistrySimRowUi(
     val name: String,
     /** The carrier, when it adds anything beyond [name]; null otherwise. */
     val carrier: String?,
+    /** "number · country" (either half alone when the other is unknown); null when both are. */
+    val detail: String?,
     val active: Boolean,
     /** Formatted last-seen date; only shown for inactive SIMs. */
     val lastSeenLabel: String,
@@ -61,6 +70,26 @@ fun SimRegistryScreen(
     onBack: () -> Unit,
 ) {
     val rows by viewModel.registryRows.collectAsStateWithLifecycle()
+    // The rows' own-number line needs READ_PHONE_NUMBERS (split from
+    // READ_PHONE_STATE in API 30). Only requested when the phone grant is
+    // already held: same permission group, so the request is granted silently
+    // — no dialog interrupting the screen — and a refresh fills the numbers in.
+    val context = LocalContext.current
+    val numbersLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        if (granted) viewModel.onPhoneNumbersGranted()
+    }
+    LaunchedEffect(Unit) {
+        val granted = { permission: String ->
+            ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED
+        }
+        if (granted(Manifest.permission.READ_PHONE_STATE) &&
+            !granted(Manifest.permission.READ_PHONE_NUMBERS)
+        ) {
+            numbersLauncher.launch(Manifest.permission.READ_PHONE_NUMBERS)
+        }
+    }
     SimRegistryContent(
         rows = rows,
         onDelete = viewModel::deleteRegisteredSim,
@@ -145,6 +174,13 @@ private fun RegistryRow(row: RegistrySimRowUi, onDeleteRequest: () -> Unit) {
             row.carrier?.let {
                 Text(text = it, style = MaterialTheme.typography.bodyMedium)
             }
+            row.detail?.let {
+                Text(
+                    text = it,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             Text(
                 text = if (row.active) stringResource(R.string.sim_registry_active)
                 else stringResource(R.string.sim_registry_last_seen, row.lastSeenLabel),
@@ -169,18 +205,20 @@ private val PendingDeleteSaver = Saver<RegistrySimRowUi?, List<String>>(
         row?.let {
             listOf(
                 it.ref.subscriptionId.toString(), it.ref.carrierName, it.ref.displayName,
-                it.name, it.carrier.orEmpty(), it.active.toString(), it.lastSeenLabel,
+                it.name, it.carrier.orEmpty(), it.detail.orEmpty(), it.active.toString(),
+                it.lastSeenLabel,
             )
         } ?: emptyList()
     },
     restore = { parts ->
-        parts.takeIf { it.size == 7 }?.let {
+        parts.takeIf { it.size == 8 }?.let {
             RegistrySimRowUi(
                 ref = SimRef(it[0].toInt(), it[1], it[2]),
                 name = it[3],
                 carrier = it[4].ifEmpty { null },
-                active = it[5].toBoolean(),
-                lastSeenLabel = it[6],
+                detail = it[5].ifEmpty { null },
+                active = it[6].toBoolean(),
+                lastSeenLabel = it[7],
             )
         }
     },

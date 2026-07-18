@@ -43,6 +43,12 @@ data class ActiveSim(
      * "use the SIM with the matching country" default rule.
      */
     val countryIso: String = "",
+    /**
+     * The SIM's own line number as the platform reports it (usually E.164);
+     * empty when unknown — many profiles carry none, and reading it needs
+     * READ_PHONE_NUMBERS.
+     */
+    val phoneNumber: String = "",
 )
 
 /**
@@ -55,6 +61,17 @@ data class RegisteredSim(
     val carrierName: String,
     val displayName: String,
     val lastSeenEpochMillis: Long,
+    /**
+     * Last-known home country (ISO region) of the SIM, captured while it was
+     * active so the SIMs screen can still show it for a disabled profile.
+     * Empty when never reported.
+     */
+    val countryIso: String = "",
+    /**
+     * Last-known own line number of the SIM, captured while it was active
+     * (see [ActiveSim.phoneNumber]). Empty when never reported.
+     */
+    val phoneNumber: String = "",
     /**
      * True until the user has answered the "add rules for this new SIM?"
      * prompt (SPEC "On SIM change"). Defaults to false so registry entries
@@ -125,7 +142,7 @@ fun List<RegisteredSim>.recordSeen(active: List<ActiveSim>, nowMillis: Long): Li
     val refreshed = map { entry ->
         activeById[entry.subscriptionId]?.let { sim ->
             claimed += sim.subscriptionId
-            entry.copy(carrierName = sim.carrierName, displayName = sim.displayName, lastSeenEpochMillis = nowMillis)
+            entry.refreshedFrom(sim, nowMillis)
         } ?: entry
     }
     val rebound = refreshed.map { entry ->
@@ -136,18 +153,31 @@ fun List<RegisteredSim>.recordSeen(active: List<ActiveSim>, nowMillis: Long): Li
                 sim.displayName.matchesIgnoringCaseAndSpace(entry.displayName)
         } ?: return@map entry
         claimed += match.subscriptionId
-        entry.copy(
-            subscriptionId = match.subscriptionId,
-            carrierName = match.carrierName,
-            displayName = match.displayName,
-            lastSeenEpochMillis = nowMillis,
-        )
+        entry.refreshedFrom(match, nowMillis).copy(subscriptionId = match.subscriptionId)
     }
     val new = active.filter { it.subscriptionId !in claimed }.map {
-        RegisteredSim(it.subscriptionId, it.carrierName, it.displayName, nowMillis, needsRulePrompt = true)
+        RegisteredSim(
+            it.subscriptionId, it.carrierName, it.displayName, nowMillis,
+            countryIso = it.countryIso, phoneNumber = it.phoneNumber,
+            needsRulePrompt = true,
+        )
     }
     return rebound + new
 }
+
+/**
+ * The entry updated with what an active sighting of the SIM reports. Country
+ * and own number keep the last-known value when the fresh read is blank — the
+ * platform reports them intermittently (and the number needs a separate
+ * permission), and "last seen" beats "forgotten".
+ */
+private fun RegisteredSim.refreshedFrom(sim: ActiveSim, nowMillis: Long): RegisteredSim = copy(
+    carrierName = sim.carrierName,
+    displayName = sim.displayName,
+    lastSeenEpochMillis = nowMillis,
+    countryIso = sim.countryIso.ifBlank { countryIso },
+    phoneNumber = sim.phoneNumber.ifBlank { phoneNumber },
+)
 
 /**
  * Whether this registry entry is the SIM [ref] points at: exact (real)

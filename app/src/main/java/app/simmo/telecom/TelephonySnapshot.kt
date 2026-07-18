@@ -3,8 +3,10 @@ package app.simmo.telecom
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
+import android.os.Build
 import android.telecom.PhoneAccountHandle
 import android.telecom.TelecomManager
+import android.telephony.SubscriptionInfo
 import android.telephony.SubscriptionManager
 import android.telephony.TelephonyManager
 import androidx.core.content.ContextCompat
@@ -52,8 +54,9 @@ class TelephonyReader(private val context: Context) {
                 ?: return SimsAndAccounts(emptyList(), emptyMap())
             val telephony = context.getSystemService(TelephonyManager::class.java)
                 ?: return SimsAndAccounts(emptyList(), emptyMap())
-            val subscriptions = context.getSystemService(SubscriptionManager::class.java)
-                ?.activeSubscriptionInfoList.orEmpty()
+            val subscriptionManager = context.getSystemService(SubscriptionManager::class.java)
+                ?: return SimsAndAccounts(emptyList(), emptyMap())
+            val subscriptions = subscriptionManager.activeSubscriptionInfoList.orEmpty()
                 .associateBy { it.subscriptionId }
 
             val sims = mutableListOf<ActiveSim>()
@@ -71,6 +74,7 @@ class TelephonyReader(private val context: Context) {
                     displayName = info.displayName?.toString().orEmpty(),
                     phoneAccount = ref,
                     countryIso = info.countryIso.orEmpty(),
+                    phoneNumber = readPhoneNumber(subscriptionManager, info),
                 )
             }
             SimsAndAccounts(sims, handles)
@@ -80,6 +84,26 @@ class TelephonyReader(private val context: Context) {
             SimsAndAccounts(emptyList(), emptyMap())
         }
     }
+
+    /**
+     * The SIM's own line number, or "" when unknown. Needs READ_PHONE_NUMBERS
+     * (split from READ_PHONE_STATE in API 30) — caught per-SIM so a missing
+     * number grant degrades to a number-less row, never to losing the SIM list.
+     * Many profiles simply carry no number; "" is a normal answer.
+     */
+    private fun readPhoneNumber(subscriptions: SubscriptionManager, info: SubscriptionInfo): String =
+        try {
+            if (Build.VERSION.SDK_INT >= 33) {
+                subscriptions.getPhoneNumber(info.subscriptionId)
+            } else {
+                @Suppress("DEPRECATION")
+                info.number.orEmpty()
+            }
+        } catch (_: SecurityException) {
+            ""
+        } catch (_: IllegalStateException) {
+            ""
+        }
 
     /**
      * The region national-format numbers resolve against, absent an override.

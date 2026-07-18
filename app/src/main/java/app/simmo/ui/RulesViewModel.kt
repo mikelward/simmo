@@ -24,6 +24,7 @@ import app.simmo.domain.newSimRuleInsertionIndex
 import app.simmo.domain.regionCodes
 import app.simmo.domain.resolveSim
 import app.simmo.store.SimmoState
+import com.google.i18n.phonenumbers.NumberParseException
 import com.google.i18n.phonenumbers.PhoneNumberUtil
 import java.text.DateFormat
 import java.util.Date
@@ -208,6 +209,9 @@ class RulesViewModel(
 
     /** After READ_CONTACTS is granted, rebuild the warm contact index. */
     fun onContactsAccessGranted() = app.refreshContacts()
+
+    /** After READ_PHONE_NUMBERS is granted, re-read subscriptions so numbers show. */
+    fun onPhoneNumbersGranted() = app.refreshTelephony()
 
     /**
      * SIMs whose "add rules for this new SIM?" prompt is pending. Only shown
@@ -415,10 +419,36 @@ internal fun buildRegistryRows(
                 // blank or carrier-equal display name).
                 carrier = sim.carrierName
                     .takeIf { it.isNotBlank() && !it.trim().equals(name.trim(), ignoreCase = true) },
+                detail = registryDetailLabel(sim.phoneNumber, sim.countryIso),
                 active = sim.subscriptionId in activeIds,
                 lastSeenLabel = formatLastSeen(sim.lastSeenEpochMillis),
             )
         }
+}
+
+/**
+ * The SIMs screen's "number · country" line, e.g. "+61 412 345 678 · Australia";
+ * either half alone when the other is unknown, null when both are. The number is
+ * shown in international format when it parses to a valid number (libphonenumber
+ * metadata — never call in composition), verbatim otherwise: a number the
+ * library can't read is still better shown than hidden.
+ */
+internal fun registryDetailLabel(phoneNumber: String, countryIso: String): String? {
+    val country = countryIso.takeIf { it.isNotBlank() }?.let(::countryDisplayName)
+    val number = phoneNumber.takeIf { it.isNotBlank() }?.let { raw ->
+        val util = PhoneNumberUtil.getInstance()
+        try {
+            val parsed = util.parse(raw, countryIso.trim().uppercase().ifEmpty { null })
+            if (util.isValidNumber(parsed)) {
+                util.format(parsed, PhoneNumberUtil.PhoneNumberFormat.INTERNATIONAL)
+            } else {
+                raw
+            }
+        } catch (_: NumberParseException) {
+            raw
+        }
+    }
+    return listOfNotNull(number, country).joinToString(" · ").ifEmpty { null }
 }
 
 private fun defaultLastSeenLabel(epochMillis: Long): String =
