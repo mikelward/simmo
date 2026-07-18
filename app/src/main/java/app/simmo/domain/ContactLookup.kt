@@ -97,6 +97,33 @@ class ContactNumberIndex(private val byE164: Map<String, ContactMatch>) {
 
     val size: Int get() = byE164.size
 
+    /**
+     * The calling regions of the indexed contacts, most-common first (ties broken
+     * by region code so the order is stable). Backs the country picker's
+     * "Suggested" bucket, surfacing the countries the user actually knows people
+     * in. Counts *distinct contacts* per region, not numbers: a person with
+     * several numbers in one country counts once, so a single multi-number
+     * contact can't outrank a country that more people are actually in. Parses
+     * each E.164 key's region — metadata work, so call off the main thread; never
+     * on the decision path.
+     */
+    fun regionsByContactCount(
+        util: PhoneNumberUtil = PhoneNumberUtil.getInstance(),
+    ): List<String> {
+        val contactsByRegion = LinkedHashMap<String, MutableSet<String>>()
+        for ((e164, match) in byE164) {
+            // Keys are already E.164 (leading +), so no default region is needed.
+            val region = runCatching { util.getRegionCodeForNumber(util.parse(e164, null)) }
+                .getOrNull()
+                ?.takeUnless { it.isBlank() || it == "ZZ" }
+                ?: continue
+            contactsByRegion.getOrPut(region) { HashSet() }.add(match.lookupKey)
+        }
+        return contactsByRegion.entries
+            .sortedWith(compareByDescending<Map.Entry<String, Set<String>>> { it.value.size }.thenBy { it.key })
+            .map { it.key }
+    }
+
     companion object {
         val EMPTY = ContactNumberIndex(emptyMap())
     }
