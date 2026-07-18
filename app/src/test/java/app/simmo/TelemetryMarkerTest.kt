@@ -12,18 +12,14 @@ import org.robolectric.RobolectricTestRunner
 class TelemetryMarkerTest {
 
     @Test
-    fun `an opt-out tap lands in the durable marker without the main state write`() {
+    fun `an opt-out tap lands in the durable marker before the tap returns`() {
         val app = ApplicationProvider.getApplicationContext<SimmoApp>()
         val prefs = app.getSharedPreferences("telemetry", Context.MODE_PRIVATE)
 
         app.setAnalyticsOptIn(false)
 
-        // The marker write runs on the app scope with no state-holder wait;
-        // poll briefly instead of assuming scheduling order.
-        val deadline = System.currentTimeMillis() + 5_000
-        while (!prefs.contains("optIn") && System.currentTimeMillis() < deadline) {
-            Thread.sleep(10)
-        }
+        // Synchronous by design: a process death right after the tap must
+        // still leave the choice on disk for the next launch's cleanup.
         assertTrue(prefs.contains("optIn"))
         assertFalse(prefs.getBoolean("optIn", true))
     }
