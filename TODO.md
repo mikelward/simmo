@@ -397,13 +397,21 @@ System settings.
       warns). Pure evaluation over a data snapshot (default + active data
       subscription, per-subscription roaming flags, per-SIM data-roaming setting,
       network country); table-driven unit tests including the EU roam-like-home
-      shapes.
+      shapes. Includes the preseeded default *when in EU/EEA → roaming OK on SIMs
+      homed in EU/EEA* and the "SIMs homed in the matched countries" scope it
+      needs (the data-side sibling of the calling matching-country action).
 - [ ] Data snapshot reader as an extension of the existing telephony refresh — no
       new permissions (`READ_PHONE_STATE` covers all of it), off the decision path.
 - [ ] Warning notification: "Using data roaming" naming SIM and country, one
       Settings action into the data rules screen; fires once per SIM-and-country
       arrival (persisted dedupe, cleared when the country changes or a covering
-      rule lands); degrades to the in-app triage card when notifications are off.
+      rule lands); state-based, so Wi-Fi carrying the traffic doesn't suppress it;
+      degrades to the in-app triage card when notifications are off.
+- [ ] No-data nudge (rule-less): data roaming off on a non-local data SIM means no
+      mobile data — nudge with the local SIM to switch to, or to *enable first*
+      when the local SIM is a registered-but-disabled profile (registry home
+      country); only when such a SIM exists; same triage flow and per-country
+      opt-out.
 - [ ] Wake-up lattice (SPEC): roaming check on every telephony refresh; manifest
       receivers for `TIMEZONE_CHANGED`, `CARRIER_CONFIG_CHANGED`, `BOOT_COMPLETED`;
       service-state listener while resident; spike the `ConnectivityManager`
@@ -423,12 +431,14 @@ System settings.
 - [ ] One label for leaving Simmo: rename the chooser's "SIM settings" button to
       "System settings" so the same words mark every jump out (SPEC "Product
       behavior" terminology).
-- [ ] Decide the SPEC open questions before building: preseeded EU/EEA
-      roam-like-home rule vs. first-triage-creates-it; Wi-Fi suppression; rule-less
-      no-data nudge (data roaming off on a non-local data SIM).
+- [x] Decide the design questions (maintainer, 2026-07-18): preseed the EU/EEA
+      roam-like-home rule; no Wi-Fi suppression (the warning is state-based); the
+      no-data nudge fires rule-less, naming the local SIM to switch to or enable.
+      Recorded in SPEC "Data rules".
 - [ ] Device QA (docs/qa-matrix.md): arrival after an airplane-mode cycle (timezone
       wake), a same-timezone land border with a dead process (connectivity
-      callback), an EU SIM roaming in EU with a Roaming OK rule (no false warning),
+      callback), an EU SIM roaming in EU under the preseeded rule (no false
+      warning), the no-data nudge with a disabled local eSIM (enable round trip),
       and dedupe across repeated refreshes in one country.
 
 ## Deferred / open (see also SPEC "Open questions")
