@@ -170,6 +170,22 @@ class SimmoStateHolder(
         }
     }
 
+    /** The hands-free guard's "Block overseas calls" toggle was set to [enabled]. */
+    suspend fun setGuardOverseasHandsFree(enabled: Boolean) {
+        store.updateData {
+            val valid = it.withInstallValidated(installId)
+            valid.copy(guardOverseasHandsFree = enabled)
+        }
+    }
+
+    /** The guard's "Block calls needing a disabled SIM" toggle was set to [enabled]. */
+    suspend fun setGuardDisabledSimHandsFree(enabled: Boolean) {
+        store.updateData {
+            val valid = it.withInstallValidated(installId)
+            valid.copy(guardDisabledSimHandsFree = enabled)
+        }
+    }
+
     /** The "new SIM" notification for [refs] was posted (or suppressed). */
     suspend fun markNewSimsNotified(refs: List<SimRef>) {
         store.updateData {

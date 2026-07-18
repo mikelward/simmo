@@ -74,6 +74,19 @@ data class DecisionSnapshot(
      * when unambiguous) otherwise.
      */
     val correctContactNumbers: Boolean = false,
+    /**
+     * The hands-free call guard's "Block overseas calls" toggle (SPEC
+     * "Hands-free and Android Auto safeguards"): in a non-interactive
+     * context, cancel a call whose destination isn't the default region and
+     * offer it back by notification instead of routing it.
+     */
+    val guardOverseasHandsFree: Boolean = false,
+    /**
+     * The guard's "Block calls needing a disabled SIM" toggle: cancel a
+     * non-interactive call when a matching rule was skipped because its SIM
+     * is disabled, rather than let a lower rule quietly place it another way.
+     */
+    val guardDisabledSimHandsFree: Boolean = false,
 )
 
 /** The one answer per call; total, and never a silent drop (SPEC invariants). */
@@ -176,7 +189,31 @@ sealed interface Verdict {
         val skippedInactiveSims: List<SimRef> = emptyList(),
         val numberCorrection: NumberCorrection? = null,
     ) : Verdict
+
+    /**
+     * The opt-in hands-free call guard fired (SPEC "Hands-free and Android
+     * Auto safeguards"): cancel the call. The ONLY sanctioned exception to
+     * "a call is never silently dropped" — the platform layer must pair
+     * every block with a notification (or its toast fallback) whose tap
+     * reopens the call in the chooser. [destination] (uppercase region) is
+     * set for [GuardBlockReason.OVERSEAS]; [wantedSims] carries the disabled
+     * SIMs the matching rules wanted for [GuardBlockReason.DISABLED_SIM], so
+     * the chooser offers the enable assist; [numberCorrection] rides along
+     * when one was pending, so the redial chooser still offers the contact's
+     * local number(s); [correctedNumber] is the local number a silent
+     * correction would have placed — the redial should offer that call.
+     */
+    data class BlockCall(
+        val reason: GuardBlockReason,
+        val destination: String? = null,
+        val wantedSims: List<SimRef> = emptyList(),
+        val numberCorrection: NumberCorrection? = null,
+        val correctedNumber: String? = null,
+    ) : Verdict
 }
+
+/** Why the hands-free call guard stopped a call. */
+enum class GuardBlockReason { OVERSEAS, DISABLED_SIM }
 
 enum class ProceedReason {
     EMERGENCY,
@@ -223,7 +260,8 @@ class DecisionEngine(private val countryDetector: CountryDetector) {
         var effectiveNumber = call.dialedNumber
         var effectiveDestination = destination
         var correctedNumber: String? = null
-        when (val outcome = correctionOutcome(call, destination, snapshot)) {
+        val outcome = correctionOutcome(call, destination, snapshot)
+        when (outcome) {
             // Never rewrite a number silently where UI can ask: the chooser
             // confirms, offering the local number(s) beside the number as
             // dialed (TODO Phase 6) — including for a shared line, whose
@@ -243,8 +281,78 @@ class DecisionEngine(private val countryDetector: CountryDetector) {
             is CorrectionOutcome.Missed, CorrectionOutcome.None -> Unit
         }
 
-        val skippedInactiveSims = mutableListOf<SimRef>()
+        // The hands-free call guard, overseas half (SPEC "Hands-free and
+        // Android Auto safeguards"): where no UI can be shown, an overseas
+        // call is cancelled outright rather than routed — the driver answers
+        // the notification when they can look. Judged after correction, so a
+        // silently localized call is no longer overseas and proceeds; a
+        // pending (missed) correction rides on the block so the redial
+        // chooser can still offer the local number. Gated on the chooser
+        // having a redial target (Codex on PR #48): a degraded snapshot —
+        // READ_PHONE_STATE revoked, failed telephony read — must degrade to
+        // "proceed unmodified", never cancel into a chooser that can only
+        // cancel. Also gated on a known home region (Codex again): a blank
+        // defaultRegion — radio off, no network country — makes every
+        // destination look overseas, so with nothing to compare against the
+        // call proceeds unmodified.
+        val homeRegion = snapshot.defaultRegion.trim()
+        if (!call.interactive && snapshot.guardOverseasHandsFree && chooserHasTargets(snapshot) &&
+            homeRegion.isNotEmpty() && effectiveDestination != null &&
+            !effectiveDestination.equals(homeRegion, ignoreCase = true)
+        ) {
+            return Verdict.BlockCall(
+                GuardBlockReason.OVERSEAS,
+                destination = effectiveDestination.uppercase(),
+                numberCorrection = (outcome as? CorrectionOutcome.Missed)?.correction,
+            )
+        }
 
+        val skippedInactiveSims = mutableListOf<SimRef>()
+        val verdict =
+            evaluateRules(call, effectiveNumber, effectiveDestination, correctedNumber, snapshot, skippedInactiveSims)
+
+        // The guard's disabled-SIM half: a matching rule wanted a SIM that is
+        // currently disabled. The user opted to stop the call rather than let
+        // a lower rule (or the system default) quietly place it another way
+        // while they can't see the enable assist. The same chooser-target
+        // gate applies, and it also covers the permission-degraded case
+        // (Codex on PR #48): with nothing visible in telephony, "Inactive"
+        // is not proof a SIM is disabled — the telephony read may simply have
+        // failed — so never block on it. A pending correction rides on this
+        // block too, so its chooser can still offer the local number(s).
+        if (!call.interactive && snapshot.guardDisabledSimHandsFree &&
+            chooserHasTargets(snapshot) && skippedInactiveSims.isNotEmpty()
+        ) {
+            return Verdict.BlockCall(
+                GuardBlockReason.DISABLED_SIM,
+                wantedSims = skippedInactiveSims.toList(),
+                numberCorrection = (outcome as? CorrectionOutcome.Missed)?.correction,
+                correctedNumber = correctedNumber,
+            )
+        }
+        return verdict
+    }
+
+    /**
+     * Whether the chooser would have anything to place a call on — an active
+     * SIM or another enabled calling account. Every cancel-into-chooser path
+     * (Ask, correction confirmation, the hands-free guard's block redial)
+     * must check this: canceling with no target strands the call behind a
+     * chooser that can only cancel. An all-empty read is also how a revoked
+     * READ_PHONE_STATE looks, so this doubles as the degraded-snapshot gate.
+     */
+    private fun chooserHasTargets(snapshot: DecisionSnapshot): Boolean =
+        snapshot.activeSims.isNotEmpty() || snapshot.handOffAccounts.isNotEmpty()
+
+    /** The ordered first-applicable-rule-wins pass; fills [skippedInactiveSims]. */
+    private fun evaluateRules(
+        call: PlacedCall,
+        effectiveNumber: String,
+        effectiveDestination: String?,
+        correctedNumber: String?,
+        snapshot: DecisionSnapshot,
+        skippedInactiveSims: MutableList<SimRef>,
+    ): Verdict {
         for (rule in snapshot.rules.rules) {
             // A user-disabled rule is kept in the list but never acts.
             if (!rule.enabled) continue
@@ -314,14 +422,10 @@ class DecisionEngine(private val countryDetector: CountryDetector) {
 
                 RuleAction.Ask ->
                     // Applicable only when the chooser has at least one target
-                    // to offer — an active SIM or another enabled calling
-                    // account. With neither (READ_PHONE_STATE revoked,
-                    // degraded telephony read), canceling would strand the
-                    // call behind a chooser that can only cancel — skip
-                    // instead, degrading toward "proceed unmodified".
-                    if (call.interactive &&
-                        (snapshot.activeSims.isNotEmpty() || snapshot.handOffAccounts.isNotEmpty())
-                    ) {
+                    // to offer; with none (READ_PHONE_STATE revoked, degraded
+                    // telephony read), skip instead, degrading toward
+                    // "proceed unmodified" — see [chooserHasTargets].
+                    if (call.interactive && chooserHasTargets(snapshot)) {
                         return Verdict.OpenChooser(skippedInactiveSims.toList())
                     }
 
@@ -366,9 +470,7 @@ class DecisionEngine(private val countryDetector: CountryDetector) {
         // (SIP provider) is a real chooser target too, so an account-only
         // setup still gets the interactive confirmation instead of a silent
         // rewrite (Codex on PR #39).
-        val chooserHasTargets =
-            snapshot.activeSims.isNotEmpty() || snapshot.handOffAccounts.isNotEmpty()
-        if (call.interactive && chooserHasTargets) {
+        if (call.interactive && chooserHasTargets(snapshot)) {
             return CorrectionOutcome.Confirm(correction)
         }
         if (!correction.sharedLine && correction.candidates.size == 1) {

@@ -44,6 +44,10 @@ data class SettingsUi(
     val callDelaySeconds: Int = 0,
     /** Same-contact number correction (SPEC "Hands-free and Android Auto safeguards"). */
     val correctContactNumbers: Boolean = false,
+    /** The hands-free guard's "Block overseas calls" toggle. */
+    val guardOverseasHandsFree: Boolean = false,
+    /** The guard's "Block calls needing a disabled SIM" toggle. */
+    val guardDisabledSimHandsFree: Boolean = false,
     /** The "Make Simmo better" telemetry choice (SPEC "Permissions and privacy"). */
     val analyticsOptIn: Boolean = true,
 )
@@ -83,6 +87,8 @@ fun SettingsScreen(
             }
         },
         onRequestContacts = { contactsLauncher.launch(Manifest.permission.READ_CONTACTS) },
+        onGuardOverseasChange = viewModel::setGuardOverseasHandsFree,
+        onGuardDisabledSimChange = viewModel::setGuardDisabledSimHandsFree,
         onAnalyticsOptInChange = viewModel::setAnalyticsOptIn,
         onOpenSims = onOpenSims,
         onBack = onBack,
@@ -97,6 +103,8 @@ internal fun SettingsContent(
     onCallDelayChange: (Int) -> Unit = {},
     onCorrectContactNumbersChange: (Boolean) -> Unit = {},
     onRequestContacts: () -> Unit = {},
+    onGuardOverseasChange: (Boolean) -> Unit = {},
+    onGuardDisabledSimChange: (Boolean) -> Unit = {},
     onAnalyticsOptInChange: (Boolean) -> Unit = {},
     onOpenSims: () -> Unit = {},
     onBack: () -> Unit = {},
@@ -258,6 +266,61 @@ internal fun SettingsContent(
                         Text(stringResource(R.string.settings_local_numbers_allow))
                     }
                 }
+            }
+            // The hands-free call guard (SPEC "Hands-free and Android Auto
+            // safeguards"): two independent blocks under one heading, both
+            // strictly opt-in — the only feature allowed to stop a call.
+            Text(
+                text = stringResource(R.string.settings_guard_title),
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(top = 16.dp),
+            )
+            Text(
+                text = stringResource(R.string.settings_guard_description),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .toggleable(
+                        value = settings.guardOverseasHandsFree,
+                        role = Role.Switch,
+                        onValueChange = onGuardOverseasChange,
+                    )
+                    .padding(vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = stringResource(R.string.settings_guard_overseas_label),
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.weight(1f),
+                )
+                Switch(
+                    checked = settings.guardOverseasHandsFree,
+                    onCheckedChange = null,
+                )
+            }
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .toggleable(
+                        value = settings.guardDisabledSimHandsFree,
+                        role = Role.Switch,
+                        onValueChange = onGuardDisabledSimChange,
+                    )
+                    .padding(vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = stringResource(R.string.settings_guard_disabled_sim_label),
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.weight(1f),
+                )
+                Switch(
+                    checked = settings.guardDisabledSimHandsFree,
+                    onCheckedChange = null,
+                )
             }
             // The onboarding "Make Simmo better" choice, changeable after
             // setup — the privacy policy says this switch controls collection,

@@ -373,13 +373,31 @@ Two mechanisms, independently toggleable:
   index is built, so the decision path stays an in-memory lookup. Whether upstream
   (choosing the right number at contact level, before Simmo is ever consulted) is
   also fixable is an open question.
-- **Hands-free call guard** (opt-in): when the call is placed from a non-interactive
-  context (Bluetooth, Android Auto), block calls that are overseas relative to the
-  default region, and/or calls whose matching rule requires a currently disabled SIM.
-  Blocking cancels the call and posts a notification explaining what was stopped and
-  offering one-tap redial (with the chooser) once the user can look at a screen. This
-  guard is the **only** exception to the "a call is never silently dropped" invariant,
-  it is off by default, and the notification keeps it non-silent.
+- **Hands-free call guard** (shipped; the Settings "Hands-free guard" section, two
+  independent toggles, both off by default): when the call is placed from a
+  non-interactive context, block calls that are overseas relative to the default
+  region, and/or calls whose matching rule was skipped because its SIM is disabled —
+  the latter fires whatever a lower rule would have done, since the point is not to
+  let the call quietly go out some other way. Blocking cancels the call and posts a
+  notification saying what was stopped ("Blocked a call to United Kingdom" / "Blocked
+  a call: Voda AU is disabled"); tapping opens the chooser for the call — with the
+  enable assist for the disabled-SIM case, any pending same-contact correction's
+  choices, and the corrected number when a silent correction was pending — once the
+  user can look at a screen. Nothing is ever auto-placed, and the notification never
+  self-dismisses: post-drive can be hours away and it is the only record the call
+  didn't happen. The guard is the **only** exception to the "a call is never
+  silently dropped" invariant, and it is never actually silent: where the
+  notification can't post it degrades to a plain toast. Ordering: emergency and
+  pass-token (re-placed) calls are never blocked; a silently corrected call is
+  judged by its corrected — local — destination, so the correction and the guard
+  compose instead of fighting; the overseas block outranks the disabled-SIM block;
+  and the guard only fires when the chooser would have a redial target — with
+  nothing visible in telephony (which is also exactly what a revoked
+  `READ_PHONE_STATE` looks like, so an empty read proves no SIM disabled) the call
+  proceeds unmodified rather than cancelling into a chooser that can only cancel.
+  The "no UI may be shown" signal is the platform's per-call interactive flag —
+  already on the decision path — with car-mode signals still an open question as a
+  refinement.
 
 ### SIM identity
 

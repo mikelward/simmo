@@ -339,10 +339,17 @@ Android Auto safeguards").
       dialed and a "Call <contact>'s local number?" notification opens the
       confirmation chooser; never auto-placed, self-dismissing, skipped
       without `POST_NOTIFICATIONS` (nothing failed — no toast fallback).
-- [ ] Opt-in hands-free call guard: in non-interactive contexts, block overseas calls
-      and/or calls whose rule needs a disabled SIM; cancel + notification with one-tap
-      redial through the chooser. Decide the "driving" signal (per-call interactive-UI
-      flag vs. car-mode signals) per the SPEC open question.
+- [x] Opt-in hands-free call guard (SPEC "Hands-free and Android Auto
+      safeguards"): two Settings toggles, off by default — block overseas
+      calls, and block calls whose matching rule was skipped for a disabled
+      SIM (whatever a lower rule would have done). Cancel + a non-dismissing
+      notification (toast fallback — never silent) whose tap opens the
+      chooser: enable assist for the SIM case, pending correction choices,
+      and the corrected number when one was silently applicable. Emergency
+      and pass-token calls are never blocked; corrected calls are judged by
+      their local destination. "Driving" signal decided: the per-call
+      interactive-UI flag (already on the decision path); car-mode signals
+      stay an open refinement.
 - [ ] Device QA on Android Auto: verify the redirection service is consulted for
       Auto-placed calls, what the interactive-UI flag reports there, and that guard
       notifications are readable post-drive.

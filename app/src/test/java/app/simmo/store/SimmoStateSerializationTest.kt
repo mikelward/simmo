@@ -54,6 +54,8 @@ class SimmoStateSerializationTest {
         showCallToast = true,
         callDelaySeconds = 5,
         correctContactNumbers = true,
+        guardOverseasHandsFree = true,
+        guardDisabledSimHandsFree = true,
     )
 
     private suspend fun roundTrip(state: SimmoState): SimmoState {
@@ -207,6 +209,9 @@ class SimmoStateSerializationTest {
         assertEquals(false, read.showCallToast)
         assertEquals(0, read.callDelaySeconds)
         assertEquals(false, read.correctContactNumbers)
+        // The guard blocks calls; it must never come up on by surprise.
+        assertEquals(false, read.guardOverseasHandsFree)
+        assertEquals(false, read.guardDisabledSimHandsFree)
     }
 
     @Test

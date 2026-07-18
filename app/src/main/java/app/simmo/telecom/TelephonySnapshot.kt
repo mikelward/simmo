@@ -362,6 +362,8 @@ class SnapshotAssembler(
             // countdown absurd; the store's own setter clamps writes too.
             callDelaySeconds = state.callDelaySeconds.coerceIn(0, SimmoState.MAX_CALL_DELAY_SECONDS),
             correctContactNumbers = state.correctContactNumbers,
+            guardOverseasHandsFree = state.guardOverseasHandsFree,
+            guardDisabledSimHandsFree = state.guardDisabledSimHandsFree,
         )
     }
 }

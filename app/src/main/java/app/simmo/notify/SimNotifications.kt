@@ -17,9 +17,12 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import app.simmo.MainActivity
 import app.simmo.R
+import app.simmo.domain.GuardBlockReason
 import app.simmo.domain.HeldCall
 import app.simmo.domain.NumberCorrection
+import app.simmo.domain.Verdict
 import app.simmo.ui.ChooserActivity
+import app.simmo.ui.countryDisplayName
 
 /**
  * The SIM-assist notifications (SPEC "Disabled-SIM assist", "On SIM change"):
@@ -181,6 +184,54 @@ class SimNotifications(private val context: Context) {
     }
 
     /**
+     * The hands-free call guard's record of a block (SPEC "Hands-free and
+     * Android Auto safeguards"): the call was cancelled — the only sanctioned
+     * drop — so this must NEVER be silent. When a notification can't post
+     * (permission, notifications off, blocked channel), it degrades to a
+     * plain text toast, like the hand-off failure notice. Tapping opens the
+     * chooser for the number the user should have reached — the corrected
+     * local number when a silent correction was pending, else as dialed —
+     * with the disabled SIMs offered for enabling and any pending number
+     * correction's choices included. No timeout: post-drive can be hours
+     * away, and this notification is the only record the call didn't happen.
+     */
+    fun postCallBlocked(verdict: Verdict.BlockCall, handle: Uri) {
+        // The redial offers the call the user should place now: a silently
+        // correctable number redials as its local form.
+        val redialHandle = verdict.correctedNumber
+            ?.let { Uri.fromParts("tel", it, null) }
+            ?: handle
+        val number = redialHandle.schemeSpecificPart.orEmpty()
+        val title = when (verdict.reason) {
+            GuardBlockReason.OVERSEAS -> context.getString(
+                R.string.guard_blocked_overseas_title,
+                verdict.destination?.let { countryDisplayName(it) } ?: number,
+            )
+            GuardBlockReason.DISABLED_SIM -> context.getString(
+                R.string.guard_blocked_sim_title,
+                verdict.wantedSims.firstOrNull()
+                    ?.let { it.displayName.ifBlank { it.carrierName } }
+                    .orEmpty(),
+            )
+        }
+        val posted = tryPost(
+            tag = TAG_CALL_BLOCKED + number,
+            title = title,
+            body = context.getString(R.string.guard_blocked_body, number),
+            contentIntent = ChooserActivity
+                .launchIntent(context, redialHandle, verdict.wantedSims, verdict.numberCorrection)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+        )
+        if (!posted) {
+            // Never silent: the user's call just didn't happen. tryPost also
+            // covers a permission revoked mid-post, which the generic path
+            // deliberately swallows (Codex on PR #48).
+            val text = context.getString(R.string.guard_blocked_toast, handle.schemeSpecificPart.orEmpty())
+            mainHandler.post { Toast.makeText(context, text, Toast.LENGTH_LONG).show() }
+        }
+    }
+
+    /**
      * The settings "Show which SIM is used" announcement: "Calling using
      * <SIM>" as the redirection service routes a rule-picked call. A plain
      * text toast — permission-free, and posted from the service's background
@@ -224,7 +275,27 @@ class SimNotifications(private val context: Context) {
         contentIntent: Intent,
         timeoutMillis: Long? = null,
     ) {
-        if (!canPost()) return
+        // Failure is fine for the optional notifications: the in-app
+        // surfaces still cover the same information. The guard's block uses
+        // [tryPost] directly, because for it failure must fall back to a
+        // toast instead of vanishing.
+        tryPost(tag, title, body, contentIntent, timeoutMillis)
+    }
+
+    /**
+     * Posts and reports whether the notification actually went out — false
+     * when the permission is missing or was revoked mid-post, notifications
+     * are off, or the channel is blocked (notify() on a blocked channel is
+     * suppressed without throwing, so it must be checked, not caught).
+     */
+    private fun tryPost(
+        tag: String,
+        title: String,
+        body: String,
+        contentIntent: Intent,
+        timeoutMillis: Long? = null,
+    ): Boolean {
+        if (!canPost() || isChannelBlocked()) return false
         val manager = NotificationManagerCompat.from(context)
         manager.createNotificationChannel(
             NotificationChannelCompat.Builder(CHANNEL_ID, NotificationManagerCompat.IMPORTANCE_DEFAULT)
@@ -245,11 +316,12 @@ class SimNotifications(private val context: Context) {
             .setAutoCancel(true)
             .apply { timeoutMillis?.let(::setTimeoutAfter) }
             .build()
-        try {
+        return try {
             manager.notify(tag, NOTIFICATION_ID, notification)
+            true
         } catch (_: SecurityException) {
-            // Permission revoked between the check and the post; the in-app
-            // surfaces still cover the same information.
+            // Permission revoked between the check and the post.
+            false
         }
     }
 
@@ -262,6 +334,7 @@ class SimNotifications(private val context: Context) {
         private const val TAG_NEW_SIM = "new_sim:"
         private const val TAG_HANDOFF_FAILED = "handoff_failed:"
         private const val TAG_LOCAL_NUMBER = "local_number:"
+        private const val TAG_CALL_BLOCKED = "call_blocked:"
 
         /** Same window as a held call: don't re-offer a stale tel: URI later. */
         private const val LOCAL_NUMBER_OFFER_TIMEOUT_MILLIS = 15 * 60_000L

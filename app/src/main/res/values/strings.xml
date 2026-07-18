@@ -188,6 +188,22 @@
     <!-- TODO: translate -->
     <string name="settings_local_numbers_allow" tools:ignore="MissingTranslation">Allow</string>
     <!-- TODO: translate -->
+    <string name="settings_guard_title" tools:ignore="MissingTranslation">Hands-free guard</string>
+    <!-- TODO: translate -->
+    <string name="settings_guard_description" tools:ignore="MissingTranslation">Stop these calls when you can\'t look — from Bluetooth or Android Auto — and offer them back by notification</string>
+    <!-- TODO: translate -->
+    <string name="settings_guard_overseas_label" tools:ignore="MissingTranslation">Overseas calls</string>
+    <!-- TODO: translate -->
+    <string name="settings_guard_disabled_sim_label" tools:ignore="MissingTranslation">Calls needing a disabled SIM</string>
+    <!-- TODO: translate -->
+    <string name="guard_blocked_overseas_title" tools:ignore="MissingTranslation">Blocked a call to %1$s</string>
+    <!-- TODO: translate -->
+    <string name="guard_blocked_sim_title" tools:ignore="MissingTranslation">Blocked a call: %1$s is disabled</string>
+    <!-- TODO: translate -->
+    <string name="guard_blocked_body" tools:ignore="MissingTranslation">You dialed %1$s. Tap to place the call.</string>
+    <!-- TODO: translate -->
+    <string name="guard_blocked_toast" tools:ignore="MissingTranslation">Simmo blocked your call to %1$s</string>
+    <!-- TODO: translate -->
     <string name="chooser_number_local" tools:ignore="MissingTranslation">%1$s\'s local number</string>
     <!-- TODO: translate -->
     <string name="chooser_number_as_dialed" tools:ignore="MissingTranslation">As dialed</string>

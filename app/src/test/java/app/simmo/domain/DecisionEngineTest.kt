@@ -1121,4 +1121,250 @@ class DecisionEngineTest {
             ),
         )
     }
+
+    // --- Hands-free call guard (settings; SPEC "Hands-free…") ---
+
+    private fun guardSnapshot(
+        rules: List<Rule>,
+        overseas: Boolean = true,
+        disabledSim: Boolean = false,
+        activeSims: List<ActiveSim> = listOf(telstra, tmobile),
+        contacts: ContactNumberIndex = ContactNumberIndex.EMPTY,
+    ) = snapshot(rules, activeSims = activeSims, contacts = contacts).copy(
+        guardOverseasHandsFree = overseas,
+        guardDisabledSimHandsFree = disabledSim,
+    )
+
+    @Test
+    fun `the guard blocks a hands-free overseas call before any rule acts`() {
+        // Even a rule that would happily route it: the user opted to stop
+        // overseas calls outright while they can't look.
+        val rules = listOf(country("GB", RuleAction.UseSim(telstra.ref())))
+        assertEquals(
+            Verdict.BlockCall(GuardBlockReason.OVERSEAS, destination = "GB"),
+            engine.decide(call(gbNumber, interactive = false), guardSnapshot(rules), now),
+        )
+    }
+
+    @Test
+    fun `the guard never blocks domestic, interactive, or opted-out calls`() {
+        val rules = listOf(any(RuleAction.SystemDefault))
+        // Domestic hands-free: not overseas, proceeds.
+        assertEquals(
+            Verdict.Proceed(ProceedReason.SYSTEM_DEFAULT),
+            engine.decide(call(auNumber, interactive = false), guardSnapshot(rules), now),
+        )
+        // Interactive: the user can see the screen; the guard is hands-free only.
+        assertEquals(
+            Verdict.Proceed(ProceedReason.SYSTEM_DEFAULT),
+            engine.decide(call(gbNumber), guardSnapshot(rules), now),
+        )
+        // Setting off: unchanged behavior.
+        assertEquals(
+            Verdict.Proceed(ProceedReason.SYSTEM_DEFAULT),
+            engine.decide(call(gbNumber, interactive = false), guardSnapshot(rules, overseas = false), now),
+        )
+    }
+
+    @Test
+    fun `an undetermined destination is never blocked as overseas`() {
+        // A short code isn't provably overseas; blocking it would break
+        // carrier services on a guess.
+        assertEquals(
+            Verdict.Proceed(ProceedReason.NO_APPLICABLE_RULE),
+            engine.decide(call("*100#", interactive = false), guardSnapshot(emptyList()), now),
+        )
+    }
+
+    @Test
+    fun `an unknown home region is never treated as overseas`() {
+        // Radio off / no network country: defaultRegion is blank, so every
+        // destination would compare as non-local. With no home region to
+        // compare against, the guard stands down (Codex on PR #48).
+        assertEquals(
+            Verdict.Proceed(ProceedReason.NO_APPLICABLE_RULE),
+            engine.decide(
+                call(gbNumber, interactive = false),
+                guardSnapshot(emptyList()).copy(defaultRegion = ""),
+                now,
+            ),
+        )
+    }
+
+    @Test
+    fun `emergency and pass-token calls pass the guard untouched`() {
+        assertEquals(
+            Verdict.Proceed(ProceedReason.EMERGENCY),
+            engine.decide(call("000", interactive = false), guardSnapshot(emptyList()), now),
+        )
+        val token = PassToken(gbNumber, tmobile.phoneAccount, expiresAtMillis = now + 5_000)
+        assertEquals(
+            Verdict.Proceed(ProceedReason.PASS_TOKEN, consumedToken = token),
+            engine.decide(
+                call(gbNumber, interactive = false),
+                guardSnapshot(emptyList()).copy(passTokens = listOf(token)),
+                now,
+            ),
+        )
+    }
+
+    @Test
+    fun `a silently corrected call is local and passes the overseas guard`() {
+        // The correction fixes the very problem the guard protects against:
+        // Mum's GB number becomes her AU number, which is not overseas.
+        assertEquals(
+            Verdict.RedirectNumber(mumLocal),
+            engine.decide(
+                call(gbNumber, interactive = false),
+                guardSnapshot(emptyList(), contacts = mumContact(mumLocal))
+                    .copy(correctContactNumbers = true),
+                now,
+            ),
+        )
+    }
+
+    @Test
+    fun `a blocked call carries its pending number correction`() {
+        // Ambiguous correction + overseas block: the redial chooser should
+        // still offer the contact's local numbers.
+        assertEquals(
+            Verdict.BlockCall(
+                GuardBlockReason.OVERSEAS,
+                destination = "GB",
+                numberCorrection = NumberCorrection(
+                    listOf(CorrectionCandidate("Mum", mumLocal)),
+                    sharedLine = true,
+                ),
+            ),
+            engine.decide(
+                call(gbNumber, interactive = false),
+                guardSnapshot(emptyList(), contacts = sharedLineContacts())
+                    .copy(correctContactNumbers = true),
+                now,
+            ),
+        )
+    }
+
+    @Test
+    fun `the guard blocks a hands-free call whose matching rule needs a disabled SIM`() {
+        // The Voda rule outranks the fallback; hands-free, the user opted to
+        // stop the call rather than let the fallback quietly place it.
+        val voda = SimRef(7, "Vodafone", "Voda AU")
+        val rules = listOf(
+            country("AU", RuleAction.UseSim(voda)),
+            any(RuleAction.SystemDefault),
+        )
+        assertEquals(
+            Verdict.BlockCall(GuardBlockReason.DISABLED_SIM, wantedSims = listOf(voda)),
+            engine.decide(
+                call(auNumber, interactive = false),
+                guardSnapshot(rules, overseas = false, disabledSim = true),
+                now,
+            ),
+        )
+    }
+
+    @Test
+    fun `the disabled-SIM guard stays out of interactive and unaffected calls`() {
+        val voda = SimRef(7, "Vodafone", "Voda AU")
+        val rules = listOf(
+            country("AU", RuleAction.UseSim(voda)),
+            any(RuleAction.SystemDefault),
+        )
+        // Interactive: normal skip semantics — the fallback rule proceeds.
+        assertEquals(
+            Verdict.Proceed(ProceedReason.SYSTEM_DEFAULT),
+            engine.decide(
+                call(auNumber),
+                guardSnapshot(rules, overseas = false, disabledSim = true),
+                now,
+            ),
+        )
+        // No disabled-SIM rule matched: nothing to guard.
+        assertEquals(
+            Verdict.Proceed(ProceedReason.SYSTEM_DEFAULT),
+            engine.decide(
+                call(gbNumber, interactive = false),
+                guardSnapshot(listOf(any(RuleAction.SystemDefault)), overseas = false, disabledSim = true),
+                now,
+            ),
+        )
+    }
+
+    @Test
+    fun `the guard never blocks a call it cannot offer back`() {
+        // READ_PHONE_STATE revoked / failed telephony read: nothing visible.
+        // Blocking would cancel into a chooser that can only cancel, and an
+        // empty read is no proof any SIM is disabled — degrade to unmodified
+        // (Codex on PR #48).
+        val voda = SimRef(7, "Vodafone", "Voda AU")
+        val rules = listOf(
+            country("GB", RuleAction.UseSim(voda)),
+            any(RuleAction.SystemDefault),
+        )
+        assertEquals(
+            Verdict.Proceed(ProceedReason.SYSTEM_DEFAULT),
+            engine.decide(
+                call(gbNumber, interactive = false, currentAccount = null),
+                guardSnapshot(rules, overseas = true, disabledSim = true, activeSims = emptyList()),
+                now,
+            ),
+        )
+    }
+
+    @Test
+    fun `a calling account alone is redial target enough for the guard`() {
+        // No SIMs but an enabled SIP account: the telephony read worked and
+        // the block's chooser has something to offer — the guard applies.
+        assertEquals(
+            Verdict.BlockCall(GuardBlockReason.OVERSEAS, destination = "GB"),
+            engine.decide(
+                call(gbNumber, interactive = false, currentAccount = null),
+                guardSnapshot(emptyList(), activeSims = emptyList())
+                    .copy(handOffAccounts = mapOf(PhoneAccountRef("sip-1") to "SIP work")),
+                now,
+            ),
+        )
+    }
+
+    @Test
+    fun `a disabled-SIM block carries its pending number correction`() {
+        // Only the disabled-SIM guard is on; the overseas call also has a
+        // shared-line correction pending. Its choices must reach the block's
+        // chooser, same as on an overseas block (Codex on PR #48).
+        val voda = SimRef(7, "Vodafone", "Voda AU")
+        val rules = listOf(country("GB", RuleAction.UseSim(voda)))
+        assertEquals(
+            Verdict.BlockCall(
+                GuardBlockReason.DISABLED_SIM,
+                wantedSims = listOf(voda),
+                numberCorrection = NumberCorrection(
+                    listOf(CorrectionCandidate("Mum", mumLocal)),
+                    sharedLine = true,
+                ),
+            ),
+            engine.decide(
+                call(gbNumber, interactive = false),
+                guardSnapshot(rules, overseas = false, disabledSim = true, contacts = sharedLineContacts())
+                    .copy(correctContactNumbers = true),
+                now,
+            ),
+        )
+    }
+
+    @Test
+    fun `the overseas block outranks the disabled-SIM block`() {
+        // Both would fire; the overseas reason is the one the user can act
+        // on first (the call itself was the mistake).
+        val voda = SimRef(7, "Vodafone", "Voda AU")
+        val rules = listOf(country("GB", RuleAction.UseSim(voda)))
+        assertEquals(
+            Verdict.BlockCall(GuardBlockReason.OVERSEAS, destination = "GB"),
+            engine.decide(
+                call(gbNumber, interactive = false),
+                guardSnapshot(rules, overseas = true, disabledSim = true),
+                now,
+            ),
+        )
+    }
 }
