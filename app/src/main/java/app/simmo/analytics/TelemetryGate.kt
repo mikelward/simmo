@@ -7,6 +7,8 @@ import com.google.firebase.crashlytics.FirebaseCrashlytics
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.merge
 
 /**
  * Keeps telemetry collection in step with the persisted "Make Simmo better"
@@ -25,20 +27,29 @@ class TelemetryGate(private val setCollectionEnabled: (Boolean) -> Unit) {
         setCollectionEnabled(enabled)
     }
 
-    /**
-     * Applies the opt-in to the collection switches as it changes; never
-     * returns. [taps] carries the user's in-process choices (null until the
-     * first tap) and masks [persisted]: a tap must win instantly and stay
-     * won — a staler stored value still making its way through the async
-     * write must not briefly re-enable collection.
-     */
-    suspend fun follow(persisted: Flow<Boolean>, taps: Flow<Boolean?>) {
-        persisted.combine(taps) { stored, tapped -> tapped ?: stored }
-            .distinctUntilChanged()
-            .collect { setCollectionEnabled(it) }
+    /** Applies [optIns] to the collection switches as it changes; never returns. */
+    suspend fun follow(optIns: Flow<Boolean>) {
+        optIns.distinctUntilChanged().collect { setCollectionEnabled(it) }
     }
 
     companion object {
+        /**
+         * The effective opt-in: [taps] carries the user's in-process choices
+         * (null until the first tap) and masks [persisted] — a tap must win
+         * instantly and stay won, so a staler stored value still making its
+         * way through the async write can never briefly re-enable
+         * collection. Taps also emit on their own, without waiting for the
+         * (possibly still-loading) persisted state, so a tap made before the
+         * first state emission is visible at once. The gate and the Settings
+         * switch both read this stream, so the UI can never disagree with
+         * what telemetry does.
+         */
+        fun effectiveOptIns(persisted: Flow<Boolean>, taps: Flow<Boolean?>): Flow<Boolean> =
+            merge(
+                taps.filterNotNull(),
+                persisted.combine(taps) { stored, tapped -> tapped ?: stored },
+            ).distinctUntilChanged()
+
         /**
          * The Firebase-backed gate, or null when this build carries no
          * Firebase config (no google-services.json at build time — see

@@ -2,6 +2,9 @@ package app.simmo
 
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -22,5 +25,17 @@ class TelemetryMarkerTest {
         // still leave the choice on disk for the next launch's cleanup.
         assertTrue(prefs.contains("optIn"))
         assertFalse(prefs.getBoolean("optIn", true))
+    }
+
+    @Test
+    fun `without a marker, a loaded opt-out still seeds the effective choice`() = runBlocking {
+        val app = ApplicationProvider.getApplicationContext<SimmoApp>()
+        // An opt-out written straight to the state — a restore (no marker is
+        // backed up) or a choice saved before the marker existed.
+        val holder = app.stateHolders().filterNotNull().first()
+        holder.setAnalyticsOptIn(false)
+        holder.state.filterNotNull().first { !it.analyticsOptIn }
+
+        assertFalse(app.currentAnalyticsOptIn())
     }
 }

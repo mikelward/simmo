@@ -176,7 +176,8 @@ what it blocks.
 ### Call feedback and delay
 
 Global options on the Settings screen (reached from the rules list; also home of the
-SIM registry), all off by default:
+SIM registry and of the "Make Simmo better" telemetry switch — see "Permissions and
+privacy"), all off by default:
 
 - **Show which SIM or app is used**: when a rule routes a call, a brief toast names
   where it went — "Calling using Telstra" for a SIM (on a redirect and when the call
@@ -407,7 +408,8 @@ UI is forbidden).
   work fully offline, and dialed numbers, contact names, and contact numbers are
   never collected or transmitted (hand-off passes the number to the app the user
   chose, on-device). Collection is disabled in the manifest and follows the
-  persisted "Make Simmo better" opt-in (default on, persisted with settings, so it
+  persisted "Make Simmo better" opt-in (default on, set during onboarding and
+  changeable anytime on the Settings screen; persisted with settings, so it
   survives backup/restore) — honoring a choice made before the feature existed;
   both SDKs remember the applied value, so it also holds during early startup
   before the state loads, and an opt-out is additionally marked durably at tap

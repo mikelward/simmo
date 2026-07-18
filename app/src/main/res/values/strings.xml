@@ -14,9 +14,9 @@
     <!-- TODO: translate -->
     <string name="onboarding_granted" tools:ignore="MissingTranslation">Done</string>
     <!-- TODO: translate -->
-    <string name="onboarding_analytics_label" tools:ignore="MissingTranslation">Make Simmo better</string>
+    <string name="analytics_opt_in_label" tools:ignore="MissingTranslation">Make Simmo better</string>
     <!-- TODO: translate -->
-    <string name="onboarding_analytics_description" tools:ignore="MissingTranslation">Share anonymous usage stats — never the numbers you call</string>
+    <string name="analytics_opt_in_description" tools:ignore="MissingTranslation">Share anonymous usage stats — never the numbers you call</string>
     <!-- TODO: translate -->
     <string name="onboarding_skip" tools:ignore="MissingTranslation">Skip</string>
     <!-- TODO: translate -->

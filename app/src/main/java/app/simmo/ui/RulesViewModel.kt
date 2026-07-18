@@ -269,18 +269,35 @@ class RulesViewModel(
         savedState[KEY_REGISTRY_OPEN] = open
     }
 
-    /** The Settings screen's call options, mirroring persisted state. */
-    val callSettings: StateFlow<CallSettingsUi> =
+    /**
+     * The Settings screen's options, mirroring persisted state — except the
+     * telemetry choice, which comes from the app's effective stream (taps and
+     * the durable marker masking stale persisted state) so the switch always
+     * shows what telemetry is actually doing.
+     */
+    val settings: StateFlow<SettingsUi> =
         app.stateHolders()
             .flatMapLatest { holder -> holder?.state ?: flowOf(null) }
-            .map { state ->
-                CallSettingsUi(
+            .combine(app.analyticsOptIns()) { state, analyticsOptIn ->
+                SettingsUi(
                     showCallToast = state?.showCallToast ?: false,
                     callDelaySeconds = state?.callDelaySeconds ?: 0,
                     correctContactNumbers = state?.correctContactNumbers ?: false,
+                    analyticsOptIn = analyticsOptIn,
                 )
             }
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), CallSettingsUi())
+            .stateIn(
+                viewModelScope,
+                // Eager, unlike the sibling flows: Settings renders .value for
+                // its first frame, so it must track a choice loaded while the
+                // screen was closed — idle WhileSubscribed sharing would hold
+                // the one-time seed until after that frame.
+                SharingStarted.Eagerly,
+                // Seeded, not defaulted: restored straight into Settings on a
+                // cold start, the switch must show the last applied choice
+                // even before the state loads.
+                SettingsUi(analyticsOptIn = app.currentAnalyticsOptIn()),
+            )
 
     /** The settings "Show which SIM is used" toggle. */
     fun setShowCallToast(enabled: Boolean) {
@@ -289,6 +306,14 @@ class RulesViewModel(
             app.stateHolders().filterNotNull().first().setShowCallToast(enabled)
         }
     }
+
+    /**
+     * The settings "Make Simmo better" toggle. Routed through the app — not
+     * written to the holder directly — so telemetry applies the choice
+     * immediately and the durable marker is committed (see
+     * [SimmoApp.setAnalyticsOptIn]).
+     */
+    fun setAnalyticsOptIn(enabled: Boolean) = app.setAnalyticsOptIn(enabled)
 
     /** The settings "Delay before calling" slider, in seconds (0 = off). */
     fun setCallDelaySeconds(seconds: Int) {

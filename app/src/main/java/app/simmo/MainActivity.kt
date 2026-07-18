@@ -456,11 +456,11 @@ internal fun OnboardingScreen(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = stringResource(R.string.onboarding_analytics_label),
+                        text = stringResource(R.string.analytics_opt_in_label),
                         style = MaterialTheme.typography.bodyLarge,
                     )
                     Text(
-                        text = stringResource(R.string.onboarding_analytics_description),
+                        text = stringResource(R.string.analytics_opt_in_description),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

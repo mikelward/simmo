@@ -25,7 +25,8 @@ To enable it for your builds:
 ### What an enabled build collects — and who controls it
 
 - Collection is **off in the manifest** and follows the in-app "Make Simmo
-  better" opt-in (default on, set during onboarding). A tap applies to both
+  better" opt-in (default on, set during onboarding, changeable anytime on the
+  Settings screen). A tap applies to both
   Crashlytics and Analytics immediately and is marked durably on the spot; on a
   fresh install nothing is collected before the stored choice is read, and on
   later launches each process start applies the last choice made (the SDKs and

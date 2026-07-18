@@ -382,14 +382,11 @@ Android Auto safeguards").
       nothing beyond Firebase's automatic events is logged today.
 - [ ] Fill in the Play data safety form for crash reporting/analytics before the
       first Play release built with Firebase enabled.
-- [ ] A post-onboarding surface to change the "Make Simmo better" opt-in — today
-      the toggle exists only on the onboarding screen, so a user who finished
-      setup has no in-app way to change their mind (Codex on PR #37). **Blocks
-      the first release built with Firebase enabled**, same as the data safety
-      form above: the privacy policy says the switch controls collection, so a
-      shipped build must keep the switch reachable. Natural home: the Settings
-      screen that landed with the calling options (a row there, next to the
-      privacy-policy link Phase 8 owes).
+- [x] A post-onboarding surface to change the "Make Simmo better" opt-in —
+      landed as a Settings-screen toggle (was: onboarding-only, flagged by Codex
+      on PR #37 as blocking the first release built with Firebase enabled; the
+      privacy policy says the switch controls collection, so a shipped build
+      must keep the switch reachable).
 - [ ] Evaluate confirm-first system redirect UX vs. custom chooser for the simple case.
 - [ ] Carrier-name stability for re-binding (roaming/MVNO rebrand data needed).
 - [ ] Per-number overrides.
