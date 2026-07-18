@@ -23,6 +23,7 @@ enum class DialHandoffApp(val packageName: String, val label: String) {
     GOOGLE_VOICE("com.google.android.apps.googlevoice", "Google Voice"),
     TEAMS("com.microsoft.teams", "Microsoft Teams"),
     VIBER("com.viber.voip", "Viber"),
+    YOLLA("com.yollacalls", "Yolla"),
     ;
 
     /**
@@ -43,6 +44,12 @@ enum class DialHandoffApp(val packageName: String, val label: String) {
             // calling a non-Viber number needs Viber Out credit. The keypad form
             // takes the bare digits (docs/handoff-intents.md).
             VIBER -> "viber://keypad?number=$digits"
+            // No public custom scheme found, so this is the generic tel: form
+            // (the '+' is legal in a tel: URI, no encoding). If Yolla's installed
+            // build doesn't receive VIEW tel:, the intent won't resolve and the
+            // call proceeds unmodified (docs/handoff-intents.md). Calling a
+            // number needs Yolla credit.
+            YOLLA -> "tel:$e164"
         }
     }
 }

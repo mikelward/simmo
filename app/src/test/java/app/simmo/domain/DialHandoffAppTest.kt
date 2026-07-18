@@ -31,4 +31,12 @@ class DialHandoffAppTest {
             DialHandoffApp.VIBER.launchUri("+12125550123"),
         )
     }
+
+    @Test
+    fun `Yolla launch is the generic tel form with the plus kept literal`() {
+        assertEquals(
+            "tel:+12125550123",
+            DialHandoffApp.YOLLA.launchUri("+12125550123"),
+        )
+    }
 }

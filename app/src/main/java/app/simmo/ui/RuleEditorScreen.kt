@@ -671,6 +671,7 @@ internal enum class ActionChoice {
     HANDOFF_GOOGLE_VOICE,
     HANDOFF_TEAMS,
     HANDOFF_VIBER,
+    HANDOFF_YOLLA,
     ASK,
     SYSTEM_DEFAULT,
     ;
@@ -682,6 +683,7 @@ internal enum class ActionChoice {
         HANDOFF_GOOGLE_VOICE -> RuleAction.HandOff.ViaDialIntent(DialHandoffApp.GOOGLE_VOICE)
         HANDOFF_TEAMS -> RuleAction.HandOff.ViaDialIntent(DialHandoffApp.TEAMS)
         HANDOFF_VIBER -> RuleAction.HandOff.ViaDialIntent(DialHandoffApp.VIBER)
+        HANDOFF_YOLLA -> RuleAction.HandOff.ViaDialIntent(DialHandoffApp.YOLLA)
         ASK -> RuleAction.Ask
         SYSTEM_DEFAULT -> RuleAction.SystemDefault
     }
@@ -692,6 +694,7 @@ internal enum class ActionChoice {
             DialHandoffApp.GOOGLE_VOICE -> HANDOFF_GOOGLE_VOICE
             DialHandoffApp.TEAMS -> HANDOFF_TEAMS
             DialHandoffApp.VIBER -> HANDOFF_VIBER
+            DialHandoffApp.YOLLA -> HANDOFF_YOLLA
         }
 
         /**
