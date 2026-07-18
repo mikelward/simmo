@@ -130,7 +130,9 @@
     <!-- TODO: translate -->
     <string name="handoff_failed_title" tools:ignore="MissingTranslation">Couldn\'t open %1$s</string>
     <!-- TODO: translate -->
-    <string name="handoff_failed_body" tools:ignore="MissingTranslation">Placed the call on your carrier instead.</string>
+    <string name="handoff_failed_body_placed" tools:ignore="MissingTranslation">Placed the call on your carrier instead.</string>
+    <!-- TODO: translate -->
+    <string name="handoff_failed_body_dropped" tools:ignore="MissingTranslation">Tap Redial to try the call again.</string>
     <!-- TODO: translate -->
     <string name="handoff_failed_settings" tools:ignore="MissingTranslation">Settings</string>
     <!-- TODO: translate -->

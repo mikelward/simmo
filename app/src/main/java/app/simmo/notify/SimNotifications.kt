@@ -70,14 +70,15 @@ class SimNotifications(private val context: Context) {
     }
 
     /**
-     * "Couldn't open <app>" — a hand-off rule's target app failed to launch, so
-     * the call was placed on the carrier instead (the service launches the app
-     * before cancelling, so a failed launch never strands the call). [Settings]
-     * opens the app's system settings (e.g. to re-enable it); [Redial] re-places
-     * the call (one-tap with CALL_PHONE, else opens the dialer with the number),
-     * so the rule hands off once more now that the app is working.
+     * "Couldn't open <app>" — a hand-off rule's target app couldn't take the
+     * call. [placed] is true when the carrier call went through anyway (the app
+     * couldn't handle the hand-off, so the call was left unmodified) and false
+     * when the call was already cancelled before the launch failed (the user
+     * should redial). [Settings] opens the app's system settings (e.g. to
+     * re-enable it); [Redial] re-places the call (one-tap with CALL_PHONE, else
+     * opens the dialer), so the rule hands off once more now that the app works.
      */
-    fun postHandOffFailed(appLabel: String, packageName: String, number: String) {
+    fun postHandOffFailed(appLabel: String, packageName: String, number: String, placed: Boolean) {
         if (!canPost()) return
         val manager = NotificationManagerCompat.from(context)
         manager.createNotificationChannel(
@@ -108,7 +109,11 @@ class SimNotifications(private val context: Context) {
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_launcher_monochrome)
             .setContentTitle(context.getString(R.string.handoff_failed_title, appLabel))
-            .setContentText(context.getString(R.string.handoff_failed_body))
+            .setContentText(
+                context.getString(
+                    if (placed) R.string.handoff_failed_body_placed else R.string.handoff_failed_body_dropped,
+                ),
+            )
             .setAutoCancel(true)
             .addAction(0, context.getString(R.string.handoff_failed_settings), settings)
             .addAction(0, context.getString(R.string.handoff_failed_redial), redial)
