@@ -85,6 +85,12 @@ small stack), fully unit-tested, with `./gradlew test` and `./gradlew lint` gree
       (no call-log permission); the country-of-number rollup runs off the main thread
       from the warm contact index and re-derives when it refreshes. Empty without
       `READ_CONTACTS`.
+  - [ ] Contacts-permission affordance in the picker: on a fresh install the picker never
+        asks for `READ_CONTACTS` (only the WhatsApp hand-off row does), so the "Suggested"
+        bucket is silently empty until contacts are granted elsewhere. Add a tappable
+        blank-query row that requests the permission and refreshes the index on grant, so
+        the feature is discoverable on its own. Needs a new user-facing string (propose
+        copy in chat first, per the translations rule).
 - [x] Multiple countries per rule: let one rule match a set of countries rather than a
       single one. The "A specific country" radio becomes a "+ Add a country or code"
       affordance that adds each picked country to the rule, shown as removable ✕ entries;
