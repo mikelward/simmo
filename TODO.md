@@ -78,10 +78,13 @@ small stack), fully unit-tested, with `./gradlew test` and `./gradlew lint` gree
       country row) that fuzzy-matches by name, dial code, ISO alpha-2/alpha-3, and aliases
       (UK/USA/America), ranked exact/prefix-first with capitals-match-capitals acronym
       matching.
-- [ ] Suggested countries at the top of the picker: surface the countries drawn from the
-      user's contacts' numbers (and/or recent calls) as a "Suggested" bucket above the
-      full list, so the common destinations are one tap away. Needs `READ_CONTACTS` and a
-      cheap country-of-number rollup off the main thread.
+- [x] Suggested countries at the top of the picker: a "Suggested" bucket (blank query
+      only) surfaces the countries the user's contacts have numbers in, the ones with the
+      most contacts first (counted per contact, not per number), above the full list so
+      common destinations are one tap away. Contacts only
+      (no call-log permission); the country-of-number rollup runs off the main thread
+      from the warm contact index and re-derives when it refreshes. Empty without
+      `READ_CONTACTS`.
 - [x] Multiple countries per rule: let one rule match a set of countries rather than a
       single one. The "A specific country" radio becomes a "+ Add a country or code"
       affordance that adds each picked country to the rule, shown as removable ✕ entries;

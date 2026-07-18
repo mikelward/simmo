@@ -60,7 +60,12 @@ reorder. A rule pairs a **matcher** with an **action**:
   rather than a flat ~240-row list (each shown in the editor as a removable entry):
   it fuzzy-matches by name, dial code, and ISO code (plus common aliases
   like UK/USA), ranked so exact and prefix matches lead, with uppercase input matched as
-  an acronym (e.g. "US" → United States). Emergency and undetermined-country handling
+  an acronym (e.g. "US" → United States). On a blank query the picker leads with a
+  "Suggested" bucket — the countries the user's own contacts have numbers in, the ones with
+  the most contacts first (counted per contact, not per number) — so the destinations that
+  matter to this user are one tap away instead of a scroll
+  into the alphabetical list; it needs `READ_CONTACTS` (empty without it) and the rollup is
+  computed off the main thread from the warm contact index. Emergency and undetermined-country handling
   is unchanged by multi-country matchers: emergency numbers are never touched, and
   undetermined destinations still match only any-destination rules.
 - **Action**, one of:
