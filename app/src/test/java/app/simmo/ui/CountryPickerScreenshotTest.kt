@@ -7,6 +7,8 @@ import androidx.activity.ComponentActivity
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
+import org.junit.Assert.assertTrue
 import com.github.takahirom.roborazzi.captureRoboImage
 import org.junit.Rule
 import org.junit.Test
@@ -153,6 +155,28 @@ class CountryPickerScreenshotTest {
         composeRule.onNodeWithText("Suggest countries from your contacts").assertExists()
         composeRule.onNodeWithText("+61 Australia").assertExists()
         captureSnapshot("country_picker_suggest_contacts.png")
+    }
+
+    @Test
+    fun countryPicker_offersNewGroupOnBlankQuery() {
+        var createTapped = false
+        composeRule.setContent {
+            MaterialTheme {
+                CountryPickerContent(
+                    options = listOf(option("AU", "Australia", 61)),
+                    query = "",
+                    onQueryChange = {},
+                    selectedRegions = emptySet(),
+                    onSelect = {},
+                    onCreateGroup = { createTapped = true },
+                    onBack = {},
+                )
+            }
+        }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithText("New group").performClick()
+        composeRule.runOnIdle { assertTrue(createTapped) }
     }
 
     private fun captureSnapshot(name: String, widthPx: Int = 1080, heightPx: Int = 1920) {

@@ -157,10 +157,11 @@ private fun GroupRow(group: CustomGroup, onClick: () -> Unit) {
  * The create/edit form for one custom group: a name and the member countries,
  * added one at a time from the same searchable picker rules use. A full-screen
  * sub-step (not a dialog), so its text field composes without the popup-window
- * loop the Robolectric tests hit.
+ * loop the Robolectric tests hit. Reused by the rule editor's picker so a group
+ * can be created mid-rule (there [initial] is null and [onDelete] absent).
  */
 @Composable
-private fun GroupEditor(
+internal fun GroupEditor(
     initial: CustomGroup?,
     countryOptions: List<CountryOptionUi>,
     onSave: (name: String, regionCodes: List<String>) -> Unit,

@@ -58,6 +58,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.simmo.R
 import app.simmo.domain.ContactCallApp
+import app.simmo.domain.CustomGroup
 import app.simmo.domain.DialHandoffApp
 import app.simmo.domain.Rule
 import app.simmo.domain.RuleAction
@@ -201,15 +202,15 @@ fun RuleEditorScreen(
                 )
             }
         },
-        onSave = { draft ->
+        onSave = { pendingGroups, draft ->
             val rule = ruleFromDraft(draft, target)
             when (target) {
                 is EditorTarget.New -> {
                     val presetSim = target.presetSim
-                    if (presetSim != null) viewModel.addRuleForNewSim(presetSim, rule)
-                    else viewModel.addRule(rule)
+                    if (presetSim != null) viewModel.addRuleForNewSim(presetSim, rule, pendingGroups)
+                    else viewModel.addRule(rule, pendingGroups)
                 }
-                is EditorTarget.Existing -> viewModel.replaceRule(target.index, rule)
+                is EditorTarget.Existing -> viewModel.replaceRule(target.index, rule, pendingGroups)
             }
             onDone()
         },
@@ -225,7 +226,8 @@ internal fun RuleEditorContent(
     target: EditorTarget,
     simOptions: List<SimOptionUi>,
     countryOptions: List<CountryOptionUi>,
-    onSave: (EditorDraft) -> Unit,
+    /** Saves the rule and, in the same transaction, any groups built in the picker. */
+    onSave: (pendingGroups: List<CustomGroup>, draft: EditorDraft) -> Unit,
     onDelete: (() -> Unit)?,
     onCancel: () -> Unit,
     /** Contact-derived countries shown atop the picker; empty hides the section. */
@@ -272,6 +274,14 @@ internal fun RuleEditorContent(
     var groups by rememberSaveable(stateSaver = RegionsSaver) {
         mutableStateOf(initialGroups)
     }
+    // Groups built from the picker this session but not yet committed: persisted
+    // only when the rule is saved (group first, then the rule). So a cancelled
+    // rule leaves no orphan group, and a saved rule never references a group that
+    // isn't persisted (Codex on PR #35). Saveable so a pending group survives
+    // rotation / process death alongside the rule draft.
+    var pendingGroups by rememberSaveable(stateSaver = PendingGroupsSaver) {
+        mutableStateOf(emptyList<CustomGroup>())
+    }
     // An existing rule whose action the editor can't yet represent (hand-off,
     // which lands with Phase 5): kept verbatim so saving an edit to its
     // country never silently rewrites the action. Null for new rules and
@@ -297,7 +307,27 @@ internal fun RuleEditorContent(
     // (and thus retained) while it's open. Both flags are rememberSaveable so a
     // rotation or process death mid-search reopens the picker where it was.
     var showCountryPicker by rememberSaveable { mutableStateOf(false) }
+    var showGroupEditor by rememberSaveable { mutableStateOf(false) }
     var countryQuery by rememberSaveable { mutableStateOf("") }
+    // Making a group mid-rule: a full-screen sub-step (like the picker) so the
+    // rule draft stays composed. On save the new group is created and added to
+    // this rule; either way we return to the editor, not back into the picker.
+    if (showGroupEditor) {
+        GroupEditor(
+            initial = null,
+            countryOptions = countryOptions,
+            onSave = { name, memberRegions ->
+                val group = CustomGroup(CustomGroup.newId(), name.trim(), memberRegions.map { it.uppercase() })
+                pendingGroups = pendingGroups + group
+                if (group.id !in groups) groups = groups + group.id
+                matchesAny = false
+                showGroupEditor = false
+            },
+            onDelete = null,
+            onCancel = { showGroupEditor = false },
+        )
+        return
+    }
     if (showCountryPicker) {
         CountryPickerContent(
             options = countryOptions,
@@ -322,6 +352,11 @@ internal fun RuleEditorContent(
                 matchesAny = false
                 countryQuery = ""
                 showCountryPicker = false
+            },
+            onCreateGroup = {
+                countryQuery = ""
+                showCountryPicker = false
+                showGroupEditor = true
             },
             onBack = {
                 countryQuery = ""
@@ -370,7 +405,11 @@ internal fun RuleEditorContent(
                 // "Any country" is selected, same as the old single-country
                 // label did, so switching back is one tap with nothing lost.
                 items(groups, key = { "group:$it" }) { entry ->
-                    val label = groupOptions.firstOrNull { it.id == entry }?.label ?: entry
+                    // A pending group isn't in groupOptions yet (persisted only on
+                    // Save), so resolve its name from the pending list too.
+                    val label = groupOptions.firstOrNull { it.id == entry }?.label
+                        ?: pendingGroups.firstOrNull { it.id == entry }?.name
+                        ?: entry
                     SelectedCountryRow(
                         label = label,
                         dimmed = matchesAny,
@@ -511,7 +550,18 @@ internal fun RuleEditorContent(
                         val matcher =
                             if (matchesAny) RuleMatcher.AnyDestination
                             else destinationMatcher(regions, groups)
-                        onSave(EditorDraft(matcher, resolveEditorAction(actionChoice, selectedSimRef, keepAction)))
+                        // The rule and the groups it actually references are saved
+                        // in one transaction, so the rule never commits pointing at
+                        // an unsaved group and no unreferenced group is left behind:
+                        // an "Any country" matcher references none, and a country
+                        // matcher only the pending groups still on the rule.
+                        val committedGroups =
+                            if (matchesAny) emptyList()
+                            else pendingGroups.filter { it.id in groups }
+                        onSave(
+                            committedGroups,
+                            EditorDraft(matcher, resolveEditorAction(actionChoice, selectedSimRef, keepAction)),
+                        )
                     },
                     enabled = isValid(matchesAny, regions, groups, actionChoice, selectedSimRef, simOptions),
                 ) {
@@ -647,6 +697,24 @@ internal fun AddCountryRow(onClick: () -> Unit) {
     }
 }
 
+/** Opens the group editor from within the picker to build a group mid-rule. */
+@Composable
+private fun AddGroupRow(onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Box(modifier = Modifier.size(48.dp), contentAlignment = Alignment.Center) {
+            Icon(imageVector = Icons.Filled.Add, contentDescription = null)
+        }
+        Text(stringResource(R.string.groups_add), style = MaterialTheme.typography.bodyLarge)
+    }
+}
+
 /**
  * Full-screen searchable country picker (a sub-step of the editor). Filters the
  * ~240-country list by name, dial code, ISO code, or alias as the user types;
@@ -669,6 +737,8 @@ internal fun CountryPickerContent(
     groups: List<CountryGroupOptionUi> = emptyList(),
     selectedGroupIds: Set<String> = emptySet(),
     onSelectGroup: (String) -> Unit = {},
+    /** When set, a blank query shows a "New group" row that opens the group editor. */
+    onCreateGroup: (() -> Unit)? = null,
 ) {
     BackHandler(onBack = onBack)
     val ranked = remember(options, query) { rankCountries(options, query) }
@@ -735,6 +805,13 @@ internal fun CountryPickerContent(
                         description = group.description,
                         onSelect = { onSelectGroup(group.id) },
                     )
+                }
+                // Make a group right here, mid-rule, without leaving the editor.
+                // Blank query only: it's a browse-time action, not a search hit.
+                if (onCreateGroup != null && isBlankQuery) {
+                    item(key = "new-group") {
+                        AddGroupRow(onClick = onCreateGroup)
+                    }
                 }
                 items(ranked, key = { it.regionCode }) { option ->
                     ChoiceRow(
@@ -927,6 +1004,30 @@ private fun canRequestNotifications(context: Context): Boolean =
 private val RegionsSaver: Saver<List<String>, Any> = listSaver(
     save = { it },
     restore = { it },
+)
+
+/**
+ * Persists the pending (picker-created, not-yet-saved) groups across recreation.
+ * Each group flattens to `id`, `name`, and a member-count-prefixed region list so
+ * the flat string list round-trips without a nested structure.
+ */
+internal val PendingGroupsSaver: Saver<List<CustomGroup>, Any> = listSaver(
+    save = { groups ->
+        groups.flatMap { g -> listOf(g.id, g.name, g.regionCodes.size.toString()) + g.regionCodes }
+    },
+    restore = { flat ->
+        buildList {
+            var i = 0
+            while (i + 3 <= flat.size) {
+                val id = flat[i]
+                val name = flat[i + 1]
+                val count = flat[i + 2].toIntOrNull() ?: 0
+                val regions = flat.subList(i + 3, minOf(i + 3 + count, flat.size)).toList()
+                add(CustomGroup(id, name, regions))
+                i += 3 + count
+            }
+        }
+    },
 )
 
 /** Persists the selected SIM across recreation as its three identity fields. */

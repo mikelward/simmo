@@ -60,7 +60,7 @@ class RuleEditorNotificationsHintTest {
                     onRequestNotifications = onRequestNotifications,
                     onContactHandOffPicked = onContactHandOffPicked,
                     onEnableNotifications = onEnableNotifications,
-                    onSave = {},
+                    onSave = { _, _ -> },
                     onDelete = null,
                     onCancel = {},
                 )

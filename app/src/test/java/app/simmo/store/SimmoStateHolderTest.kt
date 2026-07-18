@@ -167,6 +167,35 @@ class SimmoStateHolderTest {
     }
 
     @Test
+    fun `a picker-created group and its rule commit in one write`() = runTest {
+        // Codex on PR #35: the group a rule references must be persisted in the
+        // same transaction as the rule, so the state can never hold a rule
+        // pointing at a group that isn't there.
+        var writes = 0
+        val start = SimmoState(rules = RuleBook(emptyList()), installId = "install-1")
+        val store = object : DataStore<SimmoState> {
+            private val flow = MutableStateFlow(start)
+            override val data: Flow<SimmoState> = flow
+            override suspend fun updateData(transform: suspend (t: SimmoState) -> SimmoState): SimmoState {
+                writes++
+                return transform(flow.value).also { flow.value = it }
+            }
+        }
+        val holder = SimmoStateHolder(store, backgroundScope, installId = "install-1")
+        holder.state.filterNotNull().first() // let the startup adoption write settle
+        val writesBefore = writes
+
+        val group = app.simmo.domain.CustomGroup("custom:z", "Zone 1", listOf("GB", "FR"))
+        val rule = Rule(RuleMatcher.Countries(groupIds = listOf("custom:z")), RuleAction.SystemDefault)
+        holder.updateGroupsAndRules(listOf(group)) { it.withRuleAdded(rule) }
+
+        val state = holder.state.filterNotNull().first { it.rules.rules.isNotEmpty() }
+        assertEquals(listOf(group), state.customGroups)
+        assertEquals(rule, state.rules.rules.single())
+        assertEquals(1, writes - writesBefore) // one atomic transaction, not two
+    }
+
+    @Test
     fun `rule updates and sim capture land in the in-memory state`() = runTest {
         // Already adopted by this install so the restore guard stays inert here.
         val store = FakeDataStore(SimmoState(installId = "install-1"))

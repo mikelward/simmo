@@ -4,6 +4,7 @@ import androidx.datastore.core.DataStore
 import app.simmo.domain.ActiveSim
 import app.simmo.domain.CustomGroup
 import app.simmo.domain.RegisteredSim
+import app.simmo.domain.withGroupSaved
 import app.simmo.domain.RuleBook
 import app.simmo.domain.SimRef
 import app.simmo.domain.recordSeen
@@ -116,6 +117,24 @@ class SimmoStateHolder(
         store.updateData {
             val valid = it.withInstallValidated(installId)
             valid.copy(customGroups = transform(valid.customGroups))
+        }
+    }
+
+    /**
+     * Saves groups the user built in the rule picker together with the rule that
+     * uses them, in one transaction — so the persisted state can never contain a
+     * rule referencing a group that isn't there, nor an orphan group from a rule
+     * that didn't commit (Codex on PR #35). [pendingGroups] are added/replaced by
+     * id before [transform] rewrites the rules.
+     */
+    suspend fun updateGroupsAndRules(
+        pendingGroups: List<CustomGroup>,
+        transform: (RuleBook) -> RuleBook,
+    ) {
+        store.updateData {
+            val valid = it.withInstallValidated(installId)
+            val merged = pendingGroups.fold(valid.customGroups) { acc, group -> acc.withGroupSaved(group) }
+            valid.copy(customGroups = merged, rules = transform(valid.rules))
         }
     }
 
