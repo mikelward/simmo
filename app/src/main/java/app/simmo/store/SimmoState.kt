@@ -56,6 +56,14 @@ data class SimmoState(
      * warm contact index is simply empty then.
      */
     val correctContactNumbers: Boolean = false,
+    /**
+     * The hands-free call guard's "Block overseas calls" toggle (SPEC
+     * "Hands-free and Android Auto safeguards"). Off by default and for
+     * pre-field state — blocking calls is strictly opt-in.
+     */
+    val guardOverseasHandsFree: Boolean = false,
+    /** The guard's "Block calls needing a disabled SIM" toggle; likewise off. */
+    val guardDisabledSimHandsFree: Boolean = false,
 ) {
     companion object {
         /** Ceiling for [callDelaySeconds]; also the settings slider's range. */

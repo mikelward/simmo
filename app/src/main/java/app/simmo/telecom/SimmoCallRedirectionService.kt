@@ -252,6 +252,19 @@ class SimmoCallRedirectionService : CallRedirectionService() {
                             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
                     )
                 }
+
+                // The opt-in hands-free call guard (SPEC "Hands-free and
+                // Android Auto safeguards"): the ONLY sanctioned drop, and it
+                // is never silent — the notification (or its toast fallback)
+                // always says what was stopped and reopens the call in the
+                // chooser. Posted only when this cancel actually won the
+                // watchdog race: a preempted response means the call
+                // proceeded, and claiming a block would be a lie.
+                is Verdict.BlockCall -> {
+                    if (respond { cancelCall() }) {
+                        app.notifications.postCallBlocked(verdict, handle)
+                    }
+                }
             }
             // A correction that existed but could neither be confirmed nor
             // applied (hands-free with a shared line or several local
@@ -263,8 +276,12 @@ class SimmoCallRedirectionService : CallRedirectionService() {
             // guard sees the token the decision saw — consumption above can't
             // defeat it — and a telephony refresh landing mid-call can't
             // reclassify the correction as chooser-confirmable and swallow it.
-            decision.missedCorrection?.let { missed ->
-                app.notifications.postLocalNumberOffer(missed, handle)
+            // Not for a blocked call: it did NOT go out as dialed, and the
+            // guard notification's chooser already carries the correction.
+            if (decision.verdict !is Verdict.BlockCall) {
+                decision.missedCorrection?.let { missed ->
+                    app.notifications.postLocalNumberOffer(missed, handle)
+                }
             }
         }
     }

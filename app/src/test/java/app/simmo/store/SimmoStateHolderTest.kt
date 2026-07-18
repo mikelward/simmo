@@ -167,6 +167,11 @@ class SimmoStateHolderTest {
 
         holder.setCorrectContactNumbers(true)
         assertEquals(true, store.data.first().correctContactNumbers)
+
+        holder.setGuardOverseasHandsFree(true)
+        assertEquals(true, store.data.first().guardOverseasHandsFree)
+        holder.setGuardDisabledSimHandsFree(true)
+        assertEquals(true, store.data.first().guardDisabledSimHandsFree)
     }
 
     @Test

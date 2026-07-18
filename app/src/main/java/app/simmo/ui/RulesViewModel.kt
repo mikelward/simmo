@@ -304,6 +304,8 @@ class RulesViewModel(
                     showCallToast = state?.showCallToast ?: false,
                     callDelaySeconds = state?.callDelaySeconds ?: 0,
                     correctContactNumbers = state?.correctContactNumbers ?: false,
+                    guardOverseasHandsFree = state?.guardOverseasHandsFree ?: false,
+                    guardDisabledSimHandsFree = state?.guardDisabledSimHandsFree ?: false,
                     analyticsOptIn = analyticsOptIn,
                 )
             }
@@ -347,6 +349,20 @@ class RulesViewModel(
     fun setCorrectContactNumbers(enabled: Boolean) {
         viewModelScope.launch {
             app.stateHolders().filterNotNull().first().setCorrectContactNumbers(enabled)
+        }
+    }
+
+    /** The hands-free guard's "Block overseas calls" toggle. */
+    fun setGuardOverseasHandsFree(enabled: Boolean) {
+        viewModelScope.launch {
+            app.stateHolders().filterNotNull().first().setGuardOverseasHandsFree(enabled)
+        }
+    }
+
+    /** The guard's "Block calls needing a disabled SIM" toggle. */
+    fun setGuardDisabledSimHandsFree(enabled: Boolean) {
+        viewModelScope.launch {
+            app.stateHolders().filterNotNull().first().setGuardDisabledSimHandsFree(enabled)
         }
     }
 

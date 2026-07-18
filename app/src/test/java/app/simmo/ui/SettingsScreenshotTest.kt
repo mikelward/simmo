@@ -32,6 +32,7 @@ class SettingsScreenshotTest {
                         showCallToast = true,
                         callDelaySeconds = 3,
                         correctContactNumbers = true,
+                        guardOverseasHandsFree = true,
                         analyticsOptIn = true,
                     ),
                 )
@@ -45,6 +46,9 @@ class SettingsScreenshotTest {
         composeRule.onNodeWithText("Delay before calling").assertExists()
         composeRule.onNodeWithText("3 seconds").assertExists()
         composeRule.onNodeWithText("Use contacts' local numbers").assertExists()
+        composeRule.onNodeWithText("Hands-free guard").assertExists()
+        composeRule.onNodeWithText("Overseas calls").assertExists()
+        composeRule.onNodeWithText("Calls needing a disabled SIM").assertExists()
         composeRule.onNodeWithText("Make Simmo better").assertExists()
         captureSnapshot("settings.png")
     }

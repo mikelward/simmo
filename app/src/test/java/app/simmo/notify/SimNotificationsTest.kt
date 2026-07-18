@@ -8,7 +8,10 @@ import android.content.Context
 import android.net.Uri
 import android.os.Looper
 import app.simmo.domain.CorrectionCandidate
+import app.simmo.domain.GuardBlockReason
 import app.simmo.domain.NumberCorrection
+import app.simmo.domain.SimRef
+import app.simmo.domain.Verdict
 import androidx.core.app.NotificationChannelCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.test.core.app.ApplicationProvider
@@ -134,6 +137,77 @@ class SimNotificationsTest {
         assertEquals(
             "Shared number — call a local one?",
             posted.extras.getCharSequence(Notification.EXTRA_TITLE)?.toString(),
+        )
+    }
+
+    @Test
+    fun `a guard block posts its notification when permitted`() {
+        shadowOf(app).grantPermissions(Manifest.permission.POST_NOTIFICATIONS)
+        notifications.postCallBlocked(
+            Verdict.BlockCall(GuardBlockReason.OVERSEAS, destination = "GB"),
+            Uri.parse("tel:+442071234567"),
+        )
+        shadowOf(Looper.getMainLooper()).idle()
+        val posted = postedNotifications().single()
+        assertEquals(
+            "Blocked a call to United Kingdom",
+            posted.extras.getCharSequence(Notification.EXTRA_TITLE)?.toString(),
+        )
+        assertNull(ShadowToast.getLatestToast())
+    }
+
+    @Test
+    fun `a guard block is NEVER silent - it degrades to a toast`() {
+        // The guard is the only sanctioned drop (SPEC): with notifications
+        // unavailable the block must still reach the user somehow.
+        notifications.postCallBlocked(
+            Verdict.BlockCall(GuardBlockReason.OVERSEAS, destination = "GB"),
+            Uri.parse("tel:+442071234567"),
+        )
+        shadowOf(Looper.getMainLooper()).idle()
+        assertEquals(0, postedNotifications().size)
+        assertEquals(
+            "Simmo blocked your call to +442071234567",
+            ShadowToast.getTextOfLatestToast(),
+        )
+    }
+
+    @Test
+    fun `a blocked channel also degrades the guard to a toast`() {
+        // notify() on a blocked channel is suppressed without throwing, so
+        // the guard must check, not catch (Codex on PR #48).
+        shadowOf(app).grantPermissions(Manifest.permission.POST_NOTIFICATIONS)
+        NotificationManagerCompat.from(app).createNotificationChannel(
+            NotificationChannelCompat.Builder("sim_assist", NotificationManagerCompat.IMPORTANCE_NONE)
+                .setName("SIM assist")
+                .build(),
+        )
+        notifications.postCallBlocked(
+            Verdict.BlockCall(GuardBlockReason.OVERSEAS, destination = "GB"),
+            Uri.parse("tel:+442071234567"),
+        )
+        shadowOf(Looper.getMainLooper()).idle()
+        assertEquals(0, postedNotifications().size)
+        assertEquals(
+            "Simmo blocked your call to +442071234567",
+            ShadowToast.getTextOfLatestToast(),
+        )
+    }
+
+    @Test
+    fun `a disabled-SIM block names the wanted SIM`() {
+        shadowOf(app).grantPermissions(Manifest.permission.POST_NOTIFICATIONS)
+        notifications.postCallBlocked(
+            Verdict.BlockCall(
+                GuardBlockReason.DISABLED_SIM,
+                wantedSims = listOf(SimRef(7, "Vodafone", "Voda AU")),
+            ),
+            Uri.parse("tel:+61412345678"),
+        )
+        shadowOf(Looper.getMainLooper()).idle()
+        assertEquals(
+            "Blocked a call: Voda AU is disabled",
+            postedNotifications().single().extras.getCharSequence(Notification.EXTRA_TITLE)?.toString(),
         )
     }
 
