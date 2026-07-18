@@ -72,6 +72,13 @@
         <meta-data
             android:name="google_analytics_default_allow_ad_personalization_signals"
             android:value="false" />
+        <!-- The personalization flag above only marks events non-personalized;
+             this one stops Analytics reading the advertising ID at all, backing
+             the stripped AD_ID permissions on OS versions where the ID is
+             readable without them. -->
+        <meta-data
+            android:name="google_analytics_adid_collection_enabled"
+            android:value="false" />
 
         <activity
             android:name=".MainActivity"
