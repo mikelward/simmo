@@ -12,6 +12,25 @@ if (file("google-services.json").exists()) {
     apply(plugin = libs.plugins.firebase.crashlytics.get().pluginId)
 }
 
+fun gitOutput(vararg args: String, fallback: String): String =
+    try {
+        val output = providers.exec {
+            commandLine("git", *args)
+            isIgnoreExitValue = true
+        }.standardOutput.asText.get().trim()
+        output.ifEmpty { fallback }
+    } catch (_: Exception) {
+        fallback
+    }
+
+// Monotonic versionCode as long as main only moves forward; Play rejects an
+// AAB whose versionCode is <= the highest already uploaded. CI checks out with
+// fetch-depth: 0 so the count isn't truncated by a shallow clone.
+val gitCommitCount: Int =
+    gitOutput("rev-list", "--count", "HEAD", fallback = "1").toIntOrNull() ?: 1
+val gitShortSha: String = gitOutput("rev-parse", "--short", "HEAD", fallback = "unknown")
+val baseVersionName = "0.1"
+
 android {
     namespace = "app.simmo"
     // Latest platform the remote-session provisioning hook seeds; bump to the
@@ -26,8 +45,40 @@ android {
         // primary target is current Pixels anyway (SPEC).
         minSdk = 30
         targetSdk = 36
-        versionCode = 1
-        versionName = "0.1"
+        versionCode = gitCommitCount
+        versionName = "$baseVersionName.$gitCommitCount+$gitShortSha"
+    }
+
+    signingConfigs {
+        // CI materializes a stable debug keystore from a secret and points
+        // DEBUG_KEYSTORE_FILE at it, so successive Firebase App Distribution
+        // builds carry the same signature and tester devices install them as
+        // updates. Local builds without the env var fall through to AGP's
+        // auto-generated ~/.android/debug.keystore. See
+        // docs/firebase-app-distribution.md.
+        getByName("debug") {
+            val keystorePath = providers.environmentVariable("DEBUG_KEYSTORE_FILE").orNull
+            if (!keystorePath.isNullOrEmpty() && file(keystorePath).exists()) {
+                storeFile = file(keystorePath)
+                storePassword = providers.environmentVariable("DEBUG_KEYSTORE_PASSWORD").orNull
+                keyAlias = providers.environmentVariable("DEBUG_KEY_ALIAS").getOrElse("androiddebugkey")
+                keyPassword = providers.environmentVariable("DEBUG_KEY_PASSWORD").orNull
+            }
+        }
+        // CI materializes the Play upload keystore from a secret for the
+        // internal-track upload (see docs/play-store-internal-track.md). Play
+        // App Signing re-signs with its managed key before delivery. Local
+        // builds without RELEASE_KEYSTORE_FILE produce an unsigned release
+        // AAB, so forks and fresh clones build cleanly.
+        create("release") {
+            val keystorePath = providers.environmentVariable("RELEASE_KEYSTORE_FILE").orNull
+            if (!keystorePath.isNullOrEmpty() && file(keystorePath).exists()) {
+                storeFile = file(keystorePath)
+                storePassword = providers.environmentVariable("RELEASE_KEYSTORE_PASSWORD").orNull
+                keyAlias = providers.environmentVariable("RELEASE_KEY_ALIAS").orNull
+                keyPassword = providers.environmentVariable("RELEASE_KEY_PASSWORD").orNull
+            }
+        }
     }
 
     buildTypes {
@@ -37,6 +88,12 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
+            // Only attach the release signingConfig when CI has populated it;
+            // an unset storeFile would fail bundleRelease for anyone without
+            // the secrets.
+            if (!providers.environmentVariable("RELEASE_KEYSTORE_FILE").orNull.isNullOrEmpty()) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
 
