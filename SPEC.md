@@ -175,12 +175,13 @@ what it blocks.
 Global options on the Settings screen (reached from the rules list; also home of the
 SIM registry), all off by default:
 
-- **Show which SIM is used**: when a rule picks a SIM, a brief toast names it —
-  "Calling using Telstra" — both when the call is redirected there and when it was
-  already on that SIM. Calls the user routed by hand in the chooser don't toast (they
-  just tapped the SIM by name), and neither do hand-offs to apps (the app opening is
-  its own feedback). The toast is posted after the service has answered Telecom, so
-  it can never delay the decision.
+- **Show which SIM or app is used**: when a rule routes a call, a brief toast names
+  where it went — "Calling using Telstra" for a SIM (on a redirect and when the call
+  was already on that SIM), "Calling using Google Voice" for an app hand-off (shown
+  once the app launch has been sent; a failed hand-off shows its failure notice
+  instead, never both). Calls the user routed by hand in the chooser don't toast —
+  they just tapped the target by name. The toast is posted after the service has
+  answered Telecom, so it can never delay the decision.
 - **Delay before calling** (1–10 s): when a rule redirects a call to a SIM in an
   interactive context, Simmo cancels the call and shows a countdown screen instead —
   the SIM's name, the number and destination, Cancel, and Call now — then re-places

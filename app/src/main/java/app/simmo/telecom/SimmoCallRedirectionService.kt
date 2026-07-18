@@ -73,7 +73,7 @@ class SimmoCallRedirectionService : CallRedirectionService() {
         // launch that then throws can't be un-cancelled, so surface it (Redial);
         // a silently blocked launch (BAL) can't be detected — still the device-QA
         // / full-screen-intent question in docs/qa-matrix.md (TODO.md).
-        fun handOff(intent: Intent, appLabel: String, packageName: String) {
+        fun handOff(intent: Intent, appLabel: String, packageName: String, announce: Boolean) {
             val number = handle.schemeSpecificPart.orEmpty()
             fun notifyFailed(placed: Boolean) = app.notifications.postHandOffFailed(
                 appLabel,
@@ -88,7 +88,12 @@ class SimmoCallRedirectionService : CallRedirectionService() {
             }
             respond {
                 cancelCall()
-                if (runCatching { startActivity(intent) }.isFailure) {
+                if (runCatching { startActivity(intent) }.isSuccess) {
+                    // The optional "Calling using <app>" announcement — only
+                    // once the launch has been sent; a failed hand-off shows
+                    // its failure notice instead, never both.
+                    if (announce) app.notifications.toastCallingUsing(appLabel)
+                } else {
                     // The call is already cancelled and the app didn't open.
                     // Notifications are optional, so surface it a second,
                     // permission-free way too: drop the user in the dialer with
@@ -174,6 +179,7 @@ class SimmoCallRedirectionService : CallRedirectionService() {
                         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
                     verdict.appLabel,
                     verdict.packageName,
+                    verdict.announce,
                 )
 
                 is Verdict.ForwardToContactApp -> handOff(
@@ -192,6 +198,7 @@ class SimmoCallRedirectionService : CallRedirectionService() {
                         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
                     verdict.appLabel,
                     verdict.packageName,
+                    verdict.announce,
                 )
 
                 // The chooser re-places the call and mints the pass token

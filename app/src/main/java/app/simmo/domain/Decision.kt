@@ -106,13 +106,16 @@ sealed interface Verdict {
      * Cancel the carrier call and forward the dialed number to a calling app by
      * launching its number-carrying deep link [uri], scoped to [packageName]
      * (e.g. Google Voice, Teams). [appLabel] names it for a hand-off-failed
-     * notification. Only produced when the number normalized to E.164 and the
-     * target app is installed.
+     * notification — and, when [announce] is set
+     * ([DecisionSnapshot.announceCalls]), for a "Calling using <app>" toast
+     * once the launch has been sent. Only produced when the number normalized
+     * to E.164 and the target app is installed.
      */
     data class ForwardToApp(
         val packageName: String,
         val uri: String,
         val appLabel: String,
+        val announce: Boolean = false,
     ) : Verdict
 
     /**
@@ -121,13 +124,15 @@ sealed interface Verdict {
      * its [mimeType], scoped to [packageName] (e.g. WhatsApp). The MIME type is
      * what picks the app's call action out of the contact row — without it the
      * intent resolves to the generic contact viewer instead of the call. Only
-     * produced when the dialed number resolved to a contact reachable on that app.
+     * produced when the dialed number resolved to a contact reachable on that
+     * app. [announce] as on [ForwardToApp].
      */
     data class ForwardToContactApp(
         val packageName: String,
         val mimeType: String,
         val dataRowId: Long,
         val appLabel: String,
+        val announce: Boolean = false,
     ) : Verdict
 
     /**
@@ -221,6 +226,7 @@ class DecisionEngine(private val countryDetector: CountryDetector) {
                                 action.app.packageName,
                                 action.app.launchUri(e164),
                                 action.app.label,
+                                announce = snapshot.announceCalls,
                             )
                         }
                     }
@@ -240,6 +246,7 @@ class DecisionEngine(private val countryDetector: CountryDetector) {
                                     action.app.dataMimeType,
                                     dataRowId,
                                     action.app.label,
+                                    announce = snapshot.announceCalls,
                                 )
                             }
                     }

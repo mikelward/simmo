@@ -36,7 +36,7 @@ class SettingsScreenshotTest {
 
         composeRule.onNodeWithText("Settings").assertExists()
         composeRule.onNodeWithText("SIMs").assertExists()
-        composeRule.onNodeWithText("Show which SIM is used").assertExists()
+        composeRule.onNodeWithText("Show which SIM or app is used").assertExists()
         composeRule.onNodeWithText("Delay before calling").assertExists()
         composeRule.onNodeWithText("3 seconds").assertExists()
         captureSnapshot("settings.png")
