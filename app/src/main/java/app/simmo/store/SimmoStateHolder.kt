@@ -8,6 +8,7 @@ import app.simmo.domain.DataRuleBook
 import app.simmo.domain.RegisteredSim
 import app.simmo.domain.withGroupSaved
 import app.simmo.domain.RuleBook
+import app.simmo.domain.newRuleId
 import app.simmo.domain.SimRef
 import app.simmo.domain.recordSeen
 import app.simmo.domain.withNewSimNotified
@@ -76,14 +77,14 @@ class SimmoStateHolder(
     suspend fun updateRules(transform: (RuleBook) -> RuleBook) {
         store.updateData {
             val valid = it.withInstallValidated(installId)
-            valid.copy(rules = transform(valid.rules))
+            valid.copy(rules = transform(valid.rules).withMintedIds())
         }
     }
 
     suspend fun updateDataRules(transform: (DataRuleBook) -> DataRuleBook) {
         store.updateData {
             val valid = it.withInstallValidated(installId)
-            valid.copy(dataRules = transform(valid.dataRules))
+            valid.copy(dataRules = transform(valid.dataRules).withMintedIds())
         }
     }
 
@@ -99,7 +100,7 @@ class SimmoStateHolder(
         store.updateData {
             val valid = it.withInstallValidated(installId)
             val merged = pendingGroups.fold(valid.customGroups) { acc, group -> acc.withGroupSaved(group) }
-            valid.copy(customGroups = merged, dataRules = transform(valid.dataRules))
+            valid.copy(customGroups = merged, dataRules = transform(valid.dataRules).withMintedIds())
         }
     }
 
@@ -215,7 +216,7 @@ class SimmoStateHolder(
         store.updateData {
             val valid = it.withInstallValidated(installId)
             val merged = pendingGroups.fold(valid.customGroups) { acc, group -> acc.withGroupSaved(group) }
-            valid.copy(customGroups = merged, rules = transform(valid.rules))
+            valid.copy(customGroups = merged, rules = transform(valid.rules).withMintedIds())
         }
     }
 
@@ -274,4 +275,19 @@ class SimmoStateHolder(
             valid.copy(simRegistry = valid.simRegistry.withNewSimNotified(refs))
         }
     }
+
+    // Mint an id for any rule written without one, at the single persistence
+    // boundary every rule write passes through. Creation sites (the editor, the
+    // new-SIM prompt, the chooser's "remember", any future one) can add a rule
+    // without threading id-minting through themselves and never leave a blank
+    // id in stored state — which the id-keyed editor would be unable to address
+    // (Codex on PR #60). Cheap no-op once every rule has an id; a duplicate
+    // already carries a fresh id, so it is left untouched.
+    private fun RuleBook.withMintedIds(): RuleBook =
+        if (rules.none { it.id.isBlank() }) this
+        else copy(rules = rules.map { if (it.id.isBlank()) it.copy(id = newRuleId()) else it })
+
+    private fun DataRuleBook.withMintedIds(): DataRuleBook =
+        if (rules.none { it.id.isBlank() }) this
+        else copy(rules = rules.map { if (it.id.isBlank()) it.copy(id = newRuleId()) else it })
 }

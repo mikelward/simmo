@@ -50,4 +50,45 @@ class DataRuleBookMutationTest {
         // Out-of-range moves are a no-op, matching the calling book.
         assertEquals(book.rules, book.withRuleMoved(0, 5).rules)
     }
+
+    @Test
+    fun `replace and remove by id match the calling book, no-op on unknown id`() {
+        val book = DataRuleBook(
+            rules = listOf(rule("AU").copy(id = "a"), rule("NZ").copy(id = "b"), rule("US").copy(id = "c")),
+        )
+        val edited = rule("FR").copy(id = "b")
+        assertEquals(
+            listOf(rule("AU").copy(id = "a"), edited, rule("US").copy(id = "c")),
+            book.withRuleReplaced("b", edited).rules,
+        )
+        assertEquals(book.rules, book.withRuleReplaced("gone", edited).rules)
+        assertEquals(
+            listOf(rule("AU").copy(id = "a"), rule("US").copy(id = "c")),
+            book.withRuleRemoved("b").rules,
+        )
+        assertEquals(book.rules, book.withRuleRemoved("gone").rules)
+    }
+
+    @Test
+    fun `a blank id matches nothing, never every rule`() {
+        val blanks = DataRuleBook(rules = listOf(rule("AU"), rule("NZ"))) // all id = ""
+        assertEquals(blanks.rules, blanks.withRuleReplaced("", rule("FR")).rules)
+        assertEquals(blanks.rules, blanks.withRuleRemoved("").rules)
+    }
+
+    @Test
+    fun `duplicating copies the rule below it under a new, distinct id`() {
+        val book = DataRuleBook(rules = listOf(rule("AU").copy(id = "a"), rule("NZ").copy(id = "b")))
+        val dup = book.withRuleDuplicated(0, "a-copy")
+        assertEquals(
+            listOf(rule("AU").copy(id = "a"), rule("AU").copy(id = "a-copy"), rule("NZ").copy(id = "b")),
+            dup.rules,
+        )
+        assertEquals(book.rules, book.withRuleDuplicated(9, "x").rules)
+    }
+
+    @Test
+    fun `the preseeded default carries a stable id`() {
+        assertEquals(listOf("default-eu-roaming"), DataRuleBook.defaultDataRules().map { it.id })
+    }
 }

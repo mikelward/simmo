@@ -169,12 +169,14 @@ class RuleEditorActionTest {
         // menu's job) must survive a Save, not silently flip back on.
         val draft = EditorDraft(RuleMatcher.Country("AU"), RuleAction.SystemDefault)
         val disabled = EditorTarget.Existing(
-            0,
-            Rule(RuleMatcher.Country("US"), RuleAction.Ask, enabled = false),
+            "r1",
+            Rule(RuleMatcher.Country("US"), RuleAction.Ask, enabled = false, id = "r1"),
         )
         assertFalse(ruleFromDraft(draft, disabled).enabled)
+        // The edit keeps the rule's id, so the save replaces it in place.
+        assertEquals("r1", ruleFromDraft(draft, disabled).id)
         // An enabled existing rule stays enabled; a new rule starts enabled.
-        val enabled = EditorTarget.Existing(0, Rule(RuleMatcher.Country("US"), RuleAction.Ask))
+        val enabled = EditorTarget.Existing("r2", Rule(RuleMatcher.Country("US"), RuleAction.Ask, id = "r2"))
         assertTrue(ruleFromDraft(draft, enabled).enabled)
         assertTrue(ruleFromDraft(draft, EditorTarget.New()).enabled)
     }

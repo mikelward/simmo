@@ -109,7 +109,7 @@ class DataRuleEditorScreenshotTest {
         composeRule.setContent {
             MaterialTheme {
                 DataRuleEditorContent(
-                    target = DataEditorTarget.Existing(0, existing),
+                    target = DataEditorTarget.Existing("r", existing),
                     simOptions = listOf(telstra),
                     countryOptions = emptyList(),
                     onSave = { _, _ -> },
@@ -136,7 +136,7 @@ class DataRuleEditorScreenshotTest {
         composeRule.setContent {
             MaterialTheme {
                 DataRuleEditorContent(
-                    target = DataEditorTarget.Existing(0, existing),
+                    target = DataEditorTarget.Existing("r", existing),
                     simOptions = listOf(telstra),
                     countryOptions = emptyList(),
                     onSave = { _, rule -> saved = rule },

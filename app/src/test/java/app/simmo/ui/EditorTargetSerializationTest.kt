@@ -47,17 +47,18 @@ class EditorTargetSerializationTest {
     }
 
     @Test
-    fun `an existing-rule target keeps its index and rule`() {
+    fun `an existing-rule target keeps its id and rule`() {
         val target: EditorTarget = EditorTarget.Existing(
-            3,
-            Rule(RuleMatcher.Country("AU"), RuleAction.UseSim(SimRef(1, "Telstra", "Telstra AU"))),
+            "rule-3",
+            Rule(RuleMatcher.Country("AU"), RuleAction.UseSim(SimRef(1, "Telstra", "Telstra AU")), id = "rule-3"),
         )
         assertEquals(target, roundTrip(target))
     }
 
     @Test
     fun `an existing target preserves an unsupported action`() {
-        val target: EditorTarget = EditorTarget.Existing(0, Rule(RuleMatcher.AnyDestination, RuleAction.Ask))
+        val target: EditorTarget =
+            EditorTarget.Existing("r", Rule(RuleMatcher.AnyDestination, RuleAction.Ask, id = "r"))
         assertEquals(target, roundTrip(target))
     }
 }

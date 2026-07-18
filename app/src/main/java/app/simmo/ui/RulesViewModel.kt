@@ -26,6 +26,7 @@ import app.simmo.domain.SimRef
 import app.simmo.domain.CountryGroups
 import app.simmo.domain.SimResolution
 import app.simmo.domain.groupIds
+import app.simmo.domain.newRuleId
 import app.simmo.domain.newSimRuleInsertionIndex
 import app.simmo.domain.regionCodes
 import app.simmo.domain.resolveSim
@@ -540,7 +541,7 @@ class RulesViewModel(
         setEditorTarget(EditorTarget.New(presetSim = prompt.ref, presetRegion = prompt.homeRegion))
 
     fun openEditRule(index: Int) {
-        currentRules().getOrNull(index)?.let { setEditorTarget(EditorTarget.Existing(index, it)) }
+        currentRules().getOrNull(index)?.let { setEditorTarget(EditorTarget.Existing(it.id, it)) }
     }
 
     fun closeEditor() = setEditorTarget(null)
@@ -564,15 +565,17 @@ class RulesViewModel(
     // for every path but the create-group-in-picker one.
     fun addRule(rule: Rule, pendingGroups: List<CustomGroup> = emptyList()) =
         commit(pendingGroups) { it.withRuleAdded(rule) }
-    fun replaceRule(index: Int, rule: Rule, pendingGroups: List<CustomGroup> = emptyList()) =
-        commit(pendingGroups) { it.withRuleReplaced(index, rule) }
+    /** Save an edit from the editor, keyed by the rule's stable id (see [EditorTarget.Existing]). */
+    fun replaceRule(id: String, rule: Rule, pendingGroups: List<CustomGroup> = emptyList()) =
+        commit(pendingGroups) { it.withRuleReplaced(id, rule) }
+    /** Delete from the list row, by position. */
     fun removeRule(index: Int) = edit { it.withRuleRemoved(index) }
+    /** Delete the rule being edited, by its stable id. */
+    fun removeRule(id: String) = edit { it.withRuleRemoved(id) }
     fun moveRule(from: Int, to: Int) = edit { it.withRuleMoved(from, to) }
 
-    /** Insert a copy of the rule at [index] directly below it. */
-    fun duplicateRule(index: Int) = edit { book ->
-        book.rules.getOrNull(index)?.let { book.withRuleInserted(index + 1, it) } ?: book
-    }
+    /** Insert a copy of the rule at [index] directly below it, under a new id. */
+    fun duplicateRule(index: Int) = edit { it.withRuleDuplicated(index, newRuleId()) }
 
     /** Turn the rule at [index] on or off (kept in place either way). */
     fun setRuleEnabled(index: Int, enabled: Boolean) = edit { book ->
@@ -639,7 +642,7 @@ class RulesViewModel(
 
     fun openEditDataRule(index: Int) {
         currentDataRules().getOrNull(index)?.let {
-            setDataEditorTarget(DataEditorTarget.Existing(index, it))
+            setDataEditorTarget(DataEditorTarget.Existing(it.id, it))
         }
     }
 
@@ -662,15 +665,17 @@ class RulesViewModel(
     // the same transaction for the same no-orphan reason (see [addRule]).
     fun addDataRule(rule: DataRule, pendingGroups: List<CustomGroup> = emptyList()) =
         commitData(pendingGroups) { it.withRuleAdded(rule) }
-    fun replaceDataRule(index: Int, rule: DataRule, pendingGroups: List<CustomGroup> = emptyList()) =
-        commitData(pendingGroups) { it.withRuleReplaced(index, rule) }
+    /** Save a data-rule edit from the editor, keyed by stable id. */
+    fun replaceDataRule(id: String, rule: DataRule, pendingGroups: List<CustomGroup> = emptyList()) =
+        commitData(pendingGroups) { it.withRuleReplaced(id, rule) }
+    /** Delete a data rule from the list row, by position. */
     fun removeDataRule(index: Int) = editData { it.withRuleRemoved(index) }
+    /** Delete the data rule being edited, by its stable id. */
+    fun removeDataRule(id: String) = editData { it.withRuleRemoved(id) }
     fun moveDataRule(from: Int, to: Int) = editData { it.withRuleMoved(from, to) }
 
-    /** Insert a copy of the data rule at [index] directly below it. */
-    fun duplicateDataRule(index: Int) = editData { book ->
-        book.rules.getOrNull(index)?.let { book.withRuleInserted(index + 1, it) } ?: book
-    }
+    /** Insert a copy of the data rule at [index] directly below it, under a new id. */
+    fun duplicateDataRule(index: Int) = editData { it.withRuleDuplicated(index, newRuleId()) }
 
     /** Turn the data rule at [index] on or off (kept in place either way). */
     fun setDataRuleEnabled(index: Int, enabled: Boolean) = editData { book ->
