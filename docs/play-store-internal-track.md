@@ -46,10 +46,8 @@ https://play.google.com/console → "Create app":
 - **Package name**: `app.simmo` (must match `applicationId` in
   `app/build.gradle.kts`)
 
-Complete the required declarations under "App content" — including the privacy
-policy link (https://mikelward.github.io/simmo/PRIVACY.html) and, before the
-first release built with Firebase enabled, the data safety form (see
-`TODO.md`).
+Complete the required declarations under "App content" using the answers
+recorded in "App content declarations" below.
 
 ### 2. Seed the internal track with a manual upload
 
@@ -101,6 +99,51 @@ Play Console → Users and permissions → Invite new users → the service acco
 email. On "App permissions", add Simmo and grant **Releases: Release to testing
 tracks** — the minimum for an internal-track upload. Propagation can take a few
 minutes.
+
+## App content declarations
+
+How to answer the Play Console questionnaires (Policy → App content). These
+answers must stay consistent with `docs/PRIVACY.md` and SETUP.md's "What an
+enabled build collects"; re-check the Console's current wording when actually
+submitting — Google revises these forms periodically.
+
+- **Privacy policy**: https://mikelward.github.io/simmo/PRIVACY.html
+- **Ads**: **No.** Simmo embeds no ad SDKs and shows no ads. A plain,
+  unpaid link to a useful travel product (e.g. "buy a travel eSIM" opening the
+  browser) keeps this a No. Revisit only if such a link becomes a *paid*
+  placement — Play can count paid third-party promotion as ads, which would
+  flip this to Yes and put an "Ads" label on the listing.
+- **App access**: all functionality is available without special access — no
+  login, no gated areas. Full call-routing behavior needs a dual-SIM device,
+  but nothing requires credentials or instructions.
+- **Content rating (IARC questionnaire)**: utility app; no user-generated
+  content, no violence, sexuality, gambling, or controlled substances; expect
+  an Everyone rating.
+- **Target audience**: 18 and over (a telephony utility, not directed at
+  children). Do not declare appeal to children — staying out of the Families
+  program keeps future commerce links (travel eSIM) unrestricted.
+- **Data safety** — two cases:
+  - Build **without** Firebase (`google-services.json` absent): no data
+    collected, no data shared.
+  - Build **with** Firebase: declare optional (user-controllable) collection,
+    off when the "Make Simmo better" switch is off, of **crash logs**,
+    **diagnostics**, **app interactions** (first open, screen views,
+    sessions), and **device or other IDs** (the random per-install Firebase
+    ID). Purposes: analytics and crash reporting. Not shared with third
+    parties (Firebase processes it on our behalf as a service provider).
+    Encrypted in transit: yes. Deletion: no accounts; users can stop
+    collection via the in-app switch and request deletion via the policy's
+    contact email. Advertising ID: **not collected** (permission stripped in
+    the manifest). Cross-check the category mapping against Firebase's
+    current Play data-disclosure guidance before submitting.
+- **Government app / News app / COVID-19 app / Financial features / Health**:
+  No / not applicable to all of them.
+
+If an affiliate travel-eSIM link ships later, revisit **Ads** (above) and the
+data safety answers together with `docs/PRIVACY.md`'s "Possible future
+changes" section: a static URL with only an affiliate tag changes nothing, but
+a URL carrying device- or call-derived context (destination country, network
+country) would count as sharing data with a third party.
 
 ## Generating the upload keystore
 

@@ -43,3 +43,5 @@ To enable it for your builds:
 
 `docs/PRIVACY.md` and the Play data safety form must accurately describe the
 collection in any release built with Firebase enabled (see `TODO.md` Phase 8).
+The recorded data-safety answers live in `docs/play-store-internal-track.md`
+under "App content declarations".
