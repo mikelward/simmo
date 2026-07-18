@@ -20,7 +20,7 @@ import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
 /**
- * Renders the rules list with the states that matter (SPEC "Rules"): an
+ * Renders the rules list with the states that matter (SPEC "Calling rules"): an
  * enabled country rule, a greyed rule whose SIM is disabled, the two
  * preseeded defaults at the bottom, and the new-SIM prompt card on top.
  */

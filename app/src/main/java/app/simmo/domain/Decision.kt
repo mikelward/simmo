@@ -200,7 +200,7 @@ enum class ProceedReason {
  * Rules are evaluated in order; the first applicable rule wins. A rule that
  * cannot act right now — disabled/unresolvable SIM, unreachable hand-off
  * target, UI needed in a non-interactive context, no unambiguous country
- * match — is skipped and evaluation continues (SPEC "Rules"). If nothing
+ * match — is skipped and evaluation continues (SPEC "Calling rules"). If nothing
  * applies, the call proceeds unmodified.
  */
 class DecisionEngine(private val countryDetector: CountryDetector) {

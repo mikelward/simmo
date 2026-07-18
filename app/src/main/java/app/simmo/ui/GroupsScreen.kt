@@ -40,7 +40,7 @@ import app.simmo.R
 import app.simmo.domain.CustomGroup
 
 /**
- * The Country groups screen (SPEC "Rules" → custom groups): create, edit, and
+ * The Country groups screen (SPEC "Calling rules" → custom groups): create, edit, and
  * delete user-defined groups like "Vodafone Zone 1" that rules then match by a
  * single entry. Reached from the rules list; the groups become selectable in
  * the rule editor's country picker.

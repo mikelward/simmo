@@ -4,7 +4,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /**
- * What a rule matches (SPEC "Rules"). Persisted — the [SerialName]
+ * What a rule matches (SPEC "Calling rules"). Persisted — the [SerialName]
  * discriminators are the storage format and must stay stable.
  */
 @Serializable
@@ -71,7 +71,7 @@ fun countryMatcher(regionCodes: List<String>): RuleMatcher {
         ?: RuleMatcher.Countries(distinct)
 }
 
-/** What a rule does with a matching call (SPEC "Rules"). Persisted. */
+/** What a rule does with a matching call (SPEC "Calling rules"). Persisted. */
 @Serializable
 sealed interface RuleAction {
     /** Place the call on a specific SIM, resolved via [resolveSim]. */
@@ -154,7 +154,7 @@ data class Rule(
 
 /**
  * The complete rule set: an ordered list, evaluated top to bottom; the first
- * *applicable* rule decides the call (SPEC "Rules"). Rules that cannot act —
+ * *applicable* rule decides the call (SPEC "Calling rules"). Rules that cannot act —
  * disabled SIM, unreachable hand-off target, UI needed in a non-interactive
  * context, ambiguous country match — are skipped and evaluation continues.
  * A fresh install starts with [defaultRules]; they are ordinary rules the

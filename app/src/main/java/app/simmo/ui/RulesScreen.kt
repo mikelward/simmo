@@ -54,7 +54,7 @@ import app.simmo.R
 import app.simmo.domain.SimRef
 
 /**
- * The home screen: the ordered rule list, first match wins (SPEC "Rules").
+ * The home screen: the ordered rule list, first match wins (SPEC "Calling rules").
  * Tapping a row edits it; dragging a row's handle reorders it; the add button
  * prepends a new rule. Rules whose SIM is disabled render greyed out and are
  * skipped during evaluation.

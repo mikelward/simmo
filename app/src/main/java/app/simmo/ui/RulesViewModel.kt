@@ -65,7 +65,7 @@ enum class RulePause {
     ACCOUNT_UNAVAILABLE,
 }
 
-/** One row of the rules list, ready to render (SPEC "Rules"). */
+/** One row of the rules list, ready to render (SPEC "Calling rules"). */
 data class RuleRowUi(
     /**
      * e.g. "+61 Australia" — or a comma-joined list for a multi-country rule;

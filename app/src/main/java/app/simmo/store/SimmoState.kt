@@ -18,7 +18,7 @@ import kotlinx.serialization.Serializable
 data class SimmoState(
     val rules: RuleBook = RuleBook(),
     val simRegistry: List<RegisteredSim> = emptyList(),
-    /** User-defined country groups a rule can match by id (SPEC "Rules"). */
+    /** User-defined country groups a rule can match by id (SPEC "Calling rules"). */
     val customGroups: List<CustomGroup> = emptyList(),
     /** Overrides the network/SIM-derived default region when set (ISO code). */
     val defaultRegionOverride: String? = null,

@@ -4,7 +4,7 @@ import java.util.UUID
 import kotlinx.serialization.Serializable
 
 /**
- * A user-defined country group (SPEC "Rules" → custom groups): a named set of
+ * A user-defined country group (SPEC "Calling rules" → custom groups): a named set of
  * countries a rule can match as a single entry, the same way it matches a
  * built-in [CountryGroups] group. Carriers' own zone lists ("Vodafone Zone 1")
  * differ per plan and can't ship as built-in data, so users build their own.
