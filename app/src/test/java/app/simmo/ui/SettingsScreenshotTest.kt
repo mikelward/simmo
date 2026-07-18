@@ -27,13 +27,16 @@ class SettingsScreenshotTest {
     fun settings() {
         composeRule.setContent {
             MaterialTheme {
-                SettingsContent()
+                SettingsContent(
+                    settings = CallSettingsUi(showCallToast = true),
+                )
             }
         }
         composeRule.waitForIdle()
 
         composeRule.onNodeWithText("Settings").assertExists()
         composeRule.onNodeWithText("SIMs").assertExists()
+        composeRule.onNodeWithText("Show which SIM is used").assertExists()
         captureSnapshot("settings.png")
     }
 

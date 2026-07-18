@@ -144,6 +144,12 @@
     <!-- TODO: translate -->
     <string name="settings_sims_description" tools:ignore="MissingTranslation">Every SIM Simmo has seen</string>
     <!-- TODO: translate -->
+    <string name="settings_call_toast_label" tools:ignore="MissingTranslation">Show which SIM is used</string>
+    <!-- TODO: translate -->
+    <string name="settings_call_toast_description" tools:ignore="MissingTranslation">A \"Calling using…\" message appears when a rule picks a SIM</string>
+    <!-- TODO: translate -->
+    <string name="calling_using" tools:ignore="MissingTranslation">Calling using %1$s</string>
+    <!-- TODO: translate -->
     <string name="sim_registry_title" tools:ignore="MissingTranslation">SIMs</string>
     <!-- TODO: translate -->
     <string name="sim_registry_explainer" tools:ignore="MissingTranslation">Every SIM Simmo has seen. Rules can use a SIM even while it\'s disabled.</string>

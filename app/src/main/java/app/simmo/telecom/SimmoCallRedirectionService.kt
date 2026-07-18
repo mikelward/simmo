@@ -136,12 +136,15 @@ class SimmoCallRedirectionService : CallRedirectionService() {
                 is Verdict.Proceed -> {
                     verdict.consumedToken?.let(app.passTokens::consume)
                     respond { placeCallUnmodified() }
+                    // After responding — the toast must never delay the answer.
+                    verdict.announceSim?.let(app.notifications::toastCallingUsing)
                 }
 
                 is Verdict.RedirectToAccount -> {
                     val target = app.assembler.handleFor(verdict.account)
                     if (target != null) {
                         respond { redirectCall(handle, target, /* confirmFirst = */ false) }
+                        verdict.announceSim?.let(app.notifications::toastCallingUsing)
                     } else {
                         // The account vanished between snapshot refreshes;
                         // never gamble with the user's call.

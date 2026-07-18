@@ -143,6 +143,7 @@ class MainActivity : ComponentActivity() {
                         )
 
                         settingsOpen -> SettingsScreen(
+                            viewModel = vm,
                             onOpenSims = vm::openSimRegistry,
                             onBack = vm::closeSettings,
                         )

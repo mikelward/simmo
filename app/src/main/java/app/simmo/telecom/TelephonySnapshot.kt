@@ -280,6 +280,7 @@ class SnapshotAssembler(
             handOffAccounts = emptySet(),
             handOffApps = handOffApps,
             contacts = contactsFlow.value,
+            announceCalls = state.showCallToast,
         )
     }
 }

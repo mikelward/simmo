@@ -170,6 +170,18 @@ never silently dropped — the sole, opt-in exception is the hands-free call gua
 "Hands-free and Android Auto safeguards"), which always posts a notification for
 what it blocks.
 
+### Call feedback and delay
+
+Global options on the Settings screen (reached from the rules list; also home of the
+SIM registry), all off by default:
+
+- **Show which SIM is used**: when a rule picks a SIM, a brief toast names it —
+  "Calling using Telstra" — both when the call is redirected there and when it was
+  already on that SIM. Calls the user routed by hand in the chooser don't toast (they
+  just tapped the SIM by name), and neither do hand-offs to apps (the app opening is
+  its own feedback). The toast is posted after the service has answered Telecom, so
+  it can never delay the decision.
+
 ### Disabled-SIM assist
 
 Rules may name a SIM that is currently disabled (an installed eSIM profile that isn't
