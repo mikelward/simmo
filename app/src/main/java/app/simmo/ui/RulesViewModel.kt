@@ -381,8 +381,14 @@ class RulesViewModel(
     /** The current rules, as domain objects, for the editor to read and edit. */
     fun currentRules(): List<Rule> = app.stateHolder()?.current?.rules?.rules.orEmpty()
 
-    fun addRule(rule: Rule) = edit { it.withRuleAdded(rule) }
-    fun replaceRule(index: Int, rule: Rule) = edit { it.withRuleReplaced(index, rule) }
+    // [pendingGroups] are groups the user built in the picker while making this
+    // rule; they're committed in the *same* transaction as the rule so the state
+    // never holds a rule pointing at an unsaved group (Codex on PR #35). Empty
+    // for every path but the create-group-in-picker one.
+    fun addRule(rule: Rule, pendingGroups: List<CustomGroup> = emptyList()) =
+        commit(pendingGroups) { it.withRuleAdded(rule) }
+    fun replaceRule(index: Int, rule: Rule, pendingGroups: List<CustomGroup> = emptyList()) =
+        commit(pendingGroups) { it.withRuleReplaced(index, rule) }
     fun removeRule(index: Int) = edit { it.withRuleRemoved(index) }
     fun moveRule(from: Int, to: Int) = edit { it.withRuleMoved(from, to) }
 
@@ -401,11 +407,15 @@ class RulesViewModel(
      * first paused rule (SPEC "On SIM change") rather than at the very top,
      * and the answered prompt is retired.
      */
-    fun addRuleForNewSim(sim: SimRef, rule: Rule) {
+    fun addRuleForNewSim(sim: SimRef, rule: Rule, pendingGroups: List<CustomGroup> = emptyList()) {
         viewModelScope.launch {
             val holder = app.stateHolders().filterNotNull().first()
             val activeSims = app.assembler.activeSims()
-            holder.updateRules { book -> book.withRuleInserted(book.newSimRuleInsertionIndex(activeSims), rule) }
+            // Groups + rule in one transaction (see [addRule]); the prompt-answered
+            // write is independent and can't strand a group.
+            holder.updateGroupsAndRules(pendingGroups) { book ->
+                book.withRuleInserted(book.newSimRuleInsertionIndex(activeSims), rule)
+            }
             holder.markSimRulePromptAnswered(sim)
         }
     }
@@ -423,6 +433,16 @@ class RulesViewModel(
         // building the holder, and a lost add/edit/delete would look saved.
         viewModelScope.launch {
             app.stateHolders().filterNotNull().first().updateRules(transform)
+        }
+    }
+
+    /** Like [edit], but commits [pendingGroups] in the same transaction as the rule. */
+    private fun commit(
+        pendingGroups: List<CustomGroup>,
+        transform: (app.simmo.domain.RuleBook) -> app.simmo.domain.RuleBook,
+    ) {
+        viewModelScope.launch {
+            app.stateHolders().filterNotNull().first().updateGroupsAndRules(pendingGroups, transform)
         }
     }
 

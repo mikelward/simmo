@@ -47,7 +47,7 @@ class RuleEditorScreenshotTest {
                         CountryOptionUi("AU", "+61 Australia"),
                         CountryOptionUi("US", "+1 United States"),
                     ),
-                    onSave = {},
+                    onSave = { _, _ -> },
                     onDelete = {},
                     onCancel = {},
                 )
@@ -88,7 +88,7 @@ class RuleEditorScreenshotTest {
                         CountryOptionUi("DE", "+49 Germany"),
                         CountryOptionUi("IT", "+39 Italy"),
                     ),
-                    onSave = {},
+                    onSave = { _, _ -> },
                     onDelete = {},
                     onCancel = {},
                 )
@@ -131,7 +131,7 @@ class RuleEditorScreenshotTest {
                             searchTerms = emptyList(),
                         ),
                     ),
-                    onSave = {},
+                    onSave = { _, _ -> },
                     onDelete = {},
                     onCancel = {},
                 )
@@ -159,7 +159,7 @@ class RuleEditorScreenshotTest {
                     countryOptions = listOf(CountryOptionUi("US", "+1 United States")),
                     // Both dial-intent targets installed → both offered as actions.
                     dialHandoffApps = DialHandoffApp.entries.toSet(),
-                    onSave = {},
+                    onSave = { _, _ -> },
                     onDelete = {},
                     onCancel = {},
                 )
@@ -193,7 +193,7 @@ class RuleEditorScreenshotTest {
                     countryOptions = listOf(CountryOptionUi("US", "+1 United States")),
                     dialHandoffApps = DialHandoffApp.entries.toSet(),
                     notificationsEnabled = false,
-                    onSave = {},
+                    onSave = { _, _ -> },
                     onDelete = {},
                     onCancel = {},
                 )
