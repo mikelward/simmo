@@ -13,10 +13,14 @@ data class PlacedCall(
  * Loop guard for re-placed calls (SPEC "Redirect-loop guard"): when the chooser
  * re-places a call, the new call matches a live token and passes through
  * unmodified. The platform layer removes the consumed token.
+ *
+ * [account] pins the token to the account the re-place lands on; a null account
+ * matches any account, for the recovery dialer that can't pin a SIM (its
+ * `ACTION_DIAL` retry may go out on whichever SIM the user or default picks).
  */
 data class PassToken(
     val dialedNumber: String,
-    val account: PhoneAccountRef,
+    val account: PhoneAccountRef?,
     val expiresAtMillis: Long,
 )
 
@@ -237,6 +241,6 @@ class DecisionEngine(private val countryDetector: CountryDetector) {
 
     private fun PassToken.matches(call: PlacedCall, nowMillis: Long): Boolean =
         dialedNumber == call.dialedNumber &&
-            account == call.currentAccount &&
+            (account == null || account == call.currentAccount) &&
             expiresAtMillis > nowMillis
 }
