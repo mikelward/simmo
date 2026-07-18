@@ -10,6 +10,7 @@ import android.telecom.CallRedirectionService
 import android.telecom.PhoneAccountHandle
 import android.util.Log
 import app.simmo.SimmoApp
+import app.simmo.domain.PassToken
 import app.simmo.domain.PlacedCall
 import app.simmo.domain.Verdict
 import app.simmo.ui.ChooserActivity
@@ -72,10 +73,11 @@ class SimmoCallRedirectionService : CallRedirectionService() {
         // a silently blocked launch (BAL) can't be detected — still the device-QA
         // / full-screen-intent question in docs/qa-matrix.md (TODO.md).
         fun handOff(intent: Intent, appLabel: String, packageName: String) {
+            val number = handle.schemeSpecificPart.orEmpty()
             fun notifyFailed(placed: Boolean) = app.notifications.postHandOffFailed(
                 appLabel,
                 packageName,
-                handle.schemeSpecificPart.orEmpty(),
+                number,
                 placed,
             )
             if (intent.resolveActivity(packageManager) == null) {
@@ -93,6 +95,19 @@ class SimmoCallRedirectionService : CallRedirectionService() {
                     // (If the launch was blocked by BAL rather than a per-app
                     // failure, this is likewise blocked — best effort.)
                     notifyFailed(placed = false)
+                    // Mint a short-lived pass token first: placing the call from
+                    // the recovery dialer would otherwise re-enter this same
+                    // still-failing hand-off rule and cancel again, looping. The
+                    // dialer doesn't pin a SIM, so the token matches any account
+                    // (null) — whichever SIM the redial goes out on passes through
+                    // unmodified (SPEC "Redirect-loop guard").
+                    app.passTokens.add(
+                        PassToken(
+                            dialedNumber = number,
+                            account = null,
+                            expiresAtMillis = System.currentTimeMillis() + PASS_TOKEN_TTL_MILLIS,
+                        ),
+                    )
                     runCatching {
                         startActivity(
                             Intent(Intent.ACTION_DIAL, handle).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
@@ -112,6 +127,7 @@ class SimmoCallRedirectionService : CallRedirectionService() {
             val verdict = app.coordinator.decide(
                 PlacedCall(
                     dialedNumber = handle.schemeSpecificPart.orEmpty(),
+                    // In-memory ref (a string derived from the handle — no IPC).
                     currentAccount = app.assembler.refFor(initialPhoneAccount),
                     interactive = allowInteractiveResponse,
                 ),
@@ -181,5 +197,8 @@ class SimmoCallRedirectionService : CallRedirectionService() {
     private companion object {
         const val TAG = "SimmoRedirection"
         const val WATCHDOG_MILLIS = 3_000L
+
+        /** Recovery-dialer loop guard; matches the chooser's re-place window. */
+        const val PASS_TOKEN_TTL_MILLIS = 30_000L
     }
 }

@@ -483,6 +483,25 @@ class DecisionEngineTest {
         )
     }
 
+    @Test
+    fun `a recovery pass token lets the redial through a failed hand-off on any SIM`() {
+        // The hand-off launch failed and dropped the user in the dialer; the
+        // service minted an account-agnostic token (the dialer doesn't pin a
+        // SIM) so redialing the same number on whichever SIM the dialer uses
+        // proceeds instead of re-selecting the still-failing hand-off and looping.
+        val gv = DialHandoffApp.GOOGLE_VOICE
+        val rules = listOf(country("US", RuleAction.HandOff.ViaDialIntent(gv)))
+        val token = PassToken(usNumber, account = null, expiresAtMillis = now + 5_000)
+        val snapshot = snapshot(rules, passTokens = listOf(token), handOffApps = setOf(gv.packageName))
+        // Retry lands on either SIM — both match the wildcard token.
+        for (account in listOf(tmobile.phoneAccount, telstra.phoneAccount)) {
+            assertEquals(
+                Verdict.Proceed(ProceedReason.PASS_TOKEN, consumedToken = token),
+                engine.decide(call(usNumber, currentAccount = account), snapshot, now),
+            )
+        }
+    }
+
     // --- Invariants ---
 
     @Test
