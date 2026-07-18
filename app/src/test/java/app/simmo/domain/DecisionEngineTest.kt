@@ -26,6 +26,7 @@ class DecisionEngineTest {
         rules: List<Rule>,
         activeSims: List<ActiveSim> = listOf(telstra, tmobile),
         passTokens: List<PassToken> = emptyList(),
+        customGroups: Map<String, List<String>> = emptyMap(),
         handOffAccounts: Set<PhoneAccountRef> = emptySet(),
         handOffApps: Set<String> = emptySet(),
         contacts: ContactNumberIndex = ContactNumberIndex.EMPTY,
@@ -34,6 +35,7 @@ class DecisionEngineTest {
         activeSims,
         defaultRegion = "AU",
         passTokens = passTokens,
+        customGroups = customGroups,
         handOffAccounts = handOffAccounts,
         handOffApps = handOffApps,
         contacts = contacts,
@@ -189,6 +191,32 @@ class DecisionEngineTest {
             engine.decide(call(frNumber), snapshot(rules), now),
         )
         // The UK is not an EU/EEA member: falls through to the next rule.
+        assertEquals(
+            Verdict.Proceed(ProceedReason.SYSTEM_DEFAULT),
+            engine.decide(call(gbNumber), snapshot(rules), now),
+        )
+    }
+
+    @Test
+    fun `a custom group rule matches its member countries`() {
+        // "Vodafone Zone 1": a user-defined group resolved from the snapshot.
+        val zone = "custom:1"
+        val rules = listOf(
+            Rule(RuleMatcher.Countries(groupIds = listOf(zone)), RuleAction.UseSim(telstra.ref())),
+            any(RuleAction.SystemDefault),
+        )
+        val groups = mapOf(zone to listOf("FR", "GB"))
+        assertEquals(
+            Verdict.RedirectToAccount(telstra.phoneAccount),
+            engine.decide(call(gbNumber), snapshot(rules, customGroups = groups), now),
+        )
+        // A number outside the group's members falls through.
+        assertEquals(
+            Verdict.Proceed(ProceedReason.SYSTEM_DEFAULT),
+            engine.decide(call(usNumber), snapshot(rules, customGroups = groups), now),
+        )
+        // Group deleted (absent from the snapshot): contributes nothing, the
+        // rule matches none of its members and falls through — never an error.
         assertEquals(
             Verdict.Proceed(ProceedReason.SYSTEM_DEFAULT),
             engine.decide(call(gbNumber), snapshot(rules), now),

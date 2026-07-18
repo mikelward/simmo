@@ -110,6 +110,7 @@ fun RuleEditorScreen(
     val simOptions by viewModel.simOptions.collectAsStateWithLifecycle()
     val countryOptions by viewModel.countryOptions.collectAsStateWithLifecycle()
     val suggestedCountries by viewModel.suggestedCountries.collectAsStateWithLifecycle()
+    val groupOptions by viewModel.groupOptions.collectAsStateWithLifecycle()
     val handOffApps by viewModel.handOffApps.collectAsStateWithLifecycle()
     val dialHandoffApps by viewModel.dialHandoffApps.collectAsStateWithLifecycle()
     // Contacts (READ_CONTACTS) back two things here: the app-to-app hand-off's
@@ -176,7 +177,7 @@ fun RuleEditorScreen(
         countryOptions = countryOptions,
         suggestedCountries = suggestedCountries,
         contactsGranted = contactsGranted,
-        groupOptions = viewModel.groupOptions,
+        groupOptions = groupOptions,
         handOffApps = handOffApps,
         dialHandoffApps = dialHandoffApps,
         onRequestContactsAccess = { contactsLauncher.launch(Manifest.permission.READ_CONTACTS) },
@@ -543,7 +544,7 @@ private fun ChoiceRow(selected: Boolean, text: String, onSelect: () -> Unit) {
  * paused rules while "Any country" is the selected branch.
  */
 @Composable
-private fun SelectedCountryRow(
+internal fun SelectedCountryRow(
     label: String,
     dimmed: Boolean,
     onSelect: () -> Unit,
@@ -629,7 +630,7 @@ private fun SuggestFromContactsRow(onClick: () -> Unit) {
 
 /** Opens the searchable country picker; each pick adds one country to the rule. */
 @Composable
-private fun AddCountryRow(onClick: () -> Unit) {
+internal fun AddCountryRow(onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()

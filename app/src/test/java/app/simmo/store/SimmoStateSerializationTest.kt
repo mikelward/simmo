@@ -1,6 +1,7 @@
 package app.simmo.store
 
 import androidx.datastore.core.CorruptionException
+import app.simmo.domain.CustomGroup
 import app.simmo.domain.DialHandoffApp
 import app.simmo.domain.PhoneAccountRef
 import app.simmo.domain.RegisteredSim
@@ -38,6 +39,9 @@ class SimmoStateSerializationTest {
         simRegistry = listOf(
             RegisteredSim(1, "Telstra", "Telstra personal", 1_000L),
             RegisteredSim(2, "T-Mobile", "T-Mobile US", 2_000L),
+        ),
+        customGroups = listOf(
+            CustomGroup("custom:1", "Vodafone Zone 1", listOf("GB", "FR", "DE")),
         ),
         defaultRegionOverride = "AU",
         // Non-default so the round trip proves the field is actually written.
@@ -126,6 +130,17 @@ class SimmoStateSerializationTest {
         """.trimIndent()
         val read = SimmoStateSerializer.readFrom(ByteArrayInputStream(json.encodeToByteArray()))
         assertEquals(true, read.rules.rules.single().enabled)
+    }
+
+    @Test
+    fun `state written before custom groups decodes with none`() = runTest {
+        // Existing users (no customGroups field) come up with an empty list,
+        // not a decode failure that would wipe their rules.
+        val json = """
+            {"rules":{"rules":[]},"simRegistry":[],"defaultRegionOverride":null,"installId":null}
+        """.trimIndent()
+        val read = SimmoStateSerializer.readFrom(ByteArrayInputStream(json.encodeToByteArray()))
+        assertEquals(emptyList<CustomGroup>(), read.customGroups)
     }
 
     @Test
