@@ -178,6 +178,9 @@ jobs:
       - name: Run groups screenshot tests
         run: ./gradlew :app:testDebugUnitTest --tests "app.simmo.ui.GroupsScreenshotTest" -Proborazzi.test.record=true
 
+      - name: Run settings screenshot tests
+        run: ./gradlew :app:testDebugUnitTest --tests "app.simmo.ui.SettingsScreenshotTest" -Proborazzi.test.record=true
+
       - name: Print failing test details
         if: failure()
         run: |

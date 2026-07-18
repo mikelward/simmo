@@ -390,7 +390,7 @@ sibling Type Launcher project:
   subscription-change listener, role/permission plumbing. Thin adapters over the domain,
   kept too small to hide logic.
 - **UI layer**: onboarding (role + permissions + default region), rules list + editor,
-  SIM registry, and the chooser activity. State via ViewModel + StateFlow; persistence
+  settings (home of the SIM registry), and the chooser activity. State via ViewModel + StateFlow; persistence
   via DataStore. Screenshot tests (Robolectric + Roborazzi) cover each screen
   state, per the CI conventions in `AGENTS.md`.
 

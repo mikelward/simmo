@@ -138,9 +138,13 @@
     <!-- TODO: translate -->
     <string name="group_caribbean_nanp_description" tools:ignore="MissingTranslation">Caribbean countries that dial like +1 but bill internationally</string>
     <!-- TODO: translate -->
-    <string name="sim_registry_title" tools:ignore="MissingTranslation">SIMs</string>
+    <string name="settings_title" tools:ignore="MissingTranslation">Settings</string>
     <!-- TODO: translate -->
-    <string name="sim_registry_open" tools:ignore="MissingTranslation">Manage SIMs</string>
+    <string name="settings_open" tools:ignore="MissingTranslation">Settings</string>
+    <!-- TODO: translate -->
+    <string name="settings_sims_description" tools:ignore="MissingTranslation">Every SIM Simmo has seen</string>
+    <!-- TODO: translate -->
+    <string name="sim_registry_title" tools:ignore="MissingTranslation">SIMs</string>
     <!-- TODO: translate -->
     <string name="sim_registry_explainer" tools:ignore="MissingTranslation">Every SIM Simmo has seen. Rules can use a SIM even while it\'s disabled.</string>
     <!-- TODO: translate -->
