@@ -428,10 +428,17 @@ System settings.
       Landed as `domain/DataRules.kt` + `domain/DataWatch.kt`, plus the
       persisted `SimmoState.dataRules` (pre-field state decodes to the preseed;
       install validation invalidates stored SimRefs like calling rules).
-- [ ] Data snapshot reader as an extension of the existing telephony refresh — no
+- [x] Data snapshot reader as an extension of the existing telephony refresh — no
       new runtime permissions (`READ_PHONE_STATE` covers the telephony reads; the
       connectivity layer below adds install-time `ACCESS_NETWORK_STATE`), off the
-      decision path.
+      decision path. Landed as `TelephonyReader.readDataState()` +
+      `SnapshotAssembler.currentDataSnapshot` (persistence landed separately):
+      the data sub's network country is read without the SIM-country fallback
+      so a roaming SIM's home can't mask where the user is; the watch's SIM
+      list comes from the subscription rows so data-only eSIMs are seen; and
+      the registry records data-only subscriptions too — flagged, never
+      offered as calling-rule targets — so the no-data nudge can name a
+      disabled local profile (both flagged by Codex on PR #52).
 - [ ] Warning notification: "Using data roaming" naming SIM and country, one
       Settings action into the data rules screen; fires once per SIM-and-country
       arrival (persisted dedupe, cleared when the country changes or a covering
@@ -459,9 +466,9 @@ System settings.
       prefilled Roaming OK rule with group-widening suggestions, "System settings"
       jumps out, and the subscription-change confirmation on return offers to save
       "Use <SIM> for data" for this country.
-- [ ] One label for leaving Simmo: rename the chooser's "SIM settings" button to
-      "System settings" so the same words mark every jump out (SPEC "Product
-      behavior" terminology).
+- [x] One label for leaving Simmo: the chooser's and SIM registry's jump is
+      labeled "System settings" so the same words mark every jump out (landed
+      with the terminology rename on PR #47).
 - [x] Decide the design questions (maintainer, 2026-07-18): preseed the EU/EEA
       roam-like-home rule; no Wi-Fi suppression (the warning is state-based); the
       no-data nudge fires rule-less, naming the local SIM to switch to or enable.

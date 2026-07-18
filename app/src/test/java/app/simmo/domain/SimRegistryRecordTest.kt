@@ -41,6 +41,117 @@ class SimRegistryRecordTest {
     }
 
     @Test
+    fun `a data-only sim registers without a rule prompt`() {
+        // A travel eSIM with no call-capable account: remembered (the no-data
+        // nudge must be able to name it once it's disabled) but never nagged
+        // about calling rules it could not serve.
+        val dataOnly = ActiveSim(5, "Orange", "Orange Holiday", PhoneAccountRef("subscription:5"), "fr")
+        assertEquals(
+            listOf(
+                RegisteredSim(1, "Telstra", "Telstra personal", 500L, needsRulePrompt = true),
+                RegisteredSim(
+                    5, "Orange", "Orange Holiday", 500L,
+                    countryIso = "fr", needsRulePrompt = false, callCapable = false,
+                    rulePromptOffered = false,
+                ),
+            ),
+            emptyList<RegisteredSim>().recordSeen(
+                listOf(telstraActive, dataOnly),
+                nowMillis = 500L,
+                callCapableIds = setOf(telstraActive.subscriptionId),
+            ),
+        )
+    }
+
+    @Test
+    fun `a transient Telecom miss cannot cost the new-SIM prompt`() {
+        // A call-capable SIM first recorded while Telecom briefly missed its
+        // account registers as data-only with no prompt; the refresh that
+        // sees the account must restore the never-offered prompt, not leave
+        // it suppressed forever.
+        val missed = emptyList<RegisteredSim>()
+            .recordSeen(listOf(telstraActive), nowMillis = 500L, callCapableIds = emptySet())
+        assertEquals(false, missed.single().needsRulePrompt)
+        assertEquals(
+            listOf(
+                RegisteredSim(
+                    1, "Telstra", "Telstra personal", 900L,
+                    needsRulePrompt = true, callCapable = true, rulePromptOffered = true,
+                ),
+            ),
+            missed.recordSeen(
+                listOf(telstraActive),
+                nowMillis = 900L,
+                callCapableIds = setOf(telstraActive.subscriptionId),
+            ),
+        )
+    }
+
+    @Test
+    fun `first-capture marking covers rows later promoted to call-capable`() {
+        // Fresh install while Telecom misses the accounts: the batch records
+        // data-only, and the first-capture suppression marks the WHOLE batch
+        // notified — so the later promotion restores the in-app prompt card
+        // but can never post a notification about a SIM present at install.
+        val batch = emptyList<RegisteredSim>()
+            .recordSeen(listOf(telstraActive), nowMillis = 500L, callCapableIds = emptySet())
+        val marked = batch.withNewSimNotified(batch.map { it.ref() })
+        val promoted = marked.recordSeen(listOf(telstraActive), nowMillis = 900L)
+        assertEquals(true, promoted.single().needsRulePrompt)
+        assertEquals(
+            emptyList<RegisteredSim>(),
+            promoted.pendingNewSimNotifications(listOf(telstraActive)),
+        )
+    }
+
+    @Test
+    fun `a rebind takes capability as fresh truth without re-asking the prompt`() {
+        // An answered call-capable row re-binds to a profile with no
+        // call-capable account — a genuinely data-only replacement, or a
+        // degraded Telecom read. Capability follows the adopted profile (so
+        // the editor stops offering a target that can't call), while the
+        // prompt history keeps a later promotion from re-asking a prompt the
+        // user already answered.
+        val answered = RegisteredSim(5, "Telstra", "Telstra personal", 100L, needsRulePrompt = false)
+        val redownloaded = ActiveSim(9, "Telstra", "Telstra personal", PhoneAccountRef("a9"))
+        val rebound = listOf(answered).recordSeen(
+            listOf(redownloaded),
+            nowMillis = 900L,
+            callCapableIds = emptySet(),
+        )
+        assertEquals(
+            listOf(
+                RegisteredSim(
+                    9, "Telstra", "Telstra personal", 900L,
+                    needsRulePrompt = false, callCapable = false, rulePromptOffered = true,
+                ),
+            ),
+            rebound,
+        )
+        // The follow-up exact-id refresh that sees the account again promotes
+        // the capability but must not re-ask the answered prompt.
+        val promoted = rebound.recordSeen(listOf(redownloaded), nowMillis = 950L).single()
+        assertEquals(true, promoted.callCapable)
+        assertEquals(false, promoted.needsRulePrompt)
+    }
+
+    @Test
+    fun `a degraded refresh cannot demote a call-capable sim`() {
+        // Telecom can briefly report no accounts while the subscription list
+        // still reads; the flag is sticky-true so the editor's options don't
+        // flap in and out on read noise.
+        val known = RegisteredSim(1, "Telstra", "Telstra personal", 100L)
+        assertEquals(
+            listOf(known.copy(lastSeenEpochMillis = 900L)),
+            listOf(known).recordSeen(
+                listOf(telstraActive),
+                nowMillis = 900L,
+                callCapableIds = emptySet(),
+            ),
+        )
+    }
+
+    @Test
     fun `answering the prompt clears exactly that sim`() {
         val telstra = RegisteredSim(1, "Telstra", "Telstra personal", 100L, needsRulePrompt = true)
         val tmobile = RegisteredSim(2, "T-Mobile", "T-Mobile US", 100L, needsRulePrompt = true)

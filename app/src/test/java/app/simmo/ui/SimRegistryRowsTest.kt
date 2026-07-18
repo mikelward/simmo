@@ -32,6 +32,18 @@ class SimRegistryRowsTest {
     }
 
     @Test
+    fun `a data-only subscription counts as active`() {
+        // The SIMs screen unions the call snapshot with the subscription
+        // rows: an active travel eSIM without calling must not be shown and
+        // sorted as merely "last seen".
+        val dataOnly = ActiveSim(5, "Orange", "Orange Holiday", PhoneAccountRef("subscription:5"), "fr")
+        val registry = listOf(
+            RegisteredSim(5, "Orange", "Orange Holiday", 100L, countryIso = "fr", callCapable = false),
+        )
+        assertEquals(true, rows(registry, listOf(telstraActive, dataOnly)).single().active)
+    }
+
+    @Test
     fun `detail line shows the sim's number and country`() {
         val registry = listOf(
             RegisteredSim(1, "Telstra", "Telstra personal", 100L, countryIso = "au", phoneNumber = "+61412345678"),

@@ -231,7 +231,10 @@ require carrier privileges or system permissions — so Simmo:
 1. Maintains a **SIM registry**: every subscription Simmo has ever seen active, with its
    stable identity, last-seen time, and last-known home country and own line number
    (captured while the SIM was active, so they still show for a disabled profile; the
-   number needs optional `READ_PHONE_NUMBERS`). Rules can reference any registered SIM,
+   number needs optional `READ_PHONE_NUMBERS`). Data-only subscriptions — travel
+   eSIMs without calling — are registered too, so the roaming watch's no-data nudge
+   can name a disabled local profile (see "Data rules"); they are never offered as
+   calling-rule targets. Rules can reference any registered call-capable SIM,
    active or not. The SIMs screen shows each entry with its number and country; registry
    entries can be renamed and deleted in settings.
 2. A rule targeting an inactive SIM is skipped during evaluation (see "Calling

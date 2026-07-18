@@ -48,6 +48,11 @@ class SimmoStateSerializationTest {
             // Non-default country + number so the round trip proves they're written.
             RegisteredSim(1, "Telstra", "Telstra personal", 1_000L, countryIso = "au", phoneNumber = "+61412345678"),
             RegisteredSim(2, "T-Mobile", "T-Mobile US", 2_000L),
+            // Non-default flags so the round trip proves they are written.
+            RegisteredSim(
+                5, "Orange", "Orange Holiday", 3_000L,
+                countryIso = "fr", callCapable = false, rulePromptOffered = false,
+            ),
         ),
         customGroups = listOf(
             CustomGroup("custom:1", "Vodafone Zone 1", listOf("GB", "FR", "DE")),

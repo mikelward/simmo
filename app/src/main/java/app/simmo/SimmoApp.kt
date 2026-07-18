@@ -342,28 +342,47 @@ class SimmoApp : Application() {
     }
 
     private suspend fun recordSims() {
-        val active = assembler.activeSims()
-        maybeOfferHeldCall(active)
+        // The held-call offer routes calls, so it only looks at call-capable
+        // SIMs; the registry records every subscription — a data-only travel
+        // eSIM must be remembered so the roaming watch's no-data nudge can
+        // name it after it's disabled (Codex on PR #52). Data-only rows never
+        // start a rule prompt, so the new-SIM nudges below stay call-scoped.
+        val callCapableActive = assembler.activeSims()
+        maybeOfferHeldCall(callCapableActive)
+        val active = assembler.allActiveSims()
         val holder = stateHolderFlow.value ?: return
         if (active.isEmpty()) return
         // The capture reports whether it populated a previously empty
         // registry (fresh install): that first batch registers every current
         // SIM at once, and nudging about SIMs the user has had all along
         // would just be noise — marked notified without posting.
-        val capture = holder.recordSeenSims(active, System.currentTimeMillis())
-        val pending = capture.registry.pendingNewSimNotifications(active)
-        if (pending.isEmpty()) return
-        when {
-            capture.firstCapture -> holder.markNewSimsNotified(pending.map { it.ref() })
-            notifications.canPost() -> {
-                pending.forEach { sim ->
-                    notifications.postNewSim(sim.displayName.ifBlank { sim.carrierName })
-                }
-                holder.markNewSimsNotified(pending.map { it.ref() })
-            }
+        val capture =
+            holder.recordSeenSims(active, System.currentTimeMillis(), assembler.callCapableIds())
+        if (capture.firstCapture) {
+            // The whole batch, not just the call-capable pending rows: a SIM
+            // Telecom's account list missed this instant records as data-only
+            // and gets promoted on a later refresh — by then firstCapture is
+            // false, and only this mark keeps the promotion from posting a
+            // notification about a SIM present at install (Codex on PR #52).
+            // The promotion still restores the in-app prompt card, exactly
+            // what a normal fresh install shows.
+            holder.markNewSimsNotified(capture.registry.map { it.ref() })
+            return
+        }
+        // Gated on the call-capable snapshot, not the capture's union: the
+        // notification opens the rules list, whose prompt card derives from
+        // that same snapshot — posting during a degraded Telecom read would
+        // land the tap on a screen with no matching prompt (Codex on PR #52).
+        val pending = capture.registry.pendingNewSimNotifications(callCapableActive)
+        if (pending.isEmpty() || !notifications.canPost()) {
             // No permission: leave unmarked so a later grant can still nudge
             // about a SIM whose prompt is genuinely unanswered.
+            return
         }
+        pending.forEach { sim ->
+            notifications.postNewSim(sim.displayName.ifBlank { sim.carrierName })
+        }
+        holder.markNewSimsNotified(pending.map { it.ref() })
     }
 
     /**
