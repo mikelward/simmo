@@ -367,7 +367,11 @@ Android Auto safeguards").
       first Play release built with Firebase enabled.
 - [ ] A post-onboarding surface to change the "Make Simmo better" opt-in — today
       the toggle exists only on the onboarding screen, so a user who finished
-      setup has no in-app way to change their mind.
+      setup has no in-app way to change their mind (Codex on PR #37). **Blocks
+      the first release built with Firebase enabled**, same as the data safety
+      form above: the privacy policy says the switch controls collection, so a
+      shipped build must keep the switch reachable. Natural home: the in-app
+      About surface already planned for the privacy-policy link (Phase 8).
 - [ ] Evaluate confirm-first system redirect UX vs. custom chooser for the simple case.
 - [ ] Carrier-name stability for re-binding (roaming/MVNO rebrand data needed).
 - [ ] Per-number overrides.
