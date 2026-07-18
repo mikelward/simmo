@@ -88,6 +88,8 @@ small stack), fully unit-tested, with `./gradlew test` and `./gradlew lint` gree
       on) that the engine skips over — kept in place and greyed with its own "Disabled"
       label, distinct from the automatic SIM-pause skips. Reorder stays on the drag
       handle, so long-press never contends with it.
+- [x] Confirm before deleting a rule (from the menu or the editor) or a custom group,
+      so a mistap can't silently drop a rule or break the rules that reference a group.
 - [x] Country picker search: a searchable full-screen subpage (reached from the editor's
       country row) that fuzzy-matches by name, dial code, ISO alpha-2/alpha-3, and aliases
       (UK/USA/America), ranked exact/prefix-first with capitals-match-capitals acronym

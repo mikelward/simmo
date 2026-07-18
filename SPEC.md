@@ -19,7 +19,9 @@ Rules are an **ordered list**, evaluated top to bottom for every outgoing call; 
 first *applicable* rule decides the call and evaluation stops. The user drags a rule's
 handle to reorder, taps it to edit, and reaches a per-rule menu (its ⋮ button or a
 long-press) to **edit, duplicate, enable/disable, or delete** it — duplicate drops a
-copy directly below the original as the starting point for a variant. A rule pairs a
+copy directly below the original as the starting point for a variant, and delete asks
+to confirm first (as does deleting a custom group, since rules can reference it). A rule
+pairs a
 **matcher** with an **action**:
 
 - **Matcher**: one or more destination countries (ISO regions, shown with their

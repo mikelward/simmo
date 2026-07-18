@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.DropdownMenu
@@ -38,6 +39,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -117,6 +119,9 @@ internal fun RulesScreenContent(
         if (dragState.draggingIndex == null) workingRows = null
     }
     val displayRows = workingRows ?: rows
+    // The rule the ⋮/long-press menu asked to delete, awaiting confirmation;
+    // saveable so a rotation mid-confirm keeps the dialog rather than dropping it.
+    var pendingDeleteRule: Int? by rememberSaveable { mutableStateOf<Int?>(null) }
 
     Surface(modifier = Modifier.fillMaxSize()) {
         Box(modifier = Modifier.fillMaxSize()) {
@@ -175,7 +180,7 @@ internal fun RulesScreenContent(
                             index = index,
                             onClick = { onEditRule(index) },
                             onDuplicate = { onDuplicateRule(index) },
-                            onDelete = { onDeleteRule(index) },
+                            onDelete = { pendingDeleteRule = index },
                             onSetEnabled = { enabled -> onSetRuleEnabled(index, enabled) },
                             modifier = Modifier
                                 // Draw the dragged row above its neighbors. The
@@ -202,6 +207,28 @@ internal fun RulesScreenContent(
                 )
             }
         }
+    }
+    pendingDeleteRule?.let { index ->
+        AlertDialog(
+            onDismissRequest = { pendingDeleteRule = null },
+            title = { Text(stringResource(R.string.rule_delete_title)) },
+            text = { Text(stringResource(R.string.rule_delete_body)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        pendingDeleteRule = null
+                        onDeleteRule(index)
+                    },
+                ) {
+                    Text(stringResource(R.string.editor_delete))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingDeleteRule = null }) {
+                    Text(stringResource(R.string.editor_cancel))
+                }
+            },
+        )
     }
 }
 

@@ -6,11 +6,14 @@ import android.view.View
 import androidx.activity.ComponentActivity
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onLast
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import app.simmo.domain.CustomGroup
 import com.github.takahirom.roborazzi.captureRoboImage
+import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -72,6 +75,30 @@ class GroupsScreenshotTest {
         composeRule.onNodeWithText("Edit group").assertExists()
         // The member country shows as a removable entry, labeled from options.
         composeRule.onNodeWithText("+1 United States").assertExists()
+    }
+
+    @Test
+    fun deletingAGroupAsksToConfirmFirst() {
+        var deleted: String? = null
+        composeRule.setContent {
+            MaterialTheme {
+                GroupsContent(
+                    groups = listOf(CustomGroup("custom:1", "Work trips", listOf("US"))),
+                    countryOptions = listOf(CountryOptionUi("US", "+1 United States")),
+                    onDeleteGroup = { deleted = it },
+                )
+            }
+        }
+        composeRule.onNodeWithText("Work trips").performClick() // open its editor
+        // The editor's own Delete button (only "Delete" on screen at this point).
+        composeRule.onNodeWithText("Delete").performClick()
+        // The confirm dialog names the group; nothing is deleted yet.
+        composeRule.onNodeWithText("Delete Work trips?").assertExists()
+        composeRule.runOnIdle { assertEquals(null, deleted) }
+        // Now the editor's button and the dialog's confirm both read "Delete";
+        // the confirm composes later, so it's the last of the two.
+        composeRule.onAllNodesWithText("Delete").onLast().performClick()
+        composeRule.runOnIdle { assertEquals("custom:1", deleted) }
     }
 
     private fun captureSnapshot(name: String, widthPx: Int = 1080, heightPx: Int = 1920) {
