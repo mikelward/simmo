@@ -5,6 +5,7 @@ import com.google.firebase.FirebaseApp
 import com.google.firebase.analytics.FirebaseAnalytics
 import com.google.firebase.crashlytics.FirebaseCrashlytics
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 
 /**
@@ -24,9 +25,17 @@ class TelemetryGate(private val setCollectionEnabled: (Boolean) -> Unit) {
         setCollectionEnabled(enabled)
     }
 
-    /** Applies [optIns] to the collection switches as it changes; never returns. */
-    suspend fun follow(optIns: Flow<Boolean>) {
-        optIns.distinctUntilChanged().collect { setCollectionEnabled(it) }
+    /**
+     * Applies the opt-in to the collection switches as it changes; never
+     * returns. [taps] carries the user's in-process choices (null until the
+     * first tap) and masks [persisted]: a tap must win instantly and stay
+     * won — a staler stored value still making its way through the async
+     * write must not briefly re-enable collection.
+     */
+    suspend fun follow(persisted: Flow<Boolean>, taps: Flow<Boolean?>) {
+        persisted.combine(taps) { stored, tapped -> tapped ?: stored }
+            .distinctUntilChanged()
+            .collect { setCollectionEnabled(it) }
     }
 
     companion object {

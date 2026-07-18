@@ -61,6 +61,9 @@ class SimmoApp : Application() {
     /** Null in builds without a Firebase config (see SETUP.md). */
     private val telemetry by lazy { TelemetryGate.firebase(this) }
 
+    /** The latest in-process opt-in tap (null before the first); see [setAnalyticsOptIn]. */
+    private val optInTaps = MutableStateFlow<Boolean?>(null)
+
     /**
      * Snapshot readiness includes warm parsing metadata: until [detector]'s
      * warm-up completes, decisions would load parser tables on the live
@@ -136,12 +139,15 @@ class SimmoApp : Application() {
         appScope.launch {
             // Crash reporting and analytics follow the persisted "Make Simmo
             // better" choice; until the state loads, the manifest keeps
-            // collection off. No-op in builds without a Firebase config.
+            // collection off, and in-process taps mask staler persisted
+            // values (see setAnalyticsOptIn). No-op in builds without a
+            // Firebase config.
             val gate = telemetry ?: return@launch
             gate.follow(
-                stateHolderFlow.filterNotNull().first().state
+                persisted = stateHolderFlow.filterNotNull().first().state
                     .filterNotNull()
                     .map { it.analyticsOptIn },
+                taps = optInTaps,
             )
         }
         refreshTelephony()
@@ -242,10 +248,12 @@ class SimmoApp : Application() {
      * first seconds after install, before the eager load has published.
      */
     fun setAnalyticsOptIn(enabled: Boolean) {
-        // Apply to the SDKs before persisting: the write below can lag (it
-        // waits for the state holder), and a crash or upload in that window
-        // must already honor the tap. The persisted flow re-applies the same
-        // value later, which the SDK switches take idempotently.
+        // The persisted write below can lag (it waits for the state holder),
+        // and a crash or upload in that window must already honor the tap:
+        // apply to the SDKs now, and publish the tap so the gate's collector
+        // masks any staler persisted emission instead of briefly re-enabling
+        // collection from it.
+        optInTaps.value = enabled
         telemetry?.set(enabled)
         appScope.launch {
             stateHolderFlow.filterNotNull().first().setAnalyticsOptIn(enabled)
