@@ -272,9 +272,9 @@ country group, the same picker and groups as calling rules, but matched against
 
 1. **Use <SIM> for data** — this SIM should carry data here. Simmo warns on arrival
    when a different SIM is the data SIM — before roaming data flows, not after — and
-   guides the switch. It also covers the stranded shape: a non-local data SIM with
-   data roaming off means *no data at all*, and the same nudge names the local SIM
-   that would fix it.
+   guides the switch. (The stranded shape — no data at all because roaming is off on
+   a non-local data SIM — is handled even without a rule; see the no-data nudge
+   below.)
 2. **Roaming OK** — data roaming here is expected (paid for, or free); no warning.
    Optionally scoped to specific SIMs, because roaming agreements are per plan: "in
    EU/EEA, roaming OK on Vodafone" stays quiet for the Vodafone SIM but still warns
@@ -286,7 +286,28 @@ Data rules are an ordered list, first match wins, with the same editing surface 
 calling rules (drag to reorder, tap to edit, per-rule menu). When no rule matches,
 the default is to **warn when the active data SIM is roaming** — once per
 SIM-and-country arrival, never a repeat nag for the same trip; a SIM on its home
-network never warns.
+network never warns. The warning is about *state*, not current traffic (maintainer,
+2026-07): it fires on arrival even while Wi-Fi is carrying the bytes, because the
+roaming leak starts the moment Wi-Fi drops and the arrival is the one moment worth
+catching — the per-arrival dedupe already caps the noise at one notification.
+
+**Preseeded default.** A fresh install seeds one data rule (maintainer, 2026-07):
+*When in EU/EEA → Roaming OK on SIMs homed in EU/EEA* — the regulation-backed
+roam-like-at-home arrangement, label-faithful and stable the way the shipped
+country groups are, so an EU user's first trip inside the zone stays silent instead
+of warning about roaming that is free by law. It is an ordinary rule — visible,
+reorderable, editable, deletable — and its SIM scope, "SIMs homed in the matched
+countries," is the data-side sibling of the calling side's matching-country action.
+
+**No-data nudge (rule-less).** When the data SIM is not local and its data roaming
+is off, the user simply has *no mobile data* — a connectivity problem, not a
+billing one — so Simmo nudges without requiring any rule (maintainer, 2026-07):
+"No data here — Telstra is local," naming the SIM to switch to, or the SIM to
+*enable first* when the local SIM is a registered-but-disabled profile (the SIM
+registry keeps each SIM's last-known home country precisely so a disabled eSIM can
+still be recognized as local). The nudge only fires when there is such a SIM to
+offer, follows the same Settings-into-triage flow, and "This is OK" records the
+opt-out for that country like any other data rule.
 
 **Watched, not enforced.** Changing the default data SIM or a SIM's data-roaming
 toggle needs carrier privileges or `MODIFY_PHONE_STATE` (the same wall the Quick
@@ -648,10 +669,3 @@ redirection service only ever reads the snapshot.
   Auto picking a contact's overseas entry over their local one) is fixable at the
   contact level before Simmo is consulted; and how best to identify "driving" for the
   call guard — the platform's per-call interactive-UI flag vs. car-mode signals.
-- Data rules: whether to preseed "when in EU/EEA → roaming OK on SIMs homed in
-  EU/EEA" — regulation-backed roam-like-at-home, symmetric with the calling side's
-  matching-country default — or ship no data rules and let the first triage create
-  them; whether the roaming warning should be suppressed while Wi-Fi is the default
-  network (background cellular can still leak); and whether the no-data nudge (data
-  roaming off on a non-local data SIM) should fire even with no rule, since it fixes
-  connectivity rather than billing.
