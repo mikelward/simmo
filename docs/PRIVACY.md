@@ -1,6 +1,6 @@
 # Simmo privacy policy
 
-**Effective date: July 17, 2026**
+**Effective date: July 18, 2026**
 
 Simmo picks the right SIM (or calling app) for your outgoing calls based on rules
 you set. The short version of this policy: **Simmo collects nothing, transmits
@@ -43,17 +43,34 @@ appear in a backup.
 
 ## Permissions
 
-- **Call redirection role** — lets Android ask Simmo about each outgoing call so a
-  rule can pick the SIM.
-- **Read phone status (`READ_PHONE_STATE`)** — lets Simmo list your SIMs and
-  calling accounts so rules can name them.
-- **Make calls (`CALL_PHONE`)** — lets Simmo place the call on the SIM or app you
-  chose.
-- **Notifications (`POST_NOTIFICATIONS`)** — used for reminders such as "your SIM
-  is now active — place the call?".
-- **Contacts (`READ_CONTACTS`)** — optional, requested only if you enable features
-  that need it (such as correcting a call to a contact's local number). Contact
-  data is read on your device only and never leaves it.
+Only the first two are required. Everything else is optional: you can skip any
+optional permission during setup (Skip proceeds without it) and grant it
+later, either from system settings or when a feature asks for it in context.
+Skipping an optional permission only disables the feature that uses it.
+
+**Required — Simmo cannot route calls without these:**
+
+- **Read phone status (`READ_PHONE_STATE`)** — lists your SIMs and calling
+  accounts, so rules can name them and Simmo can recognize your SIMs.
+- **Call redirection role** — lets Android ask Simmo about each outgoing call, so
+  your rules can pick the SIM.
+
+**Optional — each unlocks a specific feature:**
+
+- **Contacts (`READ_CONTACTS`)** — used to recognize that a dialed number belongs
+  to one of your contacts. Powers calling a contact through another app (such as
+  WhatsApp) and the "suggested countries from your contacts" shortcut in the
+  country picker. Contact data is read on your device only and never leaves it.
+  Without this permission, those features simply don't activate.
+- **Notifications (`POST_NOTIFICATIONS`)** — used for reminders and error
+  notices: "your SIM is now active — place the call?", "new SIM — add a rule?",
+  and "couldn't open Google Voice" with a Redial shortcut. Without it, error
+  notices appear as a brief on-screen message instead, and the reminders don't
+  appear.
+- **Make calls (`CALL_PHONE`)** — used to place a call in one tap when you
+  confirm a choice in Simmo's chooser or tap Redial on an error notice. Without
+  it, Simmo opens your dialer with the number filled in and you place the call
+  yourself.
 
 ## Emergency calls
 

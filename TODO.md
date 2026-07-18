@@ -57,6 +57,14 @@ small stack), fully unit-tested, with `./gradlew test` and `./gradlew lint` gree
 - [x] Onboarding: request `ROLE_CALL_REDIRECTION` via `RoleManager` and
       `READ_PHONE_STATE` (default-region override UI comes with Phase 3 settings);
       readers degrade to empty state while grants are missing.
+  - [x] Rows are benefit-led and ordered by the user's mental model ("See your
+        SIMs" then "Call using the right SIM"; optional "Show errors and
+        shortcuts", "Retry failed calls", "Call your contacts"), the screen
+        scrolls so Continue stays reachable at large font scales, and onboarding no
+        longer auto-advances when the required grants land — Skip (left) leaves
+        with whatever is granted and Continue (right, disabled until every grant
+        and the analytics opt-in are on) is the affirmative finish, so the
+        optional rows get their moment.
 - [x] Subscription + phone-account snapshot readers and change listeners; SIM registry
       capture of newly seen subscriptions, including each SIM's home country
       (`SubscriptionInfo.countryIso`) for the matching-country default rule.
@@ -234,9 +242,23 @@ can't dial an arbitrary number and are out of scope.
         hand-offs. (The undetectable case — the app opens to a setup screen because it
         isn't provisioned — still can't be surfaced reactively; a proactive editor hint
         is the follow-up.)
+  - [x] Notifications-off coverage for the failure notice: picking a hand-off action
+        in the editor asks for `POST_NOTIFICATIONS` once (WhatsApp chains it after the
+        contacts ask — two permission dialogs can't be in flight together), a "Let
+        Simmo tell you if there's a <app> problem" hint with an Allow button sits
+        under the selected action while notifications are off (falling back to the
+        app's notification settings when the request dialog can't show), and a
+        notice that can't post (permission denied, notifications off, or the
+        sim_assist channel blocked) degrades to a plain text toast — a failed
+        hand-off is never silent.
+  - [ ] Device QA owed for the toast fallback: confirm a plain text toast from the
+        redirection service actually shows on Android 12+ (background *custom* toasts
+        are blocked; text toasts should pass) — it is the notifications-off surfacing
+        of the failure notice.
   - [ ] Proactive readiness hint in the editor when a hand-off app is picked ("requires
         <app> set up to place calls") — the only honest coverage of the undetectable
-        installed-but-unprovisioned case.
+        installed-but-unprovisioned case. Natural home: the same under-action hint slot
+        the notifications hint uses.
   - [ ] Background-activity-launch (BAL): a silently blocked `startActivity` from the
         service returns without throwing, so the cancel-first path can't detect it — the
         carrier call is already cancelled and both the app launch and the permission-free
@@ -307,6 +329,12 @@ Android Auto safeguards").
 
 ## Deferred / open (see also SPEC "Open questions")
 
+- [ ] Permission-health surface on the rules list: one status banner when Simmo can't
+      do its job or can't say why — redirection role lost to another app,
+      `READ_PHONE_STATE` revoked, notifications off while hand-off rules exist. A
+      single surface, not per-permission nags; the editor's hand-off hint covers the
+      editing moment only, and a role/phone-state loss currently just drops the user
+      back to onboarding with no explanation on the rules list itself.
 - [ ] Decide on crash reporting (Crashlytics) and usage analytics — under
       consideration per SPEC "Permissions and privacy". Would add the `INTERNET`
       permission. Candidate signals: SIM name × destination country routing counts,

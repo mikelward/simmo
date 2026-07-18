@@ -7,7 +7,10 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.provider.Settings
+import android.widget.Toast
 import androidx.core.app.NotificationChannelCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
@@ -23,8 +26,12 @@ import app.simmo.ui.ChooserActivity
  * "new SIM" nudge. Both degrade to nothing when POST_NOTIFICATIONS isn't
  * granted — the in-app surfaces still exist — and neither ever places a call
  * itself: tapping opens the chooser (or the rules list) and the user decides.
+ * The hand-off failure notice is the exception: it must never be silent (the
+ * user just watched the wrong thing happen), so it degrades to a toast.
  */
 class SimNotifications(private val context: Context) {
+
+    private val mainHandler = Handler(Looper.getMainLooper())
 
     fun canPost(): Boolean {
         val permitted = Build.VERSION.SDK_INT < 33 ||
@@ -79,7 +86,13 @@ class SimNotifications(private val context: Context) {
      * opens the dialer), so the rule hands off once more now that the app works.
      */
     fun postHandOffFailed(appLabel: String, packageName: String, number: String, placed: Boolean) {
-        if (!canPost()) return
+        // The channel check matters too: a user who blocked just the
+        // sim_assist channel leaves canPost() true, and notify() on a blocked
+        // channel is suppressed without throwing (Codex on PR #32).
+        if (!canPost() || isChannelBlocked()) {
+            toastHandOffFailed(appLabel, placed)
+            return
+        }
         val manager = NotificationManagerCompat.from(context)
         manager.createNotificationChannel(
             NotificationChannelCompat.Builder(CHANNEL_ID, NotificationManagerCompat.IMPORTANCE_DEFAULT)
@@ -122,7 +135,31 @@ class SimNotifications(private val context: Context) {
             manager.notify(tag, NOTIFICATION_ID, notification)
         } catch (_: SecurityException) {
             // Permission revoked between the check and the post.
+            toastHandOffFailed(appLabel, placed)
         }
+    }
+
+    /** Whether the sim_assist channel exists but the user has blocked it. */
+    private fun isChannelBlocked(): Boolean =
+        NotificationManagerCompat.from(context)
+            .getNotificationChannelCompat(CHANNEL_ID)
+            ?.importance == NotificationManagerCompat.IMPORTANCE_NONE
+
+    /**
+     * The notifications-off fallback for the hand-off failure: a plain text
+     * toast (still allowed from the background, unlike custom toasts). It
+     * can't carry the Settings/Redial actions, but the dropped case already
+     * opens the dialer with the number as its own permission-free recovery.
+     * Whether the toast reliably shows from the redirection service on modern
+     * Android is on the device-QA list (TODO.md Phase 5).
+     */
+    private fun toastHandOffFailed(appLabel: String, placed: Boolean) {
+        val text = context.getString(
+            if (placed) R.string.handoff_failed_toast_placed
+            else R.string.handoff_failed_toast_dropped,
+            appLabel,
+        )
+        mainHandler.post { Toast.makeText(context, text, Toast.LENGTH_LONG).show() }
     }
 
     private fun activityPending(key: String, intent: Intent): PendingIntent =
@@ -169,18 +206,20 @@ class SimNotifications(private val context: Context) {
         }
     }
 
-    private companion object {
-        const val CHANNEL_ID = "sim_assist"
-        const val NOTIFICATION_ID = 1
-        const val TAG_HELD_CALL = "held_call"
-        const val TAG_NEW_SIM = "new_sim:"
-        const val TAG_HANDOFF_FAILED = "handoff_failed:"
+    companion object {
+        /** Shared with the editor's notifications hint, which must treat a
+         * blocked channel the same as notifications-off (Codex on PR #32). */
+        internal const val CHANNEL_ID = "sim_assist"
+        private const val NOTIFICATION_ID = 1
+        private const val TAG_HELD_CALL = "held_call"
+        private const val TAG_NEW_SIM = "new_sim:"
+        private const val TAG_HANDOFF_FAILED = "handoff_failed:"
 
         /**
          * Floor for the self-dismiss window: the store only hands out live
          * held calls, but a race at the TTL edge must still leave the user a
          * moment to see the offer rather than posting a zero-length one.
          */
-        const val MIN_TIMEOUT_MILLIS = 30_000L
+        private const val MIN_TIMEOUT_MILLIS = 30_000L
     }
 }

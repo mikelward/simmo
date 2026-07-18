@@ -2,13 +2,13 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
     <string name="app_name">Simmo</string>
     <!-- TODO: translate -->
-    <string name="onboarding_intro" tools:ignore="MissingTranslation">Simmo picks the right SIM for every call you make, using your rules. Two things are needed first.</string>
+    <string name="onboarding_intro" tools:ignore="MissingTranslation">Simmo picks the right SIM for every call you make, using your rules. It needs these permissions to work best.</string>
     <!-- TODO: translate -->
-    <string name="onboarding_role_label" tools:ignore="MissingTranslation">Let Simmo manage outgoing calls</string>
+    <string name="onboarding_role_label" tools:ignore="MissingTranslation">Call using the right SIM</string>
     <!-- TODO: translate -->
     <string name="onboarding_role_button" tools:ignore="MissingTranslation">Allow</string>
     <!-- TODO: translate -->
-    <string name="onboarding_phone_permission_label" tools:ignore="MissingTranslation">Let Simmo see your SIMs</string>
+    <string name="onboarding_phone_permission_label" tools:ignore="MissingTranslation">See your SIMs</string>
     <!-- TODO: translate -->
     <string name="onboarding_phone_permission_button" tools:ignore="MissingTranslation">Allow</string>
     <!-- TODO: translate -->
@@ -18,7 +18,9 @@
     <!-- TODO: translate -->
     <string name="onboarding_analytics_description" tools:ignore="MissingTranslation">Share anonymous usage stats — never the numbers you call</string>
     <!-- TODO: translate -->
-    <string name="onboarding_ready" tools:ignore="MissingTranslation">All set. Your calls now follow your rules.</string>
+    <string name="onboarding_skip" tools:ignore="MissingTranslation">Skip</string>
+    <!-- TODO: translate -->
+    <string name="onboarding_continue" tools:ignore="MissingTranslation">Continue</string>
     <!-- TODO: translate -->
     <string name="rules_title" tools:ignore="MissingTranslation">Rules</string>
     <!-- TODO: translate -->
@@ -136,13 +138,17 @@
     <!-- TODO: translate -->
     <string name="sim_registry_delete_body" tools:ignore="MissingTranslation">Rules that use this SIM stay paused until a matching SIM appears again.</string>
     <!-- TODO: translate -->
-    <string name="onboarding_notifications_label" tools:ignore="MissingTranslation">Get notified about SIM changes (optional)</string>
+    <string name="onboarding_notifications_label" tools:ignore="MissingTranslation">Show errors and shortcuts</string>
     <!-- TODO: translate -->
     <string name="onboarding_notifications_button" tools:ignore="MissingTranslation">Allow</string>
     <!-- TODO: translate -->
-    <string name="onboarding_call_permission_label" tools:ignore="MissingTranslation">Retry failed calls (optional)</string>
+    <string name="onboarding_call_permission_label" tools:ignore="MissingTranslation">Retry failed calls</string>
     <!-- TODO: translate -->
     <string name="onboarding_call_permission_button" tools:ignore="MissingTranslation">Allow</string>
+    <!-- TODO: translate -->
+    <string name="onboarding_contacts_permission_label" tools:ignore="MissingTranslation">Call your contacts</string>
+    <!-- TODO: translate -->
+    <string name="onboarding_contacts_permission_button" tools:ignore="MissingTranslation">Allow</string>
     <!-- TODO: translate -->
     <string name="notification_channel_name" tools:ignore="MissingTranslation">SIM assist</string>
     <!-- TODO: translate -->
@@ -159,4 +165,12 @@
     <string name="handoff_failed_settings" tools:ignore="MissingTranslation">Settings</string>
     <!-- TODO: translate -->
     <string name="handoff_failed_redial" tools:ignore="MissingTranslation">Redial</string>
+    <!-- TODO: translate -->
+    <string name="handoff_failed_toast_placed" tools:ignore="MissingTranslation">Couldn\'t open %1$s. Placed the call on your carrier instead.</string>
+    <!-- TODO: translate -->
+    <string name="handoff_failed_toast_dropped" tools:ignore="MissingTranslation">Couldn\'t open %1$s. Redial to place your call.</string>
+    <!-- TODO: translate -->
+    <string name="editor_notifications_hint" tools:ignore="MissingTranslation">Let Simmo tell you if there\'s a %1$s problem</string>
+    <!-- TODO: translate -->
+    <string name="editor_notifications_allow" tools:ignore="MissingTranslation">Allow</string>
 </resources>

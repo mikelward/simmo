@@ -15,9 +15,12 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -26,6 +29,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -56,7 +60,15 @@ class MainActivity : ComponentActivity() {
             MaterialTheme {
                 var phoneGranted by remember { mutableStateOf(isPhonePermissionGranted()) }
                 var contactsGranted by remember { mutableStateOf(isContactsPermissionGranted()) }
-                var ready by remember {
+                // rememberSaveable, not remember: a rotation (or process death
+                // with saved state) mid-onboarding must restore the in-progress
+                // false rather than recompute from the grants — otherwise
+                // granting the required rows and rotating would skip straight
+                // past the optional rows, making Continue not actually the only
+                // exit (Codex on PR #32). A fresh launch has no saved state and
+                // computes from the grants as before, so returning users still
+                // land on the rules list directly.
+                var ready by rememberSaveable {
                     mutableStateOf(isRedirectionRoleHeld() && isPhonePermissionGranted())
                 }
                 // Grants can change while we're backgrounded (revoked in
@@ -66,6 +78,13 @@ class MainActivity : ComponentActivity() {
                 // the refreshes must also run on that transition.
                 OnResume {
                     val nowGranted = isPhonePermissionGranted()
+                    // A resume only ever revokes readiness (role or permission
+                    // lost → back to onboarding). It never grants it: while
+                    // onboarding is showing, the user leaves via its Skip/Continue
+                    // button, not the moment the required grants land — the
+                    // permission dialogs themselves trigger resumes, and
+                    // auto-advancing would yank the optional rows away.
+                    ready = ready && isRedirectionRoleHeld() && nowGranted
                     // Any transition invalidates the cached SIM snapshot: a
                     // grant must populate it, a revocation must clear it (the
                     // refresh reads back empty without the permission) so the
@@ -87,7 +106,6 @@ class MainActivity : ComponentActivity() {
                         if (contactsNowGranted) app.refreshContacts() else app.clearContacts()
                     }
                     contactsGranted = contactsNowGranted
-                    ready = isRedirectionRoleHeld() && nowGranted
                 }
                 if (ready) {
                     val vm = viewModel<RulesViewModel>()
@@ -134,6 +152,14 @@ class MainActivity : ComponentActivity() {
                         isPhonePermissionGranted = ::isPhonePermissionGranted,
                         isNotificationsGranted = ::isNotificationsGranted,
                         isCallPermissionGranted = ::isCallPermissionGranted,
+                        isContactsPermissionGranted = ::isContactsPermissionGranted,
+                        onContactsPermissionGranted = {
+                            // Sync the router's copy and build the warm index
+                            // now — the WhatsApp hand-off and the picker's
+                            // suggested countries read it.
+                            contactsGranted = isContactsPermissionGranted()
+                            (application as SimmoApp).refreshContacts()
+                        },
                         requestRoleIntent = {
                             getSystemService(RoleManager::class.java)
                                 .createRequestRoleIntent(RoleManager.ROLE_CALL_REDIRECTION)
@@ -181,8 +207,11 @@ class MainActivity : ComponentActivity() {
 
 /**
  * Phase 2 onboarding: the two grants Simmo cannot work without, plus the
- * optional notifications one (SIM-assist nudges) that never gates readiness.
- * The rules list replaces this as the home screen in Phase 3.
+ * optional ones (failure notices, one-tap redial, contact-app hand-off) that
+ * never gate readiness. Once the required grants are held, the user leaves via
+ * the Skip/Continue buttons — never automatically, which would yank the optional rows
+ * away mid-read (the permission dialogs themselves trigger resumes). The rules
+ * list replaces this as the home screen in Phase 3.
  */
 @Composable
 internal fun OnboardingScreen(
@@ -193,6 +222,8 @@ internal fun OnboardingScreen(
     onAllGranted: () -> Unit = {},
     isNotificationsGranted: () -> Boolean = { true },
     isCallPermissionGranted: () -> Boolean = { true },
+    isContactsPermissionGranted: () -> Boolean = { true },
+    onContactsPermissionGranted: () -> Unit = {},
     analyticsOptIn: Boolean = true,
     onAnalyticsOptInChange: (Boolean) -> Unit = {},
 ) {
@@ -200,30 +231,29 @@ internal fun OnboardingScreen(
     var phoneGranted by remember { mutableStateOf(isPhonePermissionGranted()) }
     var notificationsGranted by remember { mutableStateOf(isNotificationsGranted()) }
     var callGranted by remember { mutableStateOf(isCallPermissionGranted()) }
+    var contactsGranted by remember { mutableStateOf(isContactsPermissionGranted()) }
     OnResume {
         roleHeld = isRoleHeld()
         notificationsGranted = isNotificationsGranted()
         callGranted = isCallPermissionGranted()
+        contactsGranted = isContactsPermissionGranted()
         val nowGranted = isPhonePermissionGranted()
         // Any transition made in Settings (grant or revoke) must refresh the
         // telephony cache, same as the launcher path.
         if (nowGranted != phoneGranted) onPhonePermissionGranted()
         phoneGranted = nowGranted
-        if (roleHeld && phoneGranted) onAllGranted()
     }
 
     val roleLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult(),
     ) {
         roleHeld = isRoleHeld()
-        if (roleHeld && phoneGranted) onAllGranted()
     }
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
     ) { granted ->
         phoneGranted = granted
         if (granted) onPhonePermissionGranted()
-        if (roleHeld && phoneGranted) onAllGranted()
     }
     val notificationsLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
@@ -235,11 +265,21 @@ internal fun OnboardingScreen(
     ) { granted ->
         callGranted = granted
     }
+    val contactsLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        contactsGranted = granted
+        if (granted) onContactsPermissionGranted()
+    }
 
     Surface(modifier = Modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                // Scrollable so the exit buttons stay reachable on
+                // compact screens and large font/display scales (Codex on
+                // PR #32); centering still applies when everything fits.
+                .verticalScroll(rememberScrollState())
                 .padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
         ) {
@@ -251,18 +291,32 @@ internal fun OnboardingScreen(
                 text = stringResource(R.string.onboarding_intro),
                 style = MaterialTheme.typography.bodyMedium,
             )
-            GrantRow(
-                granted = roleHeld,
-                label = stringResource(R.string.onboarding_role_label),
-                buttonText = stringResource(R.string.onboarding_role_button),
-                onRequest = { roleLauncher.launch(requestRoleIntent()) },
-            )
+            // Seeing the SIMs comes before routing between them — the reading
+            // order mirrors what Simmo actually does.
             GrantRow(
                 granted = phoneGranted,
                 label = stringResource(R.string.onboarding_phone_permission_label),
                 buttonText = stringResource(R.string.onboarding_phone_permission_button),
                 onRequest = { permissionLauncher.launch(Manifest.permission.READ_PHONE_STATE) },
             )
+            GrantRow(
+                granted = roleHeld,
+                label = stringResource(R.string.onboarding_role_label),
+                buttonText = stringResource(R.string.onboarding_role_button),
+                onRequest = { roleLauncher.launch(requestRoleIntent()) },
+            )
+            // Optional: the number→contact reverse lookup behind the WhatsApp
+            // hand-off action (and the country picker's suggested bucket).
+            // Right after the calling rows — it reads as another calling
+            // ability, not plumbing.
+            GrantRow(
+                granted = contactsGranted,
+                label = stringResource(R.string.onboarding_contacts_permission_label),
+                buttonText = stringResource(R.string.onboarding_contacts_permission_button),
+                onRequest = { contactsLauncher.launch(Manifest.permission.READ_CONTACTS) },
+            )
+            // Optional: the failure notices and their shortcuts — "couldn't
+            // open <app>" with Redial, and the SIM-assist nudges.
             GrantRow(
                 granted = notificationsGranted,
                 label = stringResource(R.string.onboarding_notifications_label),
@@ -310,10 +364,25 @@ internal fun OnboardingScreen(
                 )
             }
             if (roleHeld && phoneGranted) {
-                Text(
-                    text = stringResource(R.string.onboarding_ready),
-                    style = MaterialTheme.typography.bodyMedium,
-                )
+                // Two exits once the required grants are held: Skip leaves
+                // with whatever is granted, Continue is the affirmative one
+                // and stays disabled until every optional grant and the
+                // analytics opt-in are on.
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    OutlinedButton(onClick = onAllGranted) {
+                        Text(stringResource(R.string.onboarding_skip))
+                    }
+                    Button(
+                        onClick = onAllGranted,
+                        enabled = notificationsGranted && callGranted &&
+                            contactsGranted && analyticsOptIn,
+                    ) {
+                        Text(stringResource(R.string.onboarding_continue))
+                    }
+                }
             }
         }
     }

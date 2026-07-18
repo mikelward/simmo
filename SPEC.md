@@ -288,7 +288,9 @@ supports:
    a still-proceeding call. A launch that then fails can't be un-cancelled, so Simmo
    surfaces it (the same notification, with **Settings** to fix the app and **Redial** to
    retry) and, because notifications are optional, also drops the user in the dialer with
-   the number — a permission-free recovery. That recovery redial mints a short-lived
+   the number — a permission-free recovery. A failure notice that can't post at all
+   (notifications denied or off, or its channel blocked) degrades to a plain text
+   toast, so a failed hand-off is never silent in either direction. That recovery redial mints a short-lived
    loop-guard pass token (see "Redirect-loop guard") so it proceeds on the carrier instead
    of re-entering the still-failing rule; unlike the chooser's account-pinned token, the
    dialer can't pin a SIM, so this token matches the number on any account. A number with
@@ -321,9 +323,17 @@ UI is forbidden).
 - `READ_PHONE_STATE` — enumerate subscriptions and phone accounts.
 - `CALL_PHONE` — re-place calls after Ask / enable flows.
 - `READ_CONTACTS` (optional, requested when a feature needs it — app-to-app hand-off, or
-  same-contact number correction) — the dialed-number→contact reverse lookup; a denial
-  just disables those features.
-- `POST_NOTIFICATIONS` — the "your SIM is now active, place the call?" nudge.
+  same-contact number correction — and offered as an onboarding row) — the
+  dialed-number→contact reverse lookup; a denial just disables those features.
+- `POST_NOTIFICATIONS` (optional) — the "your SIM is now active, place the call?"
+  nudge and the "couldn't open <app>" hand-off failure notice. Requested
+  contextually, like `READ_CONTACTS`: at the chooser's SIM-settings jump, and when
+  a hand-off action is picked in the rule editor — which also shows an enable hint
+  (with an Allow button) under the selected action while notifications are off,
+  deep-linking to the app's notification settings when the request dialog can't
+  show. Also an optional onboarding row ("Show errors and shortcuts"). A denial (or a
+  blocked channel) never blocks a feature; the failure notice degrades to a toast (see
+  "Hand-off to another app").
 - **No `INTERNET` permission.** Everything (parsing, rules, registry) is on-device;
   dialed numbers never leave the phone (hand-off passes the number to the app the
   user chose, on-device). The app works fully offline and is auditable as such from
@@ -337,6 +347,14 @@ UI is forbidden).
   persisted with settings, so it survives backup/restore); nothing is collected
   today, and any analytics that ship must honor the stored choice — including one
   made before the feature existed.
+- **Onboarding asks for little and never rushes.** Required rows are
+  `READ_PHONE_STATE` then the role — seeing the SIMs before routing between them, the
+  user's mental model; `POST_NOTIFICATIONS`, `CALL_PHONE`, and `READ_CONTACTS` are
+  optional rows with benefit-led labels. Onboarding never auto-advances the moment the
+  required grants land (the permission dialogs themselves trigger resumes) — an
+  explicit exit is the only one: Skip leaves with whatever is granted, and Continue
+  (disabled until every optional grant and the analytics opt-in are on) is the
+  affirmative finish — so the optional rows get their moment.
 - **Backups are on** (maintainer decision): rules, the SIM registry, and settings are
   included in Android backups and device-to-device transfers via explicit extraction
   rules scoped to exactly Simmo's own state files, so a phone upgrade keeps the rule
