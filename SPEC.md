@@ -64,8 +64,12 @@ reorder. A rule pairs a **matcher** with an **action**:
   "Suggested" bucket — the countries the user's own contacts have numbers in, the ones with
   the most contacts first (counted per contact, not per number) — so the destinations that
   matter to this user are one tap away instead of a scroll
-  into the alphabetical list; it needs `READ_CONTACTS` (empty without it) and the rollup is
-  computed off the main thread from the warm contact index. Emergency and undetermined-country handling
+  into the alphabetical list. It needs `READ_CONTACTS`; when that isn't granted the picker
+  shows a tappable "suggest from your contacts" affordance in the bucket's place that
+  requests it (the same permission the WhatsApp hand-off uses — one grant, one warm index
+  serving both), so the feature is discoverable on its own rather than only after a
+  contact-app hand-off happens to grant contacts. The rollup is computed off the main
+  thread from the warm contact index. Emergency and undetermined-country handling
   is unchanged by multi-country matchers: emergency numbers are never touched, and
   undetermined destinations still match only any-destination rules.
 - **Action**, one of:
