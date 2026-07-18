@@ -12,7 +12,6 @@ import android.util.Log
 import app.simmo.SimmoApp
 import app.simmo.domain.PassToken
 import app.simmo.domain.PlacedCall
-import app.simmo.domain.ProceedReason
 import app.simmo.domain.Verdict
 import app.simmo.ui.ChooserActivity
 import app.simmo.ui.DelayedCallActivity
@@ -142,8 +141,8 @@ class SimmoCallRedirectionService : CallRedirectionService() {
                 currentAccount = app.assembler.refFor(initialPhoneAccount),
                 interactive = allowInteractiveResponse,
             )
-            val verdict = app.coordinator.decide(placedCall)
-            when (verdict) {
+            val decision = app.coordinator.decide(placedCall)
+            when (val verdict = decision.verdict) {
                 is Verdict.Proceed -> {
                     verdict.consumedToken?.let(app.passTokens::consume)
                     // Toast only after responding (it must never delay the
@@ -259,15 +258,13 @@ class SimmoCallRedirectionService : CallRedirectionService() {
             // numbers): the call above went out as dialed — offer the local
             // number by notification instead of staying silent (maintainer
             // direction). After the response, like the toasts; the in-flight
-            // call is never touched. Never for a pass-token proceed: that is
-            // a re-placed call the user just resolved — including "as dialed"
-            // from this very offer's chooser — and its token was consumed
-            // above, so the fresh snapshot read here would no longer see it
-            // and would re-post the same offer (Codex on PR #44).
-            if ((verdict as? Verdict.Proceed)?.reason != ProceedReason.PASS_TOKEN) {
-                app.coordinator.missedCorrection(placedCall)?.let { missed ->
-                    app.notifications.postLocalNumberOffer(missed, handle)
-                }
+            // call is never touched. Computed with the verdict from the SAME
+            // snapshot (Codex on PR #44, twice over): the engine's pass-token
+            // guard sees the token the decision saw — consumption above can't
+            // defeat it — and a telephony refresh landing mid-call can't
+            // reclassify the correction as chooser-confirmable and swallow it.
+            decision.missedCorrection?.let { missed ->
+                app.notifications.postLocalNumberOffer(missed, handle)
             }
         }
     }
