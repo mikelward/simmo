@@ -223,35 +223,24 @@ class DecisionEngine(private val countryDetector: CountryDetector) {
         var effectiveNumber = call.dialedNumber
         var effectiveDestination = destination
         var correctedNumber: String? = null
-        if (snapshot.correctContactNumbers && destination != null &&
-            !destination.equals(snapshot.defaultRegion.trim(), ignoreCase = true)
-        ) {
-            val correction =
-                snapshot.contacts.localCorrectionFor(call.dialedNumber, snapshot.defaultRegion)
-            if (correction != null) {
-                // Same target-availability gate as Ask: an enabled calling
-                // account (SIP provider) is a real chooser target too, so an
-                // account-only setup still gets the interactive confirmation
-                // instead of a silent rewrite (Codex on PR #39).
-                val chooserHasTargets =
-                    snapshot.activeSims.isNotEmpty() || snapshot.handOffAccounts.isNotEmpty()
-                if (call.interactive && chooserHasTargets) {
-                    // Never rewrite a number silently where UI can ask: the
-                    // chooser confirms, offering the local number(s) beside
-                    // the number as dialed (TODO Phase 6) — including for a
-                    // shared line, whose candidates it labels per contact
-                    // (maintainer: shared lines are confirm-only). The
-                    // user's pick there supersedes rule evaluation.
-                    return Verdict.OpenChooser(numberCorrection = correction)
-                }
-                if (!correction.sharedLine && correction.candidates.size == 1) {
-                    // No confirmation possible: correct only when unambiguous —
-                    // one owning contact, one local number.
-                    correctedNumber = correction.candidates.single().number
-                    effectiveNumber = correctedNumber
-                    effectiveDestination = snapshot.defaultRegion.trim().uppercase()
-                }
+        when (val outcome = correctionOutcome(call, destination, snapshot)) {
+            // Never rewrite a number silently where UI can ask: the chooser
+            // confirms, offering the local number(s) beside the number as
+            // dialed (TODO Phase 6) — including for a shared line, whose
+            // candidates it labels per contact (maintainer: shared lines are
+            // confirm-only). The user's pick there supersedes rule evaluation.
+            is CorrectionOutcome.Confirm ->
+                return Verdict.OpenChooser(numberCorrection = outcome.correction)
+
+            is CorrectionOutcome.Apply -> {
+                correctedNumber = outcome.number
+                effectiveNumber = outcome.number
+                effectiveDestination = snapshot.defaultRegion.trim().uppercase()
             }
+
+            // Missed corrections are surfaced by [missedCorrection] after the
+            // platform layer has responded; the call itself routes as dialed.
+            is CorrectionOutcome.Missed, CorrectionOutcome.None -> Unit
         }
 
         val skippedInactiveSims = mutableListOf<SimRef>()
@@ -345,6 +334,65 @@ class DecisionEngine(private val countryDetector: CountryDetector) {
         }
         return correctedNumber?.let { Verdict.RedirectNumber(it) }
             ?: Verdict.Proceed(ProceedReason.NO_APPLICABLE_RULE)
+    }
+
+    /** How same-contact correction applies to a call; one source of truth. */
+    private sealed interface CorrectionOutcome {
+        data object None : CorrectionOutcome
+
+        /** Interactive with chooser targets: the chooser confirms. */
+        data class Confirm(val correction: NumberCorrection) : CorrectionOutcome
+
+        /** Unambiguous where no UI can show: silently correct to [number]. */
+        data class Apply(val number: String) : CorrectionOutcome
+
+        /** Ambiguous where no UI can show: route as dialed, offer [correction] after. */
+        data class Missed(val correction: NumberCorrection) : CorrectionOutcome
+    }
+
+    private fun correctionOutcome(
+        call: PlacedCall,
+        destination: String?,
+        snapshot: DecisionSnapshot,
+    ): CorrectionOutcome {
+        if (!snapshot.correctContactNumbers || destination == null ||
+            destination.equals(snapshot.defaultRegion.trim(), ignoreCase = true)
+        ) {
+            return CorrectionOutcome.None
+        }
+        val correction = snapshot.contacts.localCorrectionFor(call.dialedNumber, snapshot.defaultRegion)
+            ?: return CorrectionOutcome.None
+        // Same target-availability gate as Ask: an enabled calling account
+        // (SIP provider) is a real chooser target too, so an account-only
+        // setup still gets the interactive confirmation instead of a silent
+        // rewrite (Codex on PR #39).
+        val chooserHasTargets =
+            snapshot.activeSims.isNotEmpty() || snapshot.handOffAccounts.isNotEmpty()
+        if (call.interactive && chooserHasTargets) {
+            return CorrectionOutcome.Confirm(correction)
+        }
+        if (!correction.sharedLine && correction.candidates.size == 1) {
+            return CorrectionOutcome.Apply(correction.candidates.single().number)
+        }
+        return CorrectionOutcome.Missed(correction)
+    }
+
+    /**
+     * A correction that existed for [call] but could neither be confirmed
+     * (no UI allowed, or no chooser target) nor applied silently (a shared
+     * line, or several local numbers): the call routed as dialed, and the
+     * platform layer offers the local number afterwards — by notification,
+     * never by touching the in-flight call (SPEC "Hands-free and Android
+     * Auto safeguards"). Null for emergency and pass-token calls, when the
+     * chooser already confirmed, when the correction was applied, and when
+     * none exists.
+     */
+    fun missedCorrection(call: PlacedCall, snapshot: DecisionSnapshot, nowMillis: Long): NumberCorrection? {
+        val country = countryDetector.detect(call.dialedNumber, snapshot.defaultRegion)
+        if (country == CountryVerdict.Emergency) return null
+        if (snapshot.passTokens.any { it.matches(call, nowMillis) }) return null
+        val destination = (country as? CountryVerdict.Country)?.regionCode
+        return (correctionOutcome(call, destination, snapshot) as? CorrectionOutcome.Missed)?.correction
     }
 
     private fun RuleMatcher.matches(

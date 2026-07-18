@@ -260,12 +260,22 @@ Two mechanisms, independently toggleable:
   silent — the chooser opens to confirm, listing the contact's local number(s) (the
   first preselected) with "as dialed" one tap away; the SIM tapped there places the
   selected number. A number listed by **more than one contact** (a shared line) is
-  confirm-only: the chooser labels each owner's local numbers by contact, and where
-  no confirmation can be shown such a line is never corrected — whose number to call
-  is the user's guess to make. Where no confirmation can be shown (Bluetooth,
+  confirm-only: the chooser labels each owner's local numbers by contact and
+  preselects the number as dialed (a sole-owner correction preselects its local
+  number instead) — whose number to call is the user's guess to make, so picking an
+  owner is always a deliberate tap. Where no confirmation can be shown such a line
+  is never corrected. Where no confirmation can be shown (Bluetooth,
   Android Auto — or no chooser target to offer), the correction applies silently and
   only when the mapping is unambiguous: one owning contact with exactly one local
-  number. A silent
+  number. An **ambiguous** correction there — a shared line, or several local
+  numbers — never touches the in-flight call (it proceeds as dialed), but is not
+  dropped either: Simmo posts a notification ("Call Mum's local number?" — or
+  "Shared number — call a local one?" when the line is shared, so no owner is
+  presumed) that opens
+  the confirmation chooser once the user can look at a screen; nothing is
+  auto-placed, and the offer self-dismisses after a few minutes so a stale number
+  isn't re-offered. Needs `POST_NOTIFICATIONS`; without it the ambiguous case simply
+  proceeds (nothing failed, so no toast fallback). A silent
   correction uses Telecom's redirect (never cancel-and-re-place), carries any
   rule-chosen SIM in the same redirect, and the rules evaluate the *corrected*
   number — so a localized call matches the local rules, including the

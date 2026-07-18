@@ -110,6 +110,34 @@ class ChooserStateTest {
     }
 
     @Test
+    fun `a shared-line correction preselects as dialed`() {
+        // Whose local number the user meant is not Simmo's to guess: the
+        // first (preselected) choice on a shared line is the number as
+        // dialed, and picking an owner is a deliberate tap.
+        val state = buildChooserUiState(
+            dialedNumber = "+442071234567",
+            country = CountryVerdict.Country("GB"),
+            activeSims = listOf(telstra),
+            skippedInactiveSims = emptyList(),
+            numberCorrection = NumberCorrection(
+                listOf(
+                    CorrectionCandidate("Mum", "+61412345678"),
+                    CorrectionCandidate("Aunt Vi", "+61390001234"),
+                ),
+                sharedLine = true,
+            ),
+        )
+        assertEquals(
+            listOf(
+                NumberChoiceUi("+442071234567", contactName = null),
+                NumberChoiceUi("+61412345678", contactName = "Mum"),
+                NumberChoiceUi("+61390001234", contactName = "Aunt Vi"),
+            ),
+            state.numberChoices,
+        )
+    }
+
+    @Test
     fun `a plain Ask chooser offers no number choices`() {
         val state = buildChooserUiState(
             dialedNumber = "+61412345678",

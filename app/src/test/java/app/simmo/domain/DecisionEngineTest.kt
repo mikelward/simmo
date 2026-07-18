@@ -1,6 +1,7 @@
 package app.simmo.domain
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Test
 
 class DecisionEngineTest {
@@ -1022,6 +1023,84 @@ class DecisionEngineTest {
             engine.decide(
                 call(auNumber),
                 correctionSnapshot(listOf(any(RuleAction.SystemDefault)), contacts),
+                now,
+            ),
+        )
+    }
+
+    // --- Missed corrections, offered by notification (SPEC "Hands-free…") ---
+
+    @Test
+    fun `a shared line hands-free is reported as a missed correction`() {
+        assertEquals(
+            NumberCorrection(listOf(CorrectionCandidate("Mum", mumLocal)), sharedLine = true),
+            engine.missedCorrection(
+                call(gbNumber, interactive = false),
+                correctionSnapshot(emptyList(), sharedLineContacts()),
+                now,
+            ),
+        )
+    }
+
+    @Test
+    fun `several local numbers hands-free are reported as a missed correction`() {
+        assertEquals(
+            NumberCorrection(
+                listOf(
+                    CorrectionCandidate("Mum", mumLocal),
+                    CorrectionCandidate("Mum", "+61390001234"),
+                ),
+            ),
+            engine.missedCorrection(
+                call(gbNumber, interactive = false),
+                correctionSnapshot(emptyList(), mumContact(mumLocal, "+61390001234")),
+                now,
+            ),
+        )
+    }
+
+    @Test
+    fun `an applied or chooser-confirmed correction is not missed`() {
+        // Unambiguous hands-free: applied silently, nothing left to offer.
+        assertNull(
+            engine.missedCorrection(
+                call(gbNumber, interactive = false),
+                correctionSnapshot(emptyList(), mumContact(mumLocal)),
+                now,
+            ),
+        )
+        // Interactive with chooser targets: the chooser already confirms.
+        assertNull(
+            engine.missedCorrection(
+                call(gbNumber),
+                correctionSnapshot(emptyList(), sharedLineContacts()),
+                now,
+            ),
+        )
+    }
+
+    @Test
+    fun `no missed correction with the setting off, a live token, or no contact`() {
+        assertNull(
+            engine.missedCorrection(
+                call(gbNumber, interactive = false),
+                snapshot(emptyList(), contacts = sharedLineContacts()),
+                now,
+            ),
+        )
+        // A re-placed call (chooser or recovery) must not re-offer.
+        val token = PassToken(gbNumber, tmobile.phoneAccount, expiresAtMillis = now + 5_000)
+        assertNull(
+            engine.missedCorrection(
+                call(gbNumber, interactive = false),
+                correctionSnapshot(emptyList(), sharedLineContacts()).copy(passTokens = listOf(token)),
+                now,
+            ),
+        )
+        assertNull(
+            engine.missedCorrection(
+                call(gbNumber, interactive = false),
+                correctionSnapshot(emptyList(), ContactNumberIndex.EMPTY),
                 now,
             ),
         )

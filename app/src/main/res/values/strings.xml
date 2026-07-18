@@ -192,6 +192,12 @@
     <!-- TODO: translate -->
     <string name="chooser_number_as_dialed" tools:ignore="MissingTranslation">As dialed</string>
     <!-- TODO: translate -->
+    <string name="notification_local_number_title" tools:ignore="MissingTranslation">Call %1$s\'s local number?</string>
+    <!-- TODO: translate -->
+    <string name="notification_local_number_title_shared" tools:ignore="MissingTranslation">Shared number — call a local one?</string>
+    <!-- TODO: translate -->
+    <string name="notification_local_number_body" tools:ignore="MissingTranslation">You dialed %1$s</string>
+    <!-- TODO: translate -->
     <string name="sim_registry_title" tools:ignore="MissingTranslation">SIMs</string>
     <!-- TODO: translate -->
     <string name="sim_registry_explainer" tools:ignore="MissingTranslation">Every SIM Simmo has seen. Rules can use a SIM even while it\'s disabled.</string>

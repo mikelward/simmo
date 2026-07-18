@@ -2,9 +2,13 @@ package app.simmo.notify
 
 import android.Manifest
 import android.app.Application
+import android.app.Notification
 import android.app.NotificationManager
 import android.content.Context
+import android.net.Uri
 import android.os.Looper
+import app.simmo.domain.CorrectionCandidate
+import app.simmo.domain.NumberCorrection
 import androidx.core.app.NotificationChannelCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.test.core.app.ApplicationProvider
@@ -89,6 +93,47 @@ class SimNotificationsTest {
         assertEquals(
             "Couldn't open Google Voice. Placed the call on your carrier instead.",
             ShadowToast.getTextOfLatestToast(),
+        )
+    }
+
+    @Test
+    fun `the local-number offer posts when permitted and skips silently otherwise`() {
+        val correction = NumberCorrection(listOf(CorrectionCandidate("Mum", "+61412345678")))
+        // Without POST_NOTIFICATIONS: nothing failed, so no toast fallback
+        // either — the ambiguous call simply proceeded as dialed.
+        notifications.postLocalNumberOffer(correction, Uri.parse("tel:+442071234567"))
+        shadowOf(Looper.getMainLooper()).idle()
+        assertEquals(0, postedNotifications().size)
+        assertNull(ShadowToast.getLatestToast())
+
+        shadowOf(app).grantPermissions(Manifest.permission.POST_NOTIFICATIONS)
+        notifications.postLocalNumberOffer(correction, Uri.parse("tel:+442071234567"))
+        shadowOf(Looper.getMainLooper()).idle()
+        val posted = postedNotifications().single()
+        assertEquals(
+            "Call Mum's local number?",
+            posted.extras.getCharSequence(Notification.EXTRA_TITLE)?.toString(),
+        )
+    }
+
+    @Test
+    fun `a shared-line offer never names one owner in its title`() {
+        // Mum and Aunt Vi share the dialed line and only Mum has a local
+        // number: "Call Mum's local number?" would presume Mum was who the
+        // user meant to reach (Codex on PR #44) — stay generic.
+        shadowOf(app).grantPermissions(Manifest.permission.POST_NOTIFICATIONS)
+        notifications.postLocalNumberOffer(
+            NumberCorrection(
+                listOf(CorrectionCandidate("Mum", "+61412345678")),
+                sharedLine = true,
+            ),
+            Uri.parse("tel:+442071234567"),
+        )
+        shadowOf(Looper.getMainLooper()).idle()
+        val posted = postedNotifications().single()
+        assertEquals(
+            "Shared number — call a local one?",
+            posted.extras.getCharSequence(Notification.EXTRA_TITLE)?.toString(),
         )
     }
 
