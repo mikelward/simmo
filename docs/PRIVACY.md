@@ -32,8 +32,10 @@ Neither ever includes the numbers you dial, your contacts, or the contents of
 your rules, and ad personalization is turned off.
 
 Both are controlled by the **"Make Simmo better"** switch shown during setup: it
-is on by default, nothing is collected before your stored choice is read, and
-turning it off stops both crash reporting and usage statistics. This data is
+is on by default, and turning it off stops both crash reporting and usage
+statistics immediately. On a fresh install, nothing is collected before your
+choice is read; after that, each app start applies the most recent choice you
+made. This data is
 processed by Google's Firebase services on our behalf; see
 [Firebase's privacy documentation](https://firebase.google.com/support/privacy)
 for how Firebase handles it.
