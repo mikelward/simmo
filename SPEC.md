@@ -370,9 +370,14 @@ Two mechanisms, independently toggleable:
   number — so a localized call matches the local rules, including the
   matching-country default. Needs optional `READ_CONTACTS` (requested when the
   toggle is switched on); each contact number's region is resolved when the warm
-  index is built, so the decision path stays an in-memory lookup. Whether upstream
-  (choosing the right number at contact level, before Simmo is ever consulted) is
-  also fixable is an open question.
+  index is built, so the decision path stays an in-memory lookup. Fixing the choice
+  upstream instead — at contact level, before Simmo is consulted — was investigated
+  and closed (`docs/upstream-wrong-number.md`): touch paths honor a stored contact
+  default, but Assistant/Android Auto voice calls pick opaquely, don't reliably
+  honor it, and expose no steering API, so correction at the redirection hook is
+  the mitigation for every path. The one upstream lever — offering to set the
+  contact's local number as their default, which fixes only the tap path and needs
+  `WRITE_CONTACTS` — stays a backlog idea, never a silent contact edit.
 - **Hands-free call guard** (shipped; the Settings "Hands-free guard" section, two
   independent toggles, both off by default): when the call is placed from a
   non-interactive context, block calls that are overseas relative to the default
@@ -686,7 +691,7 @@ redirection service only ever reads the snapshot.
 - Whether the trailing "no change" default should split into two distinct entries —
   explicitly routing to the default calling app vs. the default voice SIM — rather
   than one non-intervention rule.
-- Hands-free safeguards: whether the upstream wrong-number choice (Android / Android
-  Auto picking a contact's overseas entry over their local one) is fixable at the
-  contact level before Simmo is consulted; and how best to identify "driving" for the
-  call guard — the platform's per-call interactive-UI flag vs. car-mode signals.
+- Hands-free safeguards: whether car-mode signals should supplement the per-call
+  interactive-UI flag as the call guard's "driving" signal. (Upstream fixability of
+  the wrong-number choice is settled — see "Hands-free and Android Auto safeguards"
+  and `docs/upstream-wrong-number.md`.)
