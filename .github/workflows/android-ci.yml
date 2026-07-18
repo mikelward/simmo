@@ -2,8 +2,9 @@ name: Android CI
 
 # Adaptation of Type Launcher's android-ci.yml: build + unit tests + lint,
 # plus the screenshot job (records Roborazzi snapshots, commits drift back
-# to same-repo PR branches, posts a visual diff comment). The deploy job
-# arrives with the release plumbing (TODO.md Phase 8).
+# to same-repo PR branches, posts a visual diff comment) and the deploy job
+# (Firebase App Distribution + Play internal track, release notes built from
+# commit subjects).
 
 on:
   pull_request:
@@ -28,6 +29,13 @@ on:
       - '!.*'
       - '!.*/**'
       - '.github/workflows/**'
+  # Manual override for the `deploy` job: lets a maintainer force an
+  # internal-track release from the GitHub web UI when main's tip is stuck
+  # behind the "no release-worthy commits" skip (see "Build release notes")
+  # but a tester needs the current tip anyway. No inputs: dispatching targets
+  # the selected ref (main by default) and the deploy job's `if:` re-checks
+  # that.
+  workflow_dispatch:
 
 jobs:
   build:
@@ -301,3 +309,380 @@ jobs:
             app/build/test-results/
           if-no-files-found: ignore
           retention-days: 1
+
+  deploy:
+    name: Distribute and release
+    # Production deployment job. Gated three ways:
+    #   1. `if:` — only a push to main or a manual workflow_dispatch that
+    #      targets main (the dispatch UI defaults to main but can pick any
+    #      ref, so `github.ref` is re-checked) — never on PRs.
+    #   2. `environment: production` — the secrets used here live in the
+    #      `production` environment. Configure it in repo Settings →
+    #      Environments → production and restrict deployment branches to
+    #      `main`, so the boundary is enforced by GitHub rather than only by
+    #      the `if:` above.
+    #   3. `needs:` — runs only after build and screenshot-tests both pass,
+    #      so a failing test or screenshot on main blocks the release.
+    #
+    # Every secret is optional: each step gates on the presence flags below
+    # and skips quietly when its secrets aren't configured, so a fresh repo
+    # or fork still gets a green run.
+    if: |
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    needs: [build, screenshot-tests]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: production
+    env:
+      # Secret *presence* flags, evaluated at job level. A step's `if:`
+      # cannot read a variable defined in that same step's `env:` block, so
+      # the gates below evaluate these job-level booleans; the secret values
+      # stay scoped to the steps that actually use them.
+      HAS_DEBUG_KEYSTORE: ${{ secrets.DEBUG_KEYSTORE_BASE64 != '' }}
+      HAS_GOOGLE_SERVICES: ${{ secrets.GOOGLE_SERVICES_JSON != '' }}
+      HAS_FIREBASE: ${{ secrets.FIREBASE_APP_ID != '' && secrets.FIREBASE_SERVICE_ACCOUNT_JSON != '' }}
+      HAS_RELEASE_KEYSTORE_SECRET: ${{ secrets.RELEASE_KEYSTORE_BASE64 != '' }}
+      HAS_PLAY_SA: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON != '' }}
+    permissions:
+      contents: read
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd  # v5.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654  # v5.2.0
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@4c125117fe7c5aed11272ec4213f602f012f89f2  # v5
+
+      - name: Materialize debug keystore
+        # The Firebase distribution APK is a debug build signed with the
+        # shared debug keystore so successive releases install as updates on
+        # tester devices. Skipped when the secret isn't set; the build still
+        # finishes with AGP's auto-generated debug keystore. The decoded file
+        # is validated with keytool so wrong base64 or a wrong password fails
+        # here with a clear error rather than at signing time.
+        if: env.HAS_DEBUG_KEYSTORE == 'true'
+        env:
+          DEBUG_KEYSTORE_BASE64: ${{ secrets.DEBUG_KEYSTORE_BASE64 }}
+          DEBUG_KEYSTORE_PASSWORD: ${{ secrets.DEBUG_KEYSTORE_PASSWORD }}
+          DEBUG_KEY_PASSWORD: ${{ secrets.DEBUG_KEY_PASSWORD }}
+        run: |
+          missing=""
+          [ -z "$DEBUG_KEYSTORE_PASSWORD" ] && missing="$missing DEBUG_KEYSTORE_PASSWORD"
+          [ -z "$DEBUG_KEY_PASSWORD" ]      && missing="$missing DEBUG_KEY_PASSWORD"
+          if [ -n "$missing" ]; then
+            echo "::error::DEBUG_KEYSTORE_BASE64 is set but these companion secrets are missing or empty:$missing"
+            exit 1
+          fi
+          printf '%s' "${DEBUG_KEYSTORE_BASE64}" | base64 -d > "${RUNNER_TEMP}/debug.keystore"
+          if ! keytool -list -keystore "${RUNNER_TEMP}/debug.keystore" -storepass "$DEBUG_KEYSTORE_PASSWORD" >/dev/null 2>&1; then
+            echo "::error::Decoded debug keystore is not a valid keystore or DEBUG_KEYSTORE_PASSWORD is wrong."
+            exit 1
+          fi
+          echo "DEBUG_KEYSTORE_FILE=${RUNNER_TEMP}/debug.keystore" >> "${GITHUB_ENV}"
+
+      - name: Materialize google-services.json
+        # Activates the google-services + crashlytics plugins (see
+        # app/build.gradle.kts) so Crashlytics + Analytics ship in the
+        # distributed builds. Skipped when the secret isn't set — the build
+        # still finishes, just with Firebase dormant, matching SETUP.md.
+        if: env.HAS_GOOGLE_SERVICES == 'true'
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          printf '%s' "${GOOGLE_SERVICES_JSON}" > app/google-services.json
+          # Sanity-check so a wrong-file or truncated paste fails here rather
+          # than as a confusing gms-plugin parse error minutes into Gradle.
+          if ! grep -q '"project_info"' app/google-services.json || \
+             ! grep -q '"client"'       app/google-services.json; then
+            echo "::error::GOOGLE_SERVICES_JSON is missing project_info / client keys — not a valid Firebase config JSON, or the paste was truncated."
+            exit 1
+          fi
+
+      - name: Build debug APK for Firebase distribution
+        env:
+          DEBUG_KEYSTORE_PASSWORD: ${{ secrets.DEBUG_KEYSTORE_PASSWORD }}
+          DEBUG_KEY_PASSWORD: ${{ secrets.DEBUG_KEY_PASSWORD }}
+          DEBUG_KEY_ALIAS: ${{ secrets.DEBUG_KEY_ALIAS }}
+        run: ./gradlew assembleDebug
+
+      - name: Build release notes
+        # Walks every commit in this push oldest-first and collects the
+        # subject of each one worth shipping as a release note — to both
+        # Firebase App Distribution (testers' phones) and the Play internal
+        # track ("What's new"):
+        #   - skip commits whose subject starts with a non-user-facing
+        #     prefix (`ci:` / `docs:` / `internal:` / `refactor:` /
+        #     `test:` / `tests:`);
+        #   - skip commits whose every changed path is repo housekeeping —
+        #     a `.md` file or any dotfile / dotdir at the repo root.
+        #     `docs/PRIVACY.md` is the exception: it backs the hosted
+        #     privacy policy, so a change there is user-facing.
+        # Qualifying subjects are emitted as a "• "-bulleted list,
+        # oldest-first — always bulleted, even for one commit. If no commit
+        # qualifies, RELEASE_NOTES_SKIP=true makes the Firebase and Play
+        # steps below skip, so housekeeping-only pushes don't buzz testers
+        # or ship a redundant release.
+        #
+        # A manual workflow_dispatch is the exception — it's an explicit
+        # "publish the current tip anyway" request, so it falls back to a
+        # generic note instead of skipping. It also has no
+        # `github.event.before`, so a dispatch only considers the HEAD
+        # commit.
+        #
+        # Play's per-language cap is 500 Unicode characters for the entered
+        # "What's new" text; the truncation budget measures the full
+        # formatted output — "• " bullets, newline separators, and the
+        # "\n…" truncation marker all count. On overflow, trailing subjects
+        # drop (oldest-first preserved at the head) and "\n…" is appended.
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+          AFTER_SHA: ${{ github.sha }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+
+          # On a first push (or after a force-reset that orphans the old
+          # tip) BEFORE_SHA is all-zeros or unreachable; fall back to HEAD.
+          if [ "$BEFORE_SHA" = "0000000000000000000000000000000000000000" ] \
+             || ! git rev-parse --quiet --verify "$BEFORE_SHA^{commit}" >/dev/null; then
+            shas=$(git log -1 --format=%H "$AFTER_SHA")
+          else
+            shas=$(git log --reverse --no-merges --format=%H "$BEFORE_SHA..$AFTER_SHA")
+          fi
+
+          subjects=()
+          while IFS= read -r sha; do
+            [ -z "$sha" ] && continue
+            s=$(git log -1 --format=%s "$sha")
+            case "$s" in
+              ci:*)       continue ;;
+              docs:*)     continue ;;
+              internal:*) continue ;;
+              refactor:*) continue ;;
+              test:*)     continue ;;
+              tests:*)    continue ;;
+            esac
+            relevant=false
+            while IFS= read -r f; do
+              [ -z "$f" ] && continue
+              # `case` matches `*` against `/` too, so `.*` covers any path
+              # whose first component starts with `.` (.github/, .claude/,
+              # .gitignore, …) in one pattern.
+              case "$f" in
+                docs/PRIVACY.md) relevant=true; break ;;
+                .*)              ;;
+                *.md)            ;;
+                *)               relevant=true; break ;;
+              esac
+            done < <(git diff-tree --no-commit-id --name-only -r "$sha")
+            if [ "$relevant" = "false" ]; then
+              continue
+            fi
+            subjects+=("$s")
+          done <<< "$shas"
+
+          if [ "${#subjects[@]}" -eq 0 ]; then
+            if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+              echo "No release-worthy commits, but this is a manual workflow_dispatch — publishing the current tip anyway with a generic note."
+              subjects+=("Internal test build")
+            else
+              echo "No release-worthy commits in this push; skipping Firebase distribution and Play upload."
+              echo "RELEASE_NOTES_SKIP=true" >> "$GITHUB_ENV"
+              exit 0
+            fi
+          fi
+
+          MAX=500
+          TRUNC_MARK=$'\n…'
+
+          # `wc -m` counts characters under a UTF-8 locale; pin it so the
+          # bullet ("• ") and the ellipsis are scored as Play sees them,
+          # not as raw bytes.
+          export LC_ALL=C.UTF-8
+
+          format_notes() {
+            local first=1
+            for s in "$@"; do
+              if [ "$first" -eq 1 ]; then
+                printf '%s' "• $s"
+                first=0
+              else
+                printf '\n• %s' "$s"
+              fi
+            done
+          }
+
+          char_len() {
+            printf '%s' "$1" | wc -m
+          }
+
+          # Two-phase: greedy-add subjects until the formatted output would
+          # exceed MAX, then, if anything was dropped, append the "\n…"
+          # marker — dropping further subjects if the marker itself
+          # overflows. A single 499-500-char subject is hard-truncated.
+          kept=()
+          truncated=false
+          for s in "${subjects[@]}"; do
+            candidate=$(format_notes "${kept[@]}" "$s")
+            if [ "$(char_len "$candidate")" -gt "$MAX" ]; then
+              truncated=true
+              break
+            fi
+            kept+=("$s")
+          done
+
+          if [ "${#kept[@]}" -eq 0 ]; then
+            notes=$(printf '%s' "• ${subjects[0]}" | cut -c 1-499)
+            notes="${notes}…"
+          else
+            notes=$(format_notes "${kept[@]}")
+            if [ "$truncated" = true ]; then
+              while [ "$(char_len "${notes}${TRUNC_MARK}")" -gt "$MAX" ] \
+                && [ "${#kept[@]}" -gt 0 ]; do
+                unset 'kept[${#kept[@]}-1]'
+                notes=$(format_notes "${kept[@]}")
+              done
+              if [ "${#kept[@]}" -eq 0 ]; then
+                notes=$(printf '%s' "• ${subjects[0]}" | cut -c 1-498)
+              fi
+              notes="${notes}${TRUNC_MARK}"
+            fi
+          fi
+
+          # Random heredoc terminator so a crafted commit subject can't
+          # include the literal terminator and inject entries into
+          # $GITHUB_ENV.
+          delim="RELEASE_NOTES_EOF_$(openssl rand -hex 16)"
+          {
+            printf 'RELEASE_NOTES<<%s\n' "$delim"
+            printf '%s\n' "$notes"
+            printf '%s\n' "$delim"
+          } >> "$GITHUB_ENV"
+
+      - name: Distribute via Firebase App Distribution
+        # Skipped when the Firebase secrets aren't set so the job still
+        # finishes on a fresh repo, and when RELEASE_NOTES_SKIP=true (every
+        # commit in the push was housekeeping). Also requires the stable
+        # debug keystore: an APK signed with the runner's throwaway debug
+        # key would force testers to uninstall before installing (signature
+        # mismatch), so distributing without it does more harm than
+        # skipping. Runs before the Play upload so a Play failure doesn't
+        # gate the faster Firebase channel. A manual workflow_dispatch
+        # never sets RELEASE_NOTES_SKIP, so a dispatch always reaches
+        # testers.
+        if: |
+          success() &&
+          env.HAS_FIREBASE == 'true' &&
+          env.HAS_DEBUG_KEYSTORE == 'true' &&
+          env.RELEASE_NOTES_SKIP != 'true'
+        uses: wzieba/Firebase-Distribution-Github-Action@bd494989dd4bec0343f78adee87fe66e48279ad6  # v1.7.1
+        with:
+          appId: ${{ secrets.FIREBASE_APP_ID }}
+          serviceCredentialsFileContent: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+          # Tester group must exist in the Firebase App Distribution console —
+          # see docs/firebase-app-distribution.md. Rename there + here
+          # together if you change it.
+          groups: testers
+          file: app/build/outputs/apk/debug/app-debug.apk
+          # The tester's push notification shows the first ~60 chars of
+          # these notes; the same string ships to Play as "What's new", so
+          # the two surfaces stay in sync.
+          releaseNotes: |
+            ${{ env.RELEASE_NOTES }}
+            ---
+            Build: ${{ github.run_number }} · ${{ github.sha }}
+
+      - name: Materialize release keystore
+        # Decoded whenever the keystore secret is present, independent of
+        # the Play upload secret. This lets the keystore secrets land first
+        # so the signed AAB can be downloaded from CI artifacts for the
+        # one-time manual seed upload Play Console requires, with
+        # PLAY_SERVICE_ACCOUNT_JSON added later to enable the automated
+        # upload. See docs/play-store-internal-track.md.
+        if: env.HAS_RELEASE_KEYSTORE_SECRET == 'true'
+        env:
+          RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+          RELEASE_KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+        run: |
+          missing=""
+          [ -z "$RELEASE_KEYSTORE_PASSWORD" ] && missing="$missing RELEASE_KEYSTORE_PASSWORD"
+          [ -z "$RELEASE_KEY_PASSWORD" ]      && missing="$missing RELEASE_KEY_PASSWORD"
+          [ -z "$RELEASE_KEY_ALIAS" ]         && missing="$missing RELEASE_KEY_ALIAS"
+          if [ -n "$missing" ]; then
+            echo "::error::RELEASE_KEYSTORE_BASE64 is set but these companion secrets are missing or empty:$missing"
+            exit 1
+          fi
+          printf '%s' "${RELEASE_KEYSTORE_BASE64}" | base64 -d > "${RUNNER_TEMP}/release.keystore"
+          if ! keytool -list -keystore "${RUNNER_TEMP}/release.keystore" -storepass "$RELEASE_KEYSTORE_PASSWORD" >/dev/null 2>&1; then
+            echo "::error::Decoded release keystore is not a valid keystore or RELEASE_KEYSTORE_PASSWORD is wrong."
+            exit 1
+          fi
+          echo "RELEASE_KEYSTORE_FILE=${RUNNER_TEMP}/release.keystore" >> "${GITHUB_ENV}"
+
+      - name: Build release AAB
+        # Gated only on the keystore being present — a signed AAB is useful
+        # on its own (downloadable artifact for the seed upload, before the
+        # Play service account exists). The release signingConfig only
+        # attaches when RELEASE_KEYSTORE_FILE is set (see
+        # app/build.gradle.kts), so without it Play would reject the AAB
+        # anyway.
+        if: env.RELEASE_KEYSTORE_FILE != ''
+        env:
+          RELEASE_KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+        run: ./gradlew bundleRelease
+
+      - name: Upload signed AAB as workflow artifact
+        # Downloadable from the Actions UI for the one-time manual seed
+        # upload to Play Console, and for re-uploading a release by hand.
+        if: env.RELEASE_KEYSTORE_FILE != ''
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        with:
+          name: app-release-aab
+          path: app/build/outputs/bundle/release/app-release.aab
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Compose Play Store release notes
+        # The upload action takes a directory of whatsnew-<locale> files;
+        # this writes the list built by "Build release notes" in the layout
+        # the action expects.
+        if: |
+          env.RELEASE_KEYSTORE_FILE != '' &&
+          env.HAS_PLAY_SA == 'true' &&
+          env.RELEASE_NOTES_SKIP != 'true'
+        run: |
+          set -euo pipefail
+          mkdir -p "${RUNNER_TEMP}/whatsnew"
+          printf '%s' "${RELEASE_NOTES}" \
+            > "${RUNNER_TEMP}/whatsnew/whatsnew-en-US"
+          echo "PLAY_WHATSNEW_DIR=${RUNNER_TEMP}/whatsnew" >> "${GITHUB_ENV}"
+
+      - name: Upload to Play Store internal track
+        # Runs only with both the upload key and service account configured,
+        # and skipped when RELEASE_NOTES_SKIP=true — no Play-worthy "What's
+        # new" entry exists, so shipping would be redundant. See
+        # docs/play-store-internal-track.md for the Play Console setup.
+        if: |
+          env.RELEASE_KEYSTORE_FILE != '' &&
+          env.HAS_PLAY_SA == 'true' &&
+          env.RELEASE_NOTES_SKIP != 'true'
+        uses: r0adkll/upload-google-play@a80b0bcdcfdfcc2d026f2bc73f726760b2cbc967  # post-v1.1.5: fixes DEP0040/DEP0169 Node.js deprecation warnings
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: app.simmo
+          releaseFiles: app/build/outputs/bundle/release/app-release.aab
+          tracks: internal
+          status: completed
+          whatsNewDirectory: ${{ env.PLAY_WHATSNEW_DIR }}
