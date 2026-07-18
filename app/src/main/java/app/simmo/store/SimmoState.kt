@@ -24,6 +24,14 @@ data class SimmoState(
      * with the state; the marker it is compared against is not.
      */
     val installId: String? = null,
+    /**
+     * The "Make Simmo better" onboarding choice (SPEC "Permissions and
+     * privacy"). No analytics ship yet — nothing is collected or sent today —
+     * but the preference is recorded from install so a future analytics
+     * addition honors a choice the user already made. Defaults to opted in;
+     * state written before the field existed decodes as opted in too.
+     */
+    val analyticsOptIn: Boolean = true,
 )
 
 /**

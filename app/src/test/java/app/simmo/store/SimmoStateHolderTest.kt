@@ -139,6 +139,16 @@ class SimmoStateHolderTest {
     }
 
     @Test
+    fun `analytics opt-in defaults on and an opt-out persists`() = runTest {
+        val store = FakeDataStore(SimmoState(installId = "install-1"))
+        val holder = SimmoStateHolder(store, backgroundScope, installId = "install-1")
+        assertEquals(true, holder.state.filterNotNull().first().analyticsOptIn)
+
+        holder.setAnalyticsOptIn(false)
+        assertEquals(false, store.data.first().analyticsOptIn)
+    }
+
+    @Test
     fun `rule updates and sim capture land in the in-memory state`() = runTest {
         // Already adopted by this install so the restore guard stays inert here.
         val store = FakeDataStore(SimmoState(installId = "install-1"))

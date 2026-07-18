@@ -41,6 +41,7 @@ class OnboardingScreenshotTest {
 
         composeRule.onNodeWithText("Let Simmo manage outgoing calls").assertExists()
         composeRule.onNodeWithText("Let Simmo see your SIMs").assertExists()
+        composeRule.onNodeWithText("Make Simmo better").assertExists()
         captureSnapshot("onboarding.png")
     }
 

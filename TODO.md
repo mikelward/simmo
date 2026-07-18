@@ -296,7 +296,8 @@ Android Auto safeguards").
       permission. Candidate signals: SIM name × destination country routing counts,
       call completion/failure rates — never contact names/numbers or dialed
       numbers. Shipping it requires updating `docs/PRIVACY.md` and the Play data
-      safety form in the same release.
+      safety form in the same release. Onboarding already records a "Make Simmo
+      better" opt-in (default on) that any shipped analytics must honor.
 - [ ] Evaluate confirm-first system redirect UX vs. custom chooser for the simple case.
 - [ ] Carrier-name stability for re-binding (roaming/MVNO rebrand data needed).
 - [ ] Per-number overrides.

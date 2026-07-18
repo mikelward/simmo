@@ -110,6 +110,14 @@ class SimmoStateHolder(
         }
     }
 
+    /** The "Make Simmo better" onboarding toggle was set to [enabled]. */
+    suspend fun setAnalyticsOptIn(enabled: Boolean) {
+        store.updateData {
+            val valid = it.withInstallValidated(installId)
+            valid.copy(analyticsOptIn = enabled)
+        }
+    }
+
     /** The "new SIM" notification for [refs] was posted (or suppressed). */
     suspend fun markNewSimsNotified(refs: List<SimRef>) {
         store.updateData {
