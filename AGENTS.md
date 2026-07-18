@@ -111,6 +111,16 @@ bodies, PR titles/descriptions, comments, KDoc, identifiers (`color`, `behavior`
 `canceled`, `dialog`). Platform/third-party API spellings stay as the framework spells
 them. This is about US-vs-UK spelling, not about adding locales.
 
+## Concise copy
+
+Keep user-facing text short. A label, action, or title should carry only the words the
+user needs — drop framing verbs and prefixes the surrounding UI already implies. Under a
+"Use" list of call actions, "Google Voice" beats "Hand off to Google Voice"; the section
+already says these are what to use. Prefer the shortest phrasing that stays unambiguous;
+when a longer form is genuinely needed for clarity, say why in the PR. This applies to
+strings, dialog/button text, and screen titles. (It's the same instinct as the ≤70-char
+commit-subject rule — say it in fewer words.)
+
 ## Translations
 
 English first, translations in a second PR — never the same PR. Propose new English
