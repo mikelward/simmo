@@ -145,6 +145,39 @@ changes" section: a static URL with only an affiliate tag changes nothing, but
 a URL carrying device- or call-derived context (destination country, network
 country) would count as sharing data with a third party.
 
+## Store listing (fastlane metadata)
+
+The Play listing text is version-controlled in
+[fastlane's](https://fastlane.tools/) standard supply layout,
+`fastlane/metadata/android/<locale>/`:
+
+- `title.txt` — app name (Play cap: 30 characters)
+- `short_description.txt` — tagline (80 characters)
+- `full_description.txt` — full description (4000 characters)
+
+The fastlane **tool itself is not installed or run anywhere** — no Gemfile, no
+Fastfile, and CI uploads the AAB with `r0adkll/upload-google-play`, not
+`fastlane supply`. Only the directory convention is used, so listing copy is
+reviewable in PRs and a future pipeline (`fastlane supply`, or the upload
+action's metadata options) can push it to Play without restructuring. Until
+then the copy reaches Play Console by hand: paste each file into Grow → Store
+presence → Main store listing.
+
+When editing listing copy:
+
+- Stay inside the character caps above (`wc -m <file>` counts them; the
+  trailing newline is not sent to Play).
+- The current description covers the data-rules pillar, which is still
+  unshipped (`TODO.md` Phase 9) — **do not publish it to Play before that
+  feature ships.**
+- Listing text is user-facing copy: US English and the concise-copy rules in
+  `AGENTS.md` apply, commits touching it get user-readable subjects (no
+  `docs:`/`internal:` prefix), and translations go in per-locale directories
+  (`fastlane/metadata/android/de-DE/`, …) in a separate PR per the two-PR
+  translation rule.
+- Release notes do **not** live here: `whatsnew-en-US` is generated per
+  release from commit subjects by the deploy job (see "Release notes" below).
+
 ## Generating the upload keystore
 
 Keep this keystore safe — losing it means Play Console's key-reset flow before
