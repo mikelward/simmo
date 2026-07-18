@@ -11,14 +11,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -140,7 +138,6 @@ internal fun DataRuleEditorContent(
     var pendingGroups by rememberSaveable(stateSaver = PendingGroupsSaver) {
         mutableStateOf(emptyList<CustomGroup>())
     }
-    var confirmDelete by rememberSaveable { mutableStateOf(false) }
     // An existing multi-SIM RoamingOk scope has no editor rows (the editor
     // offers single-SIM scopes); kept verbatim like the calling editor's
     // unknown hand-off action, so editing the countries never rewrites it.
@@ -354,7 +351,8 @@ internal fun DataRuleEditorContent(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 if (onDelete != null) {
-                    OutlinedButton(onClick = { confirmDelete = true }) {
+                    // Immediate delete; the list's Undo bar is the safety net.
+                    OutlinedButton(onClick = onDelete) {
                         Text(stringResource(R.string.editor_delete))
                     }
                 }
@@ -398,28 +396,6 @@ internal fun DataRuleEditorContent(
                 }
             }
         }
-    }
-    if (confirmDelete && onDelete != null) {
-        AlertDialog(
-            onDismissRequest = { confirmDelete = false },
-            title = { Text(stringResource(R.string.rule_delete_title)) },
-            text = { Text(stringResource(R.string.rule_delete_body)) },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        confirmDelete = false
-                        onDelete()
-                    },
-                ) {
-                    Text(stringResource(R.string.editor_delete))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { confirmDelete = false }) {
-                    Text(stringResource(R.string.editor_cancel))
-                }
-            },
-        )
     }
 }
 

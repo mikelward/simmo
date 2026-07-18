@@ -26,7 +26,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -36,7 +35,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -297,7 +295,6 @@ internal fun RuleEditorContent(
         mutableStateOf(emptyList<CustomGroup>())
     }
     // Delete asks first; saveable so the confirm survives a rotation.
-    var confirmDelete by rememberSaveable { mutableStateOf(false) }
     // An existing rule whose action the editor can't represent (a hand-off
     // target this version doesn't know): kept verbatim so saving an edit to
     // its country never silently rewrites the action. Null for new rules and
@@ -587,7 +584,9 @@ internal fun RuleEditorContent(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 if (onDelete != null) {
-                    OutlinedButton(onClick = { confirmDelete = true }) {
+                    // Delete takes effect at once; the list's Undo bar is the
+                    // safety net, so no confirm dialog here.
+                    OutlinedButton(onClick = onDelete) {
                         Text(stringResource(R.string.editor_delete))
                     }
                 }
@@ -622,28 +621,6 @@ internal fun RuleEditorContent(
                 }
             }
         }
-    }
-    if (confirmDelete && onDelete != null) {
-        AlertDialog(
-            onDismissRequest = { confirmDelete = false },
-            title = { Text(stringResource(R.string.rule_delete_title)) },
-            text = { Text(stringResource(R.string.rule_delete_body)) },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        confirmDelete = false
-                        onDelete()
-                    },
-                ) {
-                    Text(stringResource(R.string.editor_delete))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { confirmDelete = false }) {
-                    Text(stringResource(R.string.editor_cancel))
-                }
-            },
-        )
     }
 }
 

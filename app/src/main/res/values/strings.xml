@@ -118,9 +118,9 @@
     <!-- TODO: translate -->
     <string name="rule_disabled" tools:ignore="MissingTranslation">Disabled</string>
     <!-- TODO: translate -->
-    <string name="rule_delete_title" tools:ignore="MissingTranslation">Delete this rule?</string>
+    <string name="rule_deleted" tools:ignore="MissingTranslation">Rule deleted</string>
     <!-- TODO: translate -->
-    <string name="rule_delete_body" tools:ignore="MissingTranslation">This can\'t be undone.</string>
+    <string name="action_undo" tools:ignore="MissingTranslation">Undo</string>
     <!-- TODO: translate -->
     <string name="group_delete_title" tools:ignore="MissingTranslation">Delete %1$s?</string>
     <!-- TODO: translate -->

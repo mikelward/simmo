@@ -235,6 +235,22 @@ data class RuleBook(
     fun withRuleDuplicated(index: Int, newId: String): RuleBook =
         rules.getOrNull(index)?.let { withRuleInserted(index + 1, it.copy(id = newId)) } ?: this
 
+    /**
+     * Re-insert a deleted [rule] for Undo, relative to whichever neighbor it had
+     * when deleted still survives: just below [afterId] (the rule it sat under),
+     * else just above [beforeId] (the rule it sat over), else at the top.
+     * Anchoring by neighbor id rather than an absolute index keeps the restore
+     * correct when the list shifted underneath the offer — e.g. the chooser
+     * prepended a "remember" rule, which a top rule (afterId null) must land
+     * *below*, not above. Only inserts if no rule with [rule]'s id is present,
+     * so a retried restore (a second tap, a replay after process death) can't
+     * duplicate it.
+     */
+    fun withRuleRestored(rule: Rule, afterId: String?, beforeId: String?): RuleBook {
+        if (rules.any { it.id == rule.id }) return this
+        return withRuleInserted(restoreIndexFor(rules.map { it.id }, afterId, beforeId), rule)
+    }
+
     /** Reorder for drag-and-drop; out-of-range indices are a no-op. */
     fun withRuleMoved(fromIndex: Int, toIndex: Int): RuleBook {
         if (fromIndex == toIndex) return this
@@ -255,6 +271,18 @@ data class RuleBook(
             Rule(RuleMatcher.AnyDestination, RuleAction.SystemDefault, id = "default-system"),
         )
     }
+}
+
+/**
+ * The index to re-insert an undone deletion at, given the ids currently in the
+ * list and the deleted rule's captured neighbors: below [afterId] if it's still
+ * present, else above [beforeId] if it is, else the top. Shared by the calling
+ * and data books' `withRuleRestored`.
+ */
+internal fun restoreIndexFor(ids: List<String>, afterId: String?, beforeId: String?): Int {
+    if (afterId != null) ids.indexOf(afterId).let { if (it >= 0) return it + 1 }
+    if (beforeId != null) ids.indexOf(beforeId).let { if (it >= 0) return it }
+    return 0
 }
 
 /**

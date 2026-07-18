@@ -129,6 +129,12 @@ data class DataRuleBook(
     fun withRuleDuplicated(index: Int, newId: String): DataRuleBook =
         rules.getOrNull(index)?.let { withRuleInserted(index + 1, it.copy(id = newId)) } ?: this
 
+    /** Re-insert a deleted [rule] relative to its surviving neighbor for Undo, once; see [RuleBook.withRuleRestored]. */
+    fun withRuleRestored(rule: DataRule, afterId: String?, beforeId: String?): DataRuleBook {
+        if (rules.any { it.id == rule.id }) return this
+        return withRuleInserted(restoreIndexFor(rules.map { it.id }, afterId, beforeId), rule)
+    }
+
     /** Reorder for drag-and-drop; out-of-range indices are a no-op. */
     fun withRuleMoved(fromIndex: Int, toIndex: Int): DataRuleBook {
         if (fromIndex == toIndex) return this

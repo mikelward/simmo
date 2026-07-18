@@ -41,6 +41,46 @@ class RuleBookMutationTest {
     }
 
     @Test
+    fun `restoring re-inserts below its neighbor, idempotent on retry`() {
+        val a = au.copy(id = "a")
+        val c = fallback.copy(id = "c")
+        val afterDelete = RuleBook(listOf(a, c)) // "b" (us) was deleted from between "a" and "c"
+        val b = us.copy(id = "b")
+        val restored = afterDelete.withRuleRestored(b, afterId = "a", beforeId = "c")
+        assertEquals(listOf(a, b, c), restored.rules)
+        // Retrying the same restore (second Undo tap, replay after process death)
+        // must not insert a second copy.
+        assertSame(restored, restored.withRuleRestored(b, afterId = "a", beforeId = "c"))
+    }
+
+    @Test
+    fun `restoring anchors to the neighbor id even when the list shifted`() {
+        val a = au.copy(id = "a")
+        val c = fallback.copy(id = "c")
+        val b = us.copy(id = "b")
+        // "b" sat below "a"; since deleting it, a rule "x" was prepended at the
+        // top. Restoring by afterId still puts "b" right below "a", not at the
+        // stale absolute index.
+        val x = Rule(RuleMatcher.Country("NZ"), RuleAction.Ask, id = "x")
+        val shifted = RuleBook(listOf(x, a, c))
+        assertEquals(listOf(x, a, b, c), shifted.withRuleRestored(b, afterId = "a", beforeId = "c").rules)
+    }
+
+    @Test
+    fun `restoring a top rule lands below a rule prepended since, via beforeId`() {
+        // "a" was the top rule (afterId null, beforeId "b"). Before Undo, the
+        // chooser prepended "x". Restoring must put "a" below "x" — above "b",
+        // its old neighbor — not back at the top ahead of the newer "x".
+        val b = us.copy(id = "b")
+        val x = Rule(RuleMatcher.Country("NZ"), RuleAction.Ask, id = "x")
+        val shifted = RuleBook(listOf(x, b))
+        val a = au.copy(id = "a")
+        assertEquals(listOf(x, a, b), shifted.withRuleRestored(a, afterId = null, beforeId = "b").rules)
+        // With both anchors gone it falls back to the top.
+        assertEquals("a", RuleBook(listOf(x)).withRuleRestored(a, afterId = "gone", beforeId = "gone").rules.first().id)
+    }
+
+    @Test
     fun `a blank id matches nothing, never every rule`() {
         // Rules with blank ids must not all be replaced or removed at once by a
         // blank-keyed edit — a blank id means "unassigned", never a target.
