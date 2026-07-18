@@ -2,6 +2,10 @@ package app.simmo.store
 
 import androidx.datastore.core.CorruptionException
 import app.simmo.domain.CustomGroup
+import app.simmo.domain.DataExpectation
+import app.simmo.domain.DataRule
+import app.simmo.domain.DataRuleBook
+import app.simmo.domain.DataSimScope
 import app.simmo.domain.DialHandoffApp
 import app.simmo.domain.PhoneAccountRef
 import app.simmo.domain.RegisteredSim
@@ -56,6 +60,23 @@ class SimmoStateSerializationTest {
         correctContactNumbers = true,
         guardOverseasHandsFree = true,
         guardDisabledSimHandsFree = true,
+        // Every expectation and scope shape, so the round trip proves the
+        // whole data-rule storage format.
+        dataRules = DataRuleBook(
+            listOf(
+                DataRule(
+                    RuleMatcher.Country("AU"),
+                    DataExpectation.UseSimForData(SimRef(1, "Telstra", "Telstra personal")),
+                ),
+                DataRule(
+                    RuleMatcher.Country("FR"),
+                    DataExpectation.RoamingOk(
+                        DataSimScope.Sims(listOf(SimRef(2, "T-Mobile", "T-Mobile US"))),
+                    ),
+                ),
+                DataRule(RuleMatcher.Country("TR"), DataExpectation.AlwaysWarn, enabled = false),
+            ) + DataRuleBook.defaultDataRules(),
+        ),
     )
 
     private suspend fun roundTrip(state: SimmoState): SimmoState {
@@ -212,6 +233,17 @@ class SimmoStateSerializationTest {
         // The guard blocks calls; it must never come up on by surprise.
         assertEquals(false, read.guardOverseasHandsFree)
         assertEquals(false, read.guardDisabledSimHandsFree)
+    }
+
+    @Test
+    fun `state written before data rules decodes to the preseeded book`() = runTest {
+        // Existing users (no dataRules field) get the EU/EEA roam-like-home
+        // preseed, exactly like a fresh install (SPEC "Data rules").
+        val json = """
+            {"rules":{"rules":[]},"simRegistry":[],"defaultRegionOverride":null,"installId":null}
+        """.trimIndent()
+        val read = SimmoStateSerializer.readFrom(ByteArrayInputStream(json.encodeToByteArray()))
+        assertEquals(DataRuleBook.defaultDataRules(), read.dataRules.rules)
     }
 
     @Test
