@@ -567,6 +567,7 @@ internal enum class ActionChoice {
     HANDOFF_WHATSAPP,
     HANDOFF_GOOGLE_VOICE,
     HANDOFF_TEAMS,
+    HANDOFF_VIBER,
     ASK,
     SYSTEM_DEFAULT,
     ;
@@ -577,6 +578,7 @@ internal enum class ActionChoice {
         HANDOFF_WHATSAPP -> RuleAction.HandOff.ViaContactApp(ContactCallApp.WHATSAPP)
         HANDOFF_GOOGLE_VOICE -> RuleAction.HandOff.ViaDialIntent(DialHandoffApp.GOOGLE_VOICE)
         HANDOFF_TEAMS -> RuleAction.HandOff.ViaDialIntent(DialHandoffApp.TEAMS)
+        HANDOFF_VIBER -> RuleAction.HandOff.ViaDialIntent(DialHandoffApp.VIBER)
         ASK -> RuleAction.Ask
         SYSTEM_DEFAULT -> RuleAction.SystemDefault
     }
@@ -586,6 +588,7 @@ internal enum class ActionChoice {
         fun ofDial(app: DialHandoffApp): ActionChoice = when (app) {
             DialHandoffApp.GOOGLE_VOICE -> HANDOFF_GOOGLE_VOICE
             DialHandoffApp.TEAMS -> HANDOFF_TEAMS
+            DialHandoffApp.VIBER -> HANDOFF_VIBER
         }
 
         /**

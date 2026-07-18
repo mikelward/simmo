@@ -23,4 +23,12 @@ class DialHandoffAppTest {
             DialHandoffApp.TEAMS.launchUri("+12125550123"),
         )
     }
+
+    @Test
+    fun `Viber deep link opens the keypad with the bare digits`() {
+        assertEquals(
+            "viber://keypad?number=12125550123",
+            DialHandoffApp.VIBER.launchUri("+12125550123"),
+        )
+    }
 }

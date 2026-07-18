@@ -260,7 +260,7 @@ supports:
    non-interactive contexts.
 2. **Cancel-and-forward**: otherwise, Simmo cancels the carrier call and launches the
    target app at the dialed number via the app's number-carrying deep link (the MVP
-   targets are **Google Voice** and **Microsoft Teams**). The number is normalized to
+   targets are **Google Voice**, **Microsoft Teams**, and **Viber**). The number is normalized to
    E.164 off the fast path (the same warm parse country detection uses) before it is
    placed in the deep link. The launch intent is **resolved before the carrier call is
    cancelled**, so a target uninstalled since the snapshot proceeds unmodified rather

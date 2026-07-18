@@ -169,6 +169,7 @@ class RuleEditorScreenshotTest {
 
         composeRule.onNodeWithText("Google Voice").assertExists()
         composeRule.onNodeWithText("Microsoft Teams").assertExists()
+        composeRule.onNodeWithText("Viber").assertExists()
         captureSnapshot("rule_editor_dial_handoff.png")
     }
 

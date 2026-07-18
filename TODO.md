@@ -192,20 +192,22 @@ can't dial an arbitrary number and are out of scope.
         `startActivity` from the redirection service.
   - [ ] Extend to other app-to-app apps if/when a comparable by-contact call intent is
         found (Signal/Telegram had none last checked — see docs/handoff-intents.md).
-- [x] Cancel-and-forward hand-off to Google Voice and Microsoft Teams, end to end: a
-      "Hand off to <app>" rule action (`RuleAction.HandOff.ViaDialIntent(DialHandoffApp)`)
+- [x] Cancel-and-forward hand-off to Google Voice, Microsoft Teams, and Viber, end to
+      end: a "<app>" rule action (`RuleAction.HandOff.ViaDialIntent(DialHandoffApp)`)
       that normalizes the dialed number to E.164 off the fast path and launches the app's
       number-carrying deep link, resolving the intent **before** cancelling so an
       unreachable target proceeds unmodified. Interactive-only; a non-E.164 number (short
       code) skips the rule. The snapshot's `handOffApps` caches installed targets (off the
       decision path), the editor offers each only when installed (`<queries>` +
-      PackageManager), and the deep-link templates are unit-tested. (Viber is an easy
-      follow-up — same `DialHandoffApp` pattern.)
-  - [ ] **Device QA owed** (docs/handoff-intents.md checklist): confirm the Google Voice
-        and Teams deep links open the app (not a browser) at the number, auto-dial vs
-        pre-fill, and the installed-but-unprovisioned (no linked number / no Teams Phone
-        plan) behavior; and that background-activity-launch rules don't swallow the
-        `startActivity` from the redirection service.
+      PackageManager), and the deep-link templates are unit-tested.
+  - [ ] **Device QA owed** (docs/handoff-intents.md checklist): confirm the Google Voice,
+        Teams, and Viber deep links open the app (not a browser) at the number, auto-dial
+        vs pre-fill, and the installed-but-unprovisioned (no linked number / no Teams
+        Phone plan / no Viber Out credit) behavior; and that background-activity-launch
+        rules don't swallow the `startActivity` from the redirection service.
+  - [ ] Surface hand-off failure to the user where feasible (an app that opens but can't
+        place the call leaves the user with no call); best-effort per the softened
+        strand stance in AGENTS.md.
 - [ ] Reachable-app discovery beyond "installed": resolve each candidate intent + detect
       readiness (linked number / calling plan) where possible, off the decision path.
 - [ ] Phone-account redirect: keep for any VoIP app that does register a Telecom account,
