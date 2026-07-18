@@ -19,28 +19,37 @@ class RedirectionCoordinator(
     private val snapshotProvider: () -> DecisionSnapshot?,
     private val nowMillis: () -> Long,
 ) {
-    fun decide(call: PlacedCall): Verdict {
+    /**
+     * The verdict plus anything to surface after responding, computed from a
+     * single snapshot read — a telephony refresh landing between two separate
+     * reads could otherwise reclassify the correction against a target set
+     * the decision never saw and swallow the promised offer (Codex on
+     * PR #44).
+     */
+    data class CallDecision(
+        val verdict: Verdict,
+        /**
+         * A same-contact correction the decision could neither confirm nor
+         * apply (see [DecisionEngine.missedCorrection]); the caller offers it
+         * by notification after responding. Null on degraded decisions —
+         * a missing snapshot or an internal error is "nothing to offer".
+         */
+        val missedCorrection: NumberCorrection? = null,
+    )
+
+    fun decide(call: PlacedCall): CallDecision {
         val snapshot = try {
             snapshotProvider()
         } catch (_: RuntimeException) {
             null
-        } ?: return Verdict.Proceed(ProceedReason.SNAPSHOT_UNAVAILABLE)
+        } ?: return CallDecision(Verdict.Proceed(ProceedReason.SNAPSHOT_UNAVAILABLE))
         return try {
-            engine.decide(call, snapshot, nowMillis())
+            CallDecision(
+                verdict = engine.decide(call, snapshot, nowMillis()),
+                missedCorrection = engine.missedCorrection(call, snapshot, nowMillis()),
+            )
         } catch (_: RuntimeException) {
-            Verdict.Proceed(ProceedReason.INTERNAL_ERROR)
+            CallDecision(Verdict.Proceed(ProceedReason.INTERNAL_ERROR))
         }
-    }
-
-    /**
-     * A same-contact correction [decide] could neither confirm nor apply for
-     * [call] (see [DecisionEngine.missedCorrection]); the caller offers it by
-     * notification after responding. Same degradation as [decide]: a missing
-     * snapshot or an internal error is just "nothing to offer".
-     */
-    fun missedCorrection(call: PlacedCall): NumberCorrection? = try {
-        snapshotProvider()?.let { engine.missedCorrection(call, it, nowMillis()) }
-    } catch (_: RuntimeException) {
-        null
     }
 }

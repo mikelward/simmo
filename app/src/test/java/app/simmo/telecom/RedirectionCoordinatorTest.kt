@@ -35,11 +35,27 @@ class RedirectionCoordinatorTest {
         defaultRegion = "AU",
     )
 
+    /** Mum and Aunt Vi share the GB line; only Mum has a local number. */
+    private val sharedLineContacts = buildContactNumberIndex(
+        numbers = listOf(
+            RawContactNumber("mum", "Mum", "+442071234567"),
+            RawContactNumber("mum", "Mum", "+61412345678"),
+            RawContactNumber("aunt", "Aunt Vi", "+442071234567"),
+        ),
+        callActions = emptyList(),
+        defaultRegion = "AU",
+    )
+
+    private val sharedLineCorrection = NumberCorrection(
+        listOf(CorrectionCandidate("Mum", "+61412345678")),
+        sharedLine = true,
+    )
+
     @Test
     fun `missing snapshot degrades to proceed, never waits or throws`() {
         val coordinator = RedirectionCoordinator(engine, { null }, { 0L })
         assertEquals(
-            Verdict.Proceed(ProceedReason.SNAPSHOT_UNAVAILABLE),
+            RedirectionCoordinator.CallDecision(Verdict.Proceed(ProceedReason.SNAPSHOT_UNAVAILABLE)),
             coordinator.decide(call),
         )
     }
@@ -48,17 +64,17 @@ class RedirectionCoordinatorTest {
     fun `snapshot provider failure degrades to proceed`() {
         val coordinator = RedirectionCoordinator(engine, { error("boom") }, { 0L })
         assertEquals(
-            Verdict.Proceed(ProceedReason.SNAPSHOT_UNAVAILABLE),
+            RedirectionCoordinator.CallDecision(Verdict.Proceed(ProceedReason.SNAPSHOT_UNAVAILABLE)),
             coordinator.decide(call),
         )
     }
 
     @Test
-    fun `engine failure degrades to proceed`() {
+    fun `engine failure degrades to proceed with nothing to offer`() {
         val throwingEngine = DecisionEngine { _, _ -> error("detector blew up") }
         val coordinator = RedirectionCoordinator(throwingEngine, { snapshot() }, { 0L })
         assertEquals(
-            Verdict.Proceed(ProceedReason.INTERNAL_ERROR),
+            RedirectionCoordinator.CallDecision(Verdict.Proceed(ProceedReason.INTERNAL_ERROR)),
             coordinator.decide(call),
         )
     }
@@ -66,47 +82,44 @@ class RedirectionCoordinatorTest {
     @Test
     fun `healthy path passes the engine's verdict through`() {
         val coordinator = RedirectionCoordinator(engine, { snapshot() }, { 0L })
-        assertEquals(
-            Verdict.RedirectToAccount(telstra.phoneAccount),
-            coordinator.decide(call),
-        )
+        val decision = coordinator.decide(call)
+        assertEquals(Verdict.RedirectToAccount(telstra.phoneAccount), decision.verdict)
+        assertNull(decision.missedCorrection)
     }
 
     @Test
-    fun `a missed correction degrades to nothing on snapshot or engine failure`() {
-        // Same degradation contract as decide: a broken snapshot provider or
-        // a throwing engine must mean "no offer", never an exception.
-        assertNull(RedirectionCoordinator(engine, { null }, { 0L }).missedCorrection(call))
-        assertNull(RedirectionCoordinator(engine, { error("boom") }, { 0L }).missedCorrection(call))
-        val throwingEngine = DecisionEngine { _, _ -> error("detector blew up") }
-        assertNull(RedirectionCoordinator(throwingEngine, { snapshot() }, { 0L }).missedCorrection(call))
-    }
-
-    @Test
-    fun `a missed correction passes through from the engine`() {
+    fun `a missed correction rides the decision`() {
         // A shared overseas line with the setting on and no UI allowed: the
-        // engine reports the correction it couldn't confirm.
+        // engine reports the correction it couldn't confirm, alongside the
+        // verdict that let the call proceed as dialed.
         val gbCall = PlacedCall("+442071234567", currentAccount = null, interactive = false)
-        val contacts = buildContactNumberIndex(
-            numbers = listOf(
-                RawContactNumber("mum", "Mum", "+442071234567"),
-                RawContactNumber("mum", "Mum", "+61412345678"),
-                RawContactNumber("aunt", "Aunt Vi", "+442071234567"),
-            ),
-            callActions = emptyList(),
-            defaultRegion = "AU",
-        )
         val coordinator = RedirectionCoordinator(
             engine,
-            { snapshot().copy(contacts = contacts, correctContactNumbers = true) },
+            { snapshot().copy(contacts = sharedLineContacts, correctContactNumbers = true) },
             { 0L },
         )
-        assertEquals(
-            NumberCorrection(
-                listOf(CorrectionCandidate("Mum", "+61412345678")),
-                sharedLine = true,
-            ),
-            coordinator.missedCorrection(gbCall),
-        )
+        val decision = coordinator.decide(gbCall)
+        assertEquals(Verdict.Proceed(ProceedReason.NO_APPLICABLE_RULE), decision.verdict)
+        assertEquals(sharedLineCorrection, decision.missedCorrection)
+    }
+
+    @Test
+    fun `the missed correction is judged on the decision's own snapshot`() {
+        // Cold start: the decision saw no chooser targets, so the interactive
+        // ambiguous correction went out as dialed. A telephony refresh landing
+        // right after must not reclassify it as chooser-confirmable against a
+        // target set the decision never saw — swallowing the promised offer
+        // (Codex on PR #44). One snapshot read serves both.
+        var reads = 0
+        val provider = {
+            reads++
+            val base = snapshot().copy(contacts = sharedLineContacts, correctContactNumbers = true)
+            if (reads == 1) base.copy(activeSims = emptyList()) else base
+        }
+        val gbCall = PlacedCall("+442071234567", currentAccount = null, interactive = true)
+        val decision = RedirectionCoordinator(engine, provider, { 0L }).decide(gbCall)
+        assertEquals(Verdict.Proceed(ProceedReason.NO_APPLICABLE_RULE), decision.verdict)
+        assertEquals(sharedLineCorrection, decision.missedCorrection)
+        assertEquals(1, reads)
     }
 }
