@@ -146,6 +146,18 @@ class SimNotifications(private val context: Context) {
             ?.importance == NotificationManagerCompat.IMPORTANCE_NONE
 
     /**
+     * The settings "Show which SIM is used" announcement: "Calling using
+     * <SIM>" as the redirection service routes a rule-picked call. A plain
+     * text toast — permission-free, and posted from the service's background
+     * context (the same "text toasts pass on Android 12+" expectation as
+     * [toastHandOffFailed]; shares its device-QA item).
+     */
+    fun toastCallingUsing(simLabel: String) {
+        val text = context.getString(R.string.calling_using, simLabel)
+        mainHandler.post { Toast.makeText(context, text, Toast.LENGTH_SHORT).show() }
+    }
+
+    /**
      * The notifications-off fallback for the hand-off failure: a plain text
      * toast (still allowed from the background, unlike custom toasts). It
      * can't carry the Settings/Redial actions, but the dropped case already

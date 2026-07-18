@@ -35,6 +35,12 @@ data class SimmoState(
      * state written before the field existed decodes as opted in too.
      */
     val analyticsOptIn: Boolean = true,
+    /**
+     * Settings "Show which SIM is used" (SPEC "Call feedback and delay"):
+     * announce rule-picked SIMs with a "Calling using <SIM>" toast. Off by
+     * default; state written before the field existed decodes as off too.
+     */
+    val showCallToast: Boolean = false,
 )
 
 /**

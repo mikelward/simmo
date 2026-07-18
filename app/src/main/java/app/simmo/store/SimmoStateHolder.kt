@@ -127,6 +127,14 @@ class SimmoStateHolder(
         }
     }
 
+    /** The settings "Show which SIM is used" toggle was set to [enabled]. */
+    suspend fun setShowCallToast(enabled: Boolean) {
+        store.updateData {
+            val valid = it.withInstallValidated(installId)
+            valid.copy(showCallToast = enabled)
+        }
+    }
+
     /** The "new SIM" notification for [refs] was posted (or suppressed). */
     suspend fun markNewSimsNotified(refs: List<SimRef>) {
         store.updateData {

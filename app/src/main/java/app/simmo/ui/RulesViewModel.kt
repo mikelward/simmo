@@ -258,6 +258,25 @@ class RulesViewModel(
         savedState[KEY_REGISTRY_OPEN] = open
     }
 
+    /** The Settings screen's call options, mirroring persisted state. */
+    val callSettings: StateFlow<CallSettingsUi> =
+        app.stateHolders()
+            .flatMapLatest { holder -> holder?.state ?: flowOf(null) }
+            .map { state ->
+                CallSettingsUi(
+                    showCallToast = state?.showCallToast ?: false,
+                )
+            }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), CallSettingsUi())
+
+    /** The settings "Show which SIM is used" toggle. */
+    fun setShowCallToast(enabled: Boolean) {
+        // Wait for the holder rather than dropping the write, like [edit].
+        viewModelScope.launch {
+            app.stateHolders().filterNotNull().first().setShowCallToast(enabled)
+        }
+    }
+
     /** Whether the Settings screen is open; saved like [registryOpen]. */
     private val _settingsOpen = MutableStateFlow(savedState.get<Boolean>(KEY_SETTINGS_OPEN) ?: false)
     val settingsOpen: StateFlow<Boolean> = _settingsOpen

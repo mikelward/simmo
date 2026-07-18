@@ -49,6 +49,11 @@ data class DecisionSnapshot(
      * the decision path; the engine only reads it. Empty without READ_CONTACTS.
      */
     val contacts: ContactNumberIndex = ContactNumberIndex.EMPTY,
+    /**
+     * Settings "Show which SIM is used": announce rule-picked SIMs with a
+     * "Calling using <SIM>" toast (SPEC "Call feedback and delay").
+     */
+    val announceCalls: Boolean = false,
 )
 
 /** The one answer per call; total, and never a silent drop (SPEC invariants). */
@@ -57,10 +62,25 @@ sealed interface Verdict {
         val reason: ProceedReason,
         /** Set when [reason] is [ProceedReason.PASS_TOKEN]; the platform layer removes it. */
         val consumedToken: PassToken? = null,
+        /**
+         * The SIM to name in a "Calling using <SIM>" toast — set only for
+         * [ProceedReason.ALREADY_ON_TARGET] (a rule picked the SIM the call
+         * was already on) while [DecisionSnapshot.announceCalls] is on. A
+         * pass token never announces: the user just chose that SIM by hand.
+         */
+        val announceSim: String? = null,
     ) : Verdict
 
-    /** Redirect to a SIM's or a VoIP app's phone account. */
-    data class RedirectToAccount(val account: PhoneAccountRef) : Verdict
+    /**
+     * Redirect to a SIM's or a VoIP app's phone account. [announceSim] names
+     * the SIM for the "Calling using <SIM>" toast when
+     * [DecisionSnapshot.announceCalls] is on and the target is an active SIM
+     * (a hand-off phone account is announced by the app opening, not a toast).
+     */
+    data class RedirectToAccount(
+        val account: PhoneAccountRef,
+        val announceSim: String? = null,
+    ) : Verdict
 
     /**
      * Cancel the carrier call and forward the dialed number to a calling app by
@@ -146,7 +166,7 @@ class DecisionEngine(private val countryDetector: CountryDetector) {
             when (val action = rule.action) {
                 is RuleAction.UseSim -> when (val resolved = resolveSim(action.sim, snapshot.activeSims)) {
                     is SimResolution.Active ->
-                        return redirectOrPassThrough(call, resolved.sim.phoneAccount)
+                        return routeToAccount(call, resolved.sim.phoneAccount, snapshot)
                     // Disabled or ambiguous: skip, but remember disabled SIMs
                     // so the chooser can offer enabling them.
                     SimResolution.Inactive -> skippedInactiveSims += action.sim
@@ -158,13 +178,13 @@ class DecisionEngine(private val countryDetector: CountryDetector) {
                         snapshot.activeSims.filter { it.countryIso.equals(region, ignoreCase = true) }
                     }
                     if (matching?.size == 1) {
-                        return redirectOrPassThrough(call, matching.single().phoneAccount)
+                        return routeToAccount(call, matching.single().phoneAccount, snapshot)
                     }
                 }
 
                 is RuleAction.HandOff.ViaPhoneAccount ->
                     if (action.account in snapshot.handOffAccounts) {
-                        return redirectOrPassThrough(call, action.account)
+                        return routeToAccount(call, action.account, snapshot)
                     }
 
                 is RuleAction.HandOff.ViaDialIntent ->
@@ -240,12 +260,23 @@ class DecisionEngine(private val countryDetector: CountryDetector) {
                 )
     }
 
-    private fun redirectOrPassThrough(call: PlacedCall, target: PhoneAccountRef): Verdict =
-        if (call.currentAccount == target) {
-            Verdict.Proceed(ProceedReason.ALREADY_ON_TARGET)
+    /**
+     * A rule resolved [target]; redirect there (or pass through when the call
+     * is on it already), naming the SIM for the optional "Calling using" toast.
+     * Only an active SIM gets a name — a hand-off phone account announces
+     * itself by the app opening.
+     */
+    private fun routeToAccount(call: PlacedCall, target: PhoneAccountRef, snapshot: DecisionSnapshot): Verdict {
+        val simName = snapshot.activeSims
+            .firstOrNull { it.phoneAccount == target }
+            ?.let { it.displayName.ifBlank { it.carrierName } }
+        val announce = if (snapshot.announceCalls) simName else null
+        return if (call.currentAccount == target) {
+            Verdict.Proceed(ProceedReason.ALREADY_ON_TARGET, announceSim = announce)
         } else {
-            Verdict.RedirectToAccount(target)
+            Verdict.RedirectToAccount(target, announceSim = announce)
         }
+    }
 
     private fun PassToken.matches(call: PlacedCall, nowMillis: Long): Boolean =
         dialedNumber == call.dialedNumber &&

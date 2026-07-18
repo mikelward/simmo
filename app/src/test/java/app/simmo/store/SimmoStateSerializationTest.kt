@@ -45,8 +45,9 @@ class SimmoStateSerializationTest {
             CustomGroup("custom:1", "Vodafone Zone 1", listOf("GB", "FR", "DE")),
         ),
         defaultRegionOverride = "AU",
-        // Non-default so the round trip proves the field is actually written.
+        // Non-default so the round trip proves the fields are actually written.
         analyticsOptIn = false,
+        showCallToast = true,
     )
 
     private suspend fun roundTrip(state: SimmoState): SimmoState {
@@ -170,6 +171,17 @@ class SimmoStateSerializationTest {
         """.trimIndent()
         val read = SimmoStateSerializer.readFrom(ByteArrayInputStream(json.encodeToByteArray()))
         assertEquals(true, read.analyticsOptIn)
+    }
+
+    @Test
+    fun `state written before the call toast setting decodes with it off`() = runTest {
+        // Bytes as written before showCallToast existed: existing users must
+        // come up with the toast off, matching a fresh install.
+        val json = """
+            {"rules":{"rules":[]},"simRegistry":[],"defaultRegionOverride":null,"installId":null}
+        """.trimIndent()
+        val read = SimmoStateSerializer.readFrom(ByteArrayInputStream(json.encodeToByteArray()))
+        assertEquals(false, read.showCallToast)
     }
 
     @Test

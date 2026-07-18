@@ -591,4 +591,77 @@ class DecisionEngineTest {
             ),
         )
     }
+
+    // --- "Calling using" announcement (settings) ---
+
+    @Test
+    fun `announces the rule-picked SIM when the toast setting is on`() {
+        val rules = listOf(country("AU", RuleAction.UseSim(telstra.ref())))
+        assertEquals(
+            Verdict.RedirectToAccount(telstra.phoneAccount, announceSim = "Telstra AU"),
+            engine.decide(call(auNumber), snapshot(rules).copy(announceCalls = true), now),
+        )
+    }
+
+    @Test
+    fun `announces a rule-picked SIM the call is already on`() {
+        val rules = listOf(country("AU", RuleAction.UseSim(telstra.ref())))
+        assertEquals(
+            Verdict.Proceed(ProceedReason.ALREADY_ON_TARGET, announceSim = "Telstra AU"),
+            engine.decide(
+                call(auNumber, currentAccount = telstra.phoneAccount),
+                snapshot(rules).copy(announceCalls = true),
+                now,
+            ),
+        )
+    }
+
+    @Test
+    fun `announces a matching-country SIM pick too`() {
+        val rules = listOf(any(RuleAction.UseMatchingCountrySim))
+        assertEquals(
+            Verdict.RedirectToAccount(telstra.phoneAccount, announceSim = "Telstra AU"),
+            engine.decide(call(auNumber), snapshot(rules).copy(announceCalls = true), now),
+        )
+    }
+
+    @Test
+    fun `announces nothing while the toast setting is off`() {
+        val rules = listOf(country("AU", RuleAction.UseSim(telstra.ref())))
+        assertEquals(
+            Verdict.RedirectToAccount(telstra.phoneAccount, announceSim = null),
+            engine.decide(call(auNumber), snapshot(rules), now),
+        )
+    }
+
+    @Test
+    fun `a chooser-placed call with a pass token is not announced`() {
+        // The user just tapped the SIM by name; toasting it again is noise.
+        val token = PassToken(auNumber, telstra.phoneAccount, expiresAtMillis = now + 5_000)
+        val rules = listOf(country("AU", RuleAction.UseSim(tmobile.ref())))
+        assertEquals(
+            Verdict.Proceed(ProceedReason.PASS_TOKEN, consumedToken = token, announceSim = null),
+            engine.decide(
+                call(auNumber, currentAccount = telstra.phoneAccount),
+                snapshot(rules, passTokens = listOf(token)).copy(announceCalls = true),
+                now,
+            ),
+        )
+    }
+
+    @Test
+    fun `a hand-off phone account is not announced as a SIM`() {
+        // The receiving app opening is its own feedback, and the account has
+        // no SIM name to toast.
+        val gv = PhoneAccountRef("acct-gv")
+        val rules = listOf(country("US", RuleAction.HandOff.ViaPhoneAccount(gv)))
+        assertEquals(
+            Verdict.RedirectToAccount(gv, announceSim = null),
+            engine.decide(
+                call(usNumber),
+                snapshot(rules, handOffAccounts = setOf(gv)).copy(announceCalls = true),
+                now,
+            ),
+        )
+    }
 }
