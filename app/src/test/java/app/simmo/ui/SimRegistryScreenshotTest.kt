@@ -5,7 +5,9 @@ import android.graphics.Canvas
 import android.view.View
 import androidx.activity.ComponentActivity
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import app.simmo.domain.SimRef
 import com.github.takahirom.roborazzi.captureRoboImage
@@ -41,6 +43,17 @@ class SimRegistryScreenshotTest {
                             active = true,
                             lastSeenLabel = "Jul 17, 2026",
                         ),
+                        // An active data-only travel eSIM: registered for the
+                        // roaming watch and shown as Active like any SIM, even
+                        // though it has no call-capable account.
+                        RegistrySimRowUi(
+                            ref = SimRef(5, "Orange", "Orange Holiday"),
+                            name = "Orange Holiday",
+                            carrier = "Orange",
+                            detail = "France",
+                            active = true,
+                            lastSeenLabel = "Jul 18, 2026",
+                        ),
                         RegistrySimRowUi(
                             ref = SimRef(2, "T-Mobile", ""),
                             name = "T-Mobile",
@@ -64,7 +77,9 @@ class SimRegistryScreenshotTest {
         composeRule.waitForIdle()
 
         composeRule.onNodeWithText("Telstra personal").assertExists()
-        composeRule.onNodeWithText("Active").assertExists()
+        // Two Active rows: the call-capable SIM and the data-only eSIM.
+        composeRule.onAllNodesWithText("Active").assertCountEquals(2)
+        composeRule.onNodeWithText("Orange Holiday").assertExists()
         composeRule.onNodeWithText("+61 412 345 678 · Australia").assertExists()
         composeRule.onNodeWithText("Last seen Mar 2, 2026").assertExists()
         // The jump to system settings (the Quick Settings tile's landing

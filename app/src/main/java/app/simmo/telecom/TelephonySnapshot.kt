@@ -14,6 +14,7 @@ import androidx.core.content.ContextCompat
 import app.simmo.domain.ActiveSim
 import app.simmo.domain.CallingAccount
 import app.simmo.domain.ContactNumberIndex
+import app.simmo.domain.DataSnapshot
 import app.simmo.domain.DecisionSnapshot
 import app.simmo.domain.PassToken
 import app.simmo.domain.PhoneAccountRef
@@ -194,6 +195,123 @@ class TelephonyReader(private val context: Context) {
         } catch (_: UnsupportedOperationException) {
             ""
         }
+
+    /**
+     * The mobile-data side of the roaming watch (SPEC "Data-roaming
+     * visibility"): which subscription carries data, whose network is roaming,
+     * and each SIM's own data-roaming setting. All reads `READ_PHONE_STATE`
+     * covers, refreshed with the rest of the telephony snapshot — never on the
+     * decision path.
+     */
+    data class DataState(
+        /**
+         * The subscription carrying data right now: the platform's active data
+         * subscription, or the default data subscription when no temporary
+         * override is in effect; INVALID when the device has neither.
+         */
+        val dataSubscriptionId: Int = SubscriptionManager.INVALID_SUBSCRIPTION_ID,
+        /**
+         * The data subscription's network country. Deliberately *not* the
+         * [readNetworkRegion] value: that one falls back to the SIM country,
+         * and a roaming SIM's home country must never mask where the user is.
+         */
+        val networkCountry: String = "",
+        /** Subscriptions whose current network is roaming (carrier-defined flag). */
+        val roamingSubscriptionIds: Set<Int> = emptySet(),
+        /** Subscriptions whose per-SIM "data roaming" setting is on. */
+        val dataRoamingEnabledSubscriptionIds: Set<Int> = emptySet(),
+        /**
+         * Every active subscription, built from the subscription rows rather
+         * than Telecom's call-capable accounts: a data-only eSIM — the classic
+         * travel data SIM, exactly what the roaming watch exists for — has no
+         * call-capable account and would be invisible to [readSimsAndAccounts]
+         * (Codex on PR #52). The [ActiveSim.phoneAccount] here is a sentinel
+         * ("subscription:<id>", a shape a real Telecom handle ref can never
+         * take) — the watch never places calls, so no caller may route to it.
+         */
+        val subscriptions: List<ActiveSim> = emptyList(),
+    )
+
+    /**
+     * Empty result (not an error) when READ_PHONE_STATE isn't granted or the
+     * device has no telephony — same degradation as [readSimsAndAccounts]:
+     * an empty state just means the roaming watch has nothing to judge.
+     */
+    fun readDataState(): DataState {
+        if (!hasPhonePermission()) return DataState()
+        return try {
+            val telephony = context.getSystemService(TelephonyManager::class.java)
+                ?: return DataState()
+            val subscriptionManager = context.getSystemService(SubscriptionManager::class.java)
+                ?: return DataState()
+            val subscriptions = try {
+                subscriptionManager.activeSubscriptionInfoList.orEmpty()
+            } catch (_: UnsupportedOperationException) {
+                emptyList()
+            }
+            val dataSubId = SubscriptionManager.getActiveDataSubscriptionId()
+                .takeIf { it != SubscriptionManager.INVALID_SUBSCRIPTION_ID }
+                ?: SubscriptionManager.getDefaultDataSubscriptionId()
+            val roaming = mutableSetOf<Int>()
+            val dataRoamingEnabled = mutableSetOf<Int>()
+            val simRows = mutableListOf<ActiveSim>()
+            fun record(info: SubscriptionInfo) {
+                simRows += ActiveSim(
+                    subscriptionId = info.subscriptionId,
+                    carrierName = info.carrierName?.toString().orEmpty(),
+                    displayName = info.displayName?.toString().orEmpty(),
+                    phoneAccount = PhoneAccountRef("subscription:${info.subscriptionId}"),
+                    countryIso = info.countryIso.orEmpty(),
+                    // The registry keeps last-known numbers, and for a
+                    // data-only SIM this row is the only source it has.
+                    phoneNumber = readPhoneNumber(subscriptionManager, info),
+                )
+                if (info.dataRoaming == SubscriptionManager.DATA_ROAMING_ENABLE) {
+                    dataRoamingEnabled += info.subscriptionId
+                }
+                // The roaming flag is per network registration, so it needs the
+                // per-subscription manager; a failed read means "not roaming",
+                // degrading toward silence rather than a false warning.
+                val isRoaming = try {
+                    telephony.createForSubscriptionId(info.subscriptionId).isNetworkRoaming
+                } catch (_: UnsupportedOperationException) {
+                    false
+                }
+                if (isRoaming) roaming += info.subscriptionId
+            }
+            subscriptions.forEach(::record)
+            // A temporary data switch can land on an opportunistic
+            // subscription the visible list omits; without its row the watch
+            // would go silent exactly while data flows on it (Codex on
+            // PR #52). Look it up explicitly, best effort — if even the
+            // direct read hides it, the watch degrades to silence as before.
+            if (dataSubId != SubscriptionManager.INVALID_SUBSCRIPTION_ID &&
+                simRows.none { it.subscriptionId == dataSubId }
+            ) {
+                val hidden = try {
+                    subscriptionManager.getActiveSubscriptionInfo(dataSubId)
+                } catch (_: UnsupportedOperationException) {
+                    null
+                }
+                hidden?.let(::record)
+            }
+            val networkCountry = try {
+                val forDataSub = if (dataSubId != SubscriptionManager.INVALID_SUBSCRIPTION_ID) {
+                    telephony.createForSubscriptionId(dataSubId)
+                } else {
+                    telephony
+                }
+                forDataSub.networkCountryIso
+            } catch (_: UnsupportedOperationException) {
+                ""
+            }
+            DataState(dataSubId, networkCountry, roaming, dataRoamingEnabled, simRows)
+        } catch (_: SecurityException) {
+            DataState()
+        } catch (_: UnsupportedOperationException) {
+            DataState()
+        }
+    }
 }
 
 /** Stable, process-independent identity for a platform phone account handle. */
@@ -280,10 +398,32 @@ class SnapshotAssembler(
     private var contactsGeneration = 0
     private val contactsWriteLock = Any()
 
+    /**
+     * A [StateFlow] because the UI reads it too: the SIMs screen counts a
+     * data-only subscription as active (the call snapshot can't see it), and
+     * the future triage card renders the live data state directly.
+     */
+    private val dataStateFlow = MutableStateFlow(TelephonyReader.DataState())
+
     /** Blocking IPC — call from a background dispatcher only. */
     fun refresh() {
         simsFlow.value = reader.readSimsAndAccounts()
         networkRegion = reader.readNetworkRegion()
+        dataStateFlow.value = reader.readDataState()
+    }
+
+    /** For the UI: live data-subscription state (see [dataStateFlow]'s KDoc). */
+    fun dataStates(): StateFlow<TelephonyReader.DataState> = dataStateFlow.asStateFlow()
+
+    /**
+     * The roaming watch's input (SPEC "Data rules"), or null until the
+     * persisted state's first load lands — the same contract as [current].
+     * The watch evaluates this on telephony refreshes and wake-ups, never on
+     * the call-decision path.
+     */
+    fun currentDataSnapshot(): DataSnapshot? {
+        val state = stateHolder()?.current ?: return null
+        return buildDataSnapshot(dataStateFlow.value, state)
     }
 
     /**
@@ -328,6 +468,24 @@ class SnapshotAssembler(
 
     fun activeSims() = simsFlow.value.activeSims
 
+    /**
+     * Every active subscription, for registry capture: the call-capable rows
+     * (real account refs, own numbers) plus the data-only subscriptions the
+     * call snapshot can't see. A data-only travel eSIM must be remembered so
+     * the no-data nudge can still name it once it's disabled (Codex on
+     * PR #52); [callCapableIds] tells the registry which rows may be offered
+     * as calling-rule targets.
+     */
+    fun allActiveSims(): List<ActiveSim> {
+        val callCapable = simsFlow.value.activeSims
+        val callIds = callCapable.mapTo(HashSet()) { it.subscriptionId }
+        return callCapable +
+            dataStateFlow.value.subscriptions.filterNot { it.subscriptionId in callIds }
+    }
+
+    /** Subscription ids of the SIMs with a call-capable phone account. */
+    fun callCapableIds(): Set<Int> = simsFlow.value.activeSims.mapTo(HashSet()) { it.subscriptionId }
+
     /** For the UI: disabled-SIM greying must track live telephony changes. */
     fun simsAndAccounts(): StateFlow<TelephonyReader.SimsAndAccounts> = simsFlow.asStateFlow()
 
@@ -367,3 +525,26 @@ class SnapshotAssembler(
         )
     }
 }
+
+/**
+ * Pure assembly of the roaming watch's input from the cached reads, so the
+ * field wiring is testable without Android. The SIM list is
+ * [TelephonyReader.DataState.subscriptions] — subscription rows, not the
+ * call snapshot, so data-only eSIMs are watched too. Group membership is
+ * uppercased the same way [SnapshotAssembler.current] does for the decision
+ * snapshot — both engines resolve groups through the same matcher helper.
+ */
+internal fun buildDataSnapshot(
+    dataState: TelephonyReader.DataState,
+    state: SimmoState,
+): DataSnapshot = DataSnapshot(
+    networkCountry = dataState.networkCountry,
+    activeSims = dataState.subscriptions,
+    dataSubscriptionId = dataState.dataSubscriptionId,
+    roamingSubscriptionIds = dataState.roamingSubscriptionIds,
+    dataRoamingEnabledSubscriptionIds = dataState.dataRoamingEnabledSubscriptionIds,
+    customGroups = state.customGroups.associate { group ->
+        group.id to group.regionCodes.map { it.uppercase() }
+    },
+    registeredSims = state.simRegistry,
+)

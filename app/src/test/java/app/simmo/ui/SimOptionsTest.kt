@@ -37,4 +37,18 @@ class SimOptionsTest {
         val registry = listOf(RegisteredSim(1, "Telstra", "Telstra AU", 100L))
         assertEquals(1, buildSimOptions(registry, listOf(active)).size)
     }
+
+    @Test
+    fun `a data-only registered sim is never offered as a calling target`() {
+        // Registered for the roaming watch (travel eSIM without calling), but
+        // a calling rule targeting it could never place a call.
+        val registry = listOf(
+            RegisteredSim(1, "Telstra", "Telstra AU", 100L),
+            RegisteredSim(5, "Orange", "Orange Holiday", 200L, callCapable = false),
+        )
+        assertEquals(
+            listOf("Telstra AU"),
+            buildSimOptions(registry, activeSims = emptyList()).map { it.label },
+        )
+    }
 }

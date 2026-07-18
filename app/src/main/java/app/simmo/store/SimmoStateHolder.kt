@@ -86,12 +86,16 @@ class SimmoStateHolder(
      * updates asynchronously, so callers reacting to the capture (the new-SIM
      * notification) must not re-read [current] and race it.
      */
-    suspend fun recordSeenSims(active: List<ActiveSim>, nowMillis: Long): SimCapture {
+    suspend fun recordSeenSims(
+        active: List<ActiveSim>,
+        nowMillis: Long,
+        callCapableIds: Set<Int> = active.mapTo(HashSet()) { it.subscriptionId },
+    ): SimCapture {
         var wasEmpty = false
         val updated = store.updateData {
             val valid = it.withInstallValidated(installId)
             wasEmpty = valid.simRegistry.isEmpty()
-            valid.copy(simRegistry = valid.simRegistry.recordSeen(active, nowMillis))
+            valid.copy(simRegistry = valid.simRegistry.recordSeen(active, nowMillis, callCapableIds))
         }
         return SimCapture(updated.simRegistry, firstCapture = wasEmpty)
     }

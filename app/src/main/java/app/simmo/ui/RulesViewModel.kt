@@ -254,11 +254,19 @@ class RulesViewModel(
      * composition just renders strings).
      */
     val registryRows: StateFlow<List<RegistrySimRowUi>> =
-        app.stateHolders()
-            .flatMapLatest { holder -> holder?.state ?: flowOf(null) }
-            .combine(app.assembler.simsAndAccounts()) { state, sims ->
-                buildRegistryRows(state?.simRegistry.orEmpty(), sims.activeSims)
-            }
+        combine(
+            app.stateHolders().flatMapLatest { holder -> holder?.state ?: flowOf(null) },
+            app.assembler.simsAndAccounts(),
+            app.assembler.dataStates(),
+        ) { state, sims, dataState ->
+            // The subscription rows join the call snapshot: a data-only eSIM
+            // is just as active, and without them its row would sort and
+            // label as "last seen" while it is live (Codex on PR #52).
+            buildRegistryRows(
+                state?.simRegistry.orEmpty(),
+                sims.activeSims + dataState.subscriptions,
+            )
+        }
             .flowOn(Dispatchers.Default)
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
@@ -678,9 +686,11 @@ internal fun buildSimOptions(
     // still shows. De-dup by subscription id when it's a real one, else by the
     // carrier + display-name fallback identity: after a restore every stored id
     // is invalidated to the same sentinel, so keying by id alone would collapse
-    // distinct disabled SIMs into one option.
+    // distinct disabled SIMs into one option. Data-only rows (no call-capable
+    // account — travel eSIMs) are registered for the roaming watch but can't
+    // place calls, so they are never offered as rule targets.
     val fromActive = activeSims.map { RegisteredSim(it.subscriptionId, it.carrierName, it.displayName, 0L) }
-    val merged = (registry + fromActive)
+    val merged = (registry.filter { it.callCapable } + fromActive)
         .associateBy { sim ->
             if (sim.subscriptionId == SimRef.INVALID_SUBSCRIPTION_ID) {
                 "name:${sim.carrierName.trim().lowercase()}|${sim.displayName.trim().lowercase()}"

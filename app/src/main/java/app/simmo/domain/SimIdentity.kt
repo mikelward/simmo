@@ -97,6 +97,25 @@ data class RegisteredSim(
      * refresh — they happen constantly — can never re-nag.
      */
     val newSimNotified: Boolean = false,
+    /**
+     * Whether this SIM has been seen with a call-capable phone account. The
+     * registry records data-only subscriptions too (a travel eSIM without
+     * calling — the roaming watch's no-data nudge must be able to name a
+     * disabled local profile, Codex on PR #52), but only call-capable SIMs
+     * are offered as calling-rule targets. Defaults true: every row written
+     * before the field existed came from the call-capable snapshot.
+     */
+    val callCapable: Boolean = true,
+    /**
+     * Whether the add-a-calling-rule prompt has ever been offered for this
+     * identity — separate from [callCapable], which tracks the *current*
+     * profile's capability: a re-bind takes capability as fresh truth (the
+     * adopted profile may genuinely be data-only), and this history is what
+     * keeps a later capability promotion from re-asking a prompt the user
+     * already answered (Codex on PR #52). Defaults true: rows written before
+     * the field existed were always created with the prompt.
+     */
+    val rulePromptOffered: Boolean = true,
 ) {
     fun ref(): SimRef = SimRef(subscriptionId, carrierName, displayName)
 }
@@ -145,8 +164,18 @@ private fun String.matchesIgnoringCaseAndSpace(other: String): Boolean =
  * unique — same identity ladder as [resolveSim] — instead of leaving a
  * duplicate row behind. Rows for SIMs not currently active are kept so rules
  * can still target them; genuinely new SIMs append.
+ *
+ * [callCapableIds] marks which of [active] carry a call-capable phone account
+ * (see [RegisteredSim.callCapable]); it defaults to all of them, which is what
+ * every caller passing only the call snapshot means. A data-only SIM never
+ * starts a rule prompt — it can't place calls, so "add a rule so your calls
+ * know when to use it" would be wrong.
  */
-fun List<RegisteredSim>.recordSeen(active: List<ActiveSim>, nowMillis: Long): List<RegisteredSim> {
+fun List<RegisteredSim>.recordSeen(
+    active: List<ActiveSim>,
+    nowMillis: Long,
+    callCapableIds: Set<Int> = active.mapTo(HashSet()) { it.subscriptionId },
+): List<RegisteredSim> {
     val activeById = active.associateBy { it.subscriptionId }
     val claimed = mutableSetOf<Int>()
     // Refreshes and re-binds copy the entry so per-entry state that isn't
@@ -155,7 +184,7 @@ fun List<RegisteredSim>.recordSeen(active: List<ActiveSim>, nowMillis: Long): Li
     val refreshed = map { entry ->
         activeById[entry.subscriptionId]?.let { sim ->
             claimed += sim.subscriptionId
-            entry.refreshedFrom(sim, nowMillis)
+            entry.refreshedFrom(sim, nowMillis, callCapableIds)
         } ?: entry
     }
     val rebound = refreshed.map { entry ->
@@ -171,6 +200,7 @@ fun List<RegisteredSim>.recordSeen(active: List<ActiveSim>, nowMillis: Long): Li
         // country and own number are taken verbatim, blanks included; the
         // last-known fallback must not resurrect the old profile's values
         // (Codex on PR #36).
+        val nowCallCapable = match.subscriptionId in callCapableIds
         entry.copy(
             subscriptionId = match.subscriptionId,
             carrierName = match.carrierName,
@@ -178,13 +208,27 @@ fun List<RegisteredSim>.recordSeen(active: List<ActiveSim>, nowMillis: Long): Li
             lastSeenEpochMillis = nowMillis,
             countryIso = match.countryIso,
             phoneNumber = match.phoneNumber,
+            // A row whose prompt was never offered is owed it once the
+            // adopted profile can call; [rulePromptOffered] — not the
+            // capability flag — is what makes this safe against re-asking an
+            // answered prompt after a rebind demoted the row (Codex on PR #52).
+            needsRulePrompt = entry.needsRulePrompt || (nowCallCapable && !entry.rulePromptOffered),
+            rulePromptOffered = entry.rulePromptOffered || nowCallCapable,
+            // Verbatim like the fields above: the adopted subscription may be
+            // a genuinely data-only profile, and a stale true here would keep
+            // offering it as a calling target it can never be (Codex on
+            // PR #52). The prompt history above survives independently.
+            callCapable = nowCallCapable,
         )
     }
     val new = active.filter { it.subscriptionId !in claimed }.map {
+        val callCapable = it.subscriptionId in callCapableIds
         RegisteredSim(
             it.subscriptionId, it.carrierName, it.displayName, nowMillis,
             countryIso = it.countryIso, phoneNumber = it.phoneNumber,
-            needsRulePrompt = true,
+            needsRulePrompt = callCapable,
+            callCapable = callCapable,
+            rulePromptOffered = callCapable,
         )
     }
     return rebound + new
@@ -196,15 +240,33 @@ fun List<RegisteredSim>.recordSeen(active: List<ActiveSim>, nowMillis: Long): Li
  * verbatim, see [recordSeen]). Country and own number keep the last-known
  * value when the fresh read is blank — the platform reports them
  * intermittently (and the number needs a separate permission), and for the
- * same subscription "last seen" beats "forgotten".
+ * same subscription "last seen" beats "forgotten". The call-capability flag
+ * is sticky-true for the same reason: the same subscription doesn't lose
+ * calling, but a degraded Telecom read can briefly miss its account, and a
+ * flap would hide the SIM from the rule editor.
  */
-private fun RegisteredSim.refreshedFrom(sim: ActiveSim, nowMillis: Long): RegisteredSim = copy(
-    carrierName = sim.carrierName,
-    displayName = sim.displayName,
-    lastSeenEpochMillis = nowMillis,
-    countryIso = sim.countryIso.ifBlank { countryIso },
-    phoneNumber = sim.phoneNumber.ifBlank { phoneNumber },
-)
+private fun RegisteredSim.refreshedFrom(
+    sim: ActiveSim,
+    nowMillis: Long,
+    callCapableIds: Set<Int>,
+): RegisteredSim {
+    val nowCallCapable = callCapable || sim.subscriptionId in callCapableIds
+    return copy(
+        carrierName = sim.carrierName,
+        displayName = sim.displayName,
+        lastSeenEpochMillis = nowMillis,
+        countryIso = sim.countryIso.ifBlank { countryIso },
+        phoneNumber = sim.phoneNumber.ifBlank { phoneNumber },
+        // A row first recorded during such a Telecom miss registered as
+        // data-only with no rule prompt; when the SIM turns out call-capable
+        // the prompt is owed after all (Codex on PR #52). [rulePromptOffered]
+        // gates it, so an answered prompt is never re-asked — even when a
+        // rebind demoted the row's capability in between.
+        needsRulePrompt = needsRulePrompt || (nowCallCapable && !rulePromptOffered),
+        rulePromptOffered = rulePromptOffered || nowCallCapable,
+        callCapable = nowCallCapable,
+    )
+}
 
 /**
  * Whether this registry entry is the SIM [ref] points at: exact (real)
