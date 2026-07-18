@@ -356,7 +356,7 @@ class DecisionEngine(private val countryDetector: CountryDetector) {
         for (rule in snapshot.rules.rules) {
             // A user-disabled rule is kept in the list but never acts.
             if (!rule.enabled) continue
-            if (!rule.matcher.matches(effectiveDestination, snapshot.customGroups)) continue
+            if (!rule.matcher.matchesRegion(effectiveDestination, snapshot.customGroups)) continue
             when (val action = rule.action) {
                 is RuleAction.UseSim -> when (val resolved = resolveSim(action.sim, snapshot.activeSims)) {
                     is SimResolution.Active ->
@@ -495,25 +495,6 @@ class DecisionEngine(private val countryDetector: CountryDetector) {
         if (snapshot.passTokens.any { it.matches(call, nowMillis) }) return null
         val destination = (country as? CountryVerdict.Country)?.regionCode
         return (correctionOutcome(call, destination, snapshot) as? CorrectionOutcome.Missed)?.correction
-    }
-
-    private fun RuleMatcher.matches(
-        destination: String?,
-        customGroups: Map<String, List<String>>,
-    ): Boolean = when (this) {
-        RuleMatcher.AnyDestination -> true
-        is RuleMatcher.Country -> destination != null && regionCode.equals(destination, ignoreCase = true)
-        is RuleMatcher.Countries -> destination != null &&
-            (
-                regionCodes.any { it.equals(destination, ignoreCase = true) } ||
-                    // Group membership resolves from the in-memory snapshot at
-                    // decision time — the static table for built-ins, the user's
-                    // custom groups for the rest — so one stored group entry
-                    // tracks membership across app updates and edits alike.
-                    groupIds.any { id ->
-                        groupMembers(id, customGroups).any { it.equals(destination, ignoreCase = true) }
-                    }
-                )
     }
 
     /**
