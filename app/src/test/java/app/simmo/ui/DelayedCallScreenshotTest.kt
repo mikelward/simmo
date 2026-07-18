@@ -15,31 +15,43 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
-/** Renders the Settings screen: the SIMs entry and the app-level options. */
+/**
+ * Renders the delay-before-calling countdown (SPEC "Call feedback and
+ * delay"): the rule-picked SIM, number + detected country, the seconds left,
+ * Call now, and cancel.
+ */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [36], qualifiers = "w411dp-h914dp-420dpi")
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-class SettingsScreenshotTest {
+class DelayedCallScreenshotTest {
     @get:Rule
     val composeRule = createAndroidComposeRule<ComponentActivity>()
 
     @Test
-    fun settings() {
+    fun delayedCall_countdown() {
         composeRule.setContent {
             MaterialTheme {
-                SettingsContent(
-                    settings = CallSettingsUi(showCallToast = true, callDelaySeconds = 3),
+                DelayedCallContent(
+                    state = DelayedCallUiState(
+                        simLabel = "Telstra AU",
+                        dialedNumber = "+61 412 345 678",
+                        countryLabel = "+61 Australia",
+                        remainingSeconds = 3,
+                    ),
+                    onCallNow = {},
+                    onCancel = {},
                 )
             }
         }
         composeRule.waitForIdle()
 
-        composeRule.onNodeWithText("Settings").assertExists()
-        composeRule.onNodeWithText("SIMs").assertExists()
-        composeRule.onNodeWithText("Show which SIM is used").assertExists()
-        composeRule.onNodeWithText("Delay before calling").assertExists()
-        composeRule.onNodeWithText("3 seconds").assertExists()
-        captureSnapshot("settings.png")
+        composeRule.onNodeWithText("Calling using Telstra AU").assertExists()
+        composeRule.onNodeWithText("+61 412 345 678").assertExists()
+        composeRule.onNodeWithText("+61 Australia").assertExists()
+        composeRule.onNodeWithText("Calling in 3 seconds").assertExists()
+        composeRule.onNodeWithText("Call now").assertExists()
+        composeRule.onNodeWithText("Cancel call").assertExists()
+        captureSnapshot("delayed_call.png")
     }
 
     private fun captureSnapshot(name: String, widthPx: Int = 1080, heightPx: Int = 1920) {

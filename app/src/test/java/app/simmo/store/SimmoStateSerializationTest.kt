@@ -48,6 +48,7 @@ class SimmoStateSerializationTest {
         // Non-default so the round trip proves the fields are actually written.
         analyticsOptIn = false,
         showCallToast = true,
+        callDelaySeconds = 5,
     )
 
     private suspend fun roundTrip(state: SimmoState): SimmoState {
@@ -174,14 +175,15 @@ class SimmoStateSerializationTest {
     }
 
     @Test
-    fun `state written before the call toast setting decodes with it off`() = runTest {
-        // Bytes as written before showCallToast existed: existing users must
-        // come up with the toast off, matching a fresh install.
+    fun `state written before the call feedback settings decodes with them off`() = runTest {
+        // Bytes as written before showCallToast/callDelaySeconds existed:
+        // existing users must come up with both off, matching a fresh install.
         val json = """
             {"rules":{"rules":[]},"simRegistry":[],"defaultRegionOverride":null,"installId":null}
         """.trimIndent()
         val read = SimmoStateSerializer.readFrom(ByteArrayInputStream(json.encodeToByteArray()))
         assertEquals(false, read.showCallToast)
+        assertEquals(0, read.callDelaySeconds)
     }
 
     @Test

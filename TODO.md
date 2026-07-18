@@ -162,6 +162,14 @@ small stack), fully unit-tested, with `./gradlew test` and `./gradlew lint` gree
 - [x] Settings screen behind the rules list's gear: the home for app-level
       options (the default-region override is the next candidate), with the
       SIM registry reached through it instead of directly from the gear.
+- [x] Call feedback settings (SPEC "Call feedback and delay"): an optional
+      "Calling using <SIM>" toast when a rule picks a SIM, and an optional
+      1–10 s cancelable countdown screen before a rule-picked redirect is
+      placed (cancel-and-re-place with a pass token; never delays the Telecom
+      response; skipped in non-interactive contexts). Device QA owed: the
+      toast from the redirection service on Android 12+ (shared with the
+      hand-off failure toast item), and background-activity-launch rules for
+      the countdown activity (shared with the chooser's BAL item).
 - [ ] Rename SIMs on the registry screen (maintainer: deferred). Must be a
       *nickname* layered over the stored identity, never an edit of
       displayName — carrier + display name is the re-binding ladder (SPEC "SIM

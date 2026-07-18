@@ -150,6 +150,24 @@
     <!-- TODO: translate -->
     <string name="calling_using" tools:ignore="MissingTranslation">Calling using %1$s</string>
     <!-- TODO: translate -->
+    <string name="settings_call_delay_label" tools:ignore="MissingTranslation">Delay before calling</string>
+    <!-- TODO: translate -->
+    <string name="settings_call_delay_description" tools:ignore="MissingTranslation">Time to cancel before a rule-picked call starts</string>
+    <!-- TODO: translate -->
+    <string name="settings_call_delay_off" tools:ignore="MissingTranslation">Off</string>
+    <!-- TODO: translate -->
+    <plurals name="settings_call_delay_value" tools:ignore="MissingTranslation">
+        <item quantity="one">%1$d second</item>
+        <item quantity="other">%1$d seconds</item>
+    </plurals>
+    <!-- TODO: translate -->
+    <plurals name="delayed_call_countdown" tools:ignore="MissingTranslation">
+        <item quantity="one">Calling in %1$d second</item>
+        <item quantity="other">Calling in %1$d seconds</item>
+    </plurals>
+    <!-- TODO: translate -->
+    <string name="delayed_call_now" tools:ignore="MissingTranslation">Call now</string>
+    <!-- TODO: translate -->
     <string name="sim_registry_title" tools:ignore="MissingTranslation">SIMs</string>
     <!-- TODO: translate -->
     <string name="sim_registry_explainer" tools:ignore="MissingTranslation">Every SIM Simmo has seen. Rules can use a SIM even while it\'s disabled.</string>

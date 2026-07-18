@@ -62,6 +62,13 @@
             android:excludeFromRecents="true"
             android:exported="false" />
 
+        <!-- The delay-before-calling countdown, likewise launched by the
+             redirection service mid-call-attempt. -->
+        <activity
+            android:name=".ui.DelayedCallActivity"
+            android:excludeFromRecents="true"
+            android:exported="false" />
+
         <!-- The interception hook: the platform binds here for every outgoing
              carrier call while Simmo holds ROLE_CALL_REDIRECTION. -->
         <service

@@ -41,7 +41,19 @@ data class SimmoState(
      * default; state written before the field existed decodes as off too.
      */
     val showCallToast: Boolean = false,
-)
+    /**
+     * Settings "Delay before calling" (SPEC "Call feedback and delay"):
+     * seconds of cancelable countdown before a rule-picked call is placed.
+     * 0 disables the delay — the default, and what pre-field state decodes
+     * as. Readers clamp to [MAX_CALL_DELAY_SECONDS].
+     */
+    val callDelaySeconds: Int = 0,
+) {
+    companion object {
+        /** Ceiling for [callDelaySeconds]; also the settings slider's range. */
+        const val MAX_CALL_DELAY_SECONDS = 10
+    }
+}
 
 /**
  * Guards against restored state routing calls to the wrong SIM: subscription

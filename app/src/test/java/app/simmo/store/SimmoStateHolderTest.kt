@@ -149,6 +149,24 @@ class SimmoStateHolderTest {
     }
 
     @Test
+    fun `call feedback settings persist and the delay is clamped`() = runTest {
+        val store = FakeDataStore(SimmoState(installId = "install-1"))
+        val holder = SimmoStateHolder(store, backgroundScope, installId = "install-1")
+
+        holder.setShowCallToast(true)
+        assertEquals(true, store.data.first().showCallToast)
+
+        holder.setCallDelaySeconds(5)
+        assertEquals(5, store.data.first().callDelaySeconds)
+
+        // Out-of-range writes clamp instead of storing an absurd countdown.
+        holder.setCallDelaySeconds(999)
+        assertEquals(SimmoState.MAX_CALL_DELAY_SECONDS, store.data.first().callDelaySeconds)
+        holder.setCallDelaySeconds(-1)
+        assertEquals(0, store.data.first().callDelaySeconds)
+    }
+
+    @Test
     fun `rule updates and sim capture land in the in-memory state`() = runTest {
         // Already adopted by this install so the restore guard stays inert here.
         val store = FakeDataStore(SimmoState(installId = "install-1"))

@@ -265,6 +265,7 @@ class RulesViewModel(
             .map { state ->
                 CallSettingsUi(
                     showCallToast = state?.showCallToast ?: false,
+                    callDelaySeconds = state?.callDelaySeconds ?: 0,
                 )
             }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), CallSettingsUi())
@@ -274,6 +275,13 @@ class RulesViewModel(
         // Wait for the holder rather than dropping the write, like [edit].
         viewModelScope.launch {
             app.stateHolders().filterNotNull().first().setShowCallToast(enabled)
+        }
+    }
+
+    /** The settings "Delay before calling" slider, in seconds (0 = off). */
+    fun setCallDelaySeconds(seconds: Int) {
+        viewModelScope.launch {
+            app.stateHolders().filterNotNull().first().setCallDelaySeconds(seconds)
         }
     }
 

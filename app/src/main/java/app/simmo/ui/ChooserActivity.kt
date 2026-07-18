@@ -9,7 +9,6 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
-import android.telecom.TelecomManager
 import android.telephony.euicc.EuiccManager
 import android.util.Log
 import androidx.activity.ComponentActivity
@@ -26,11 +25,11 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.simmo.SimmoApp
 import app.simmo.domain.HeldCall
-import app.simmo.domain.PassToken
 import app.simmo.domain.Rule
 import app.simmo.domain.RuleAction
 import app.simmo.domain.SimRef
 import app.simmo.domain.countryMatcher
+import app.simmo.telecom.replaceCall
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -190,41 +189,15 @@ class ChooserActivity : ComponentActivity() {
                 }
             }
         }
-        // Token before placing: the new call consults the service immediately,
-        // and must pass through unmodified instead of looping (SPEC
-        // "Redirect-loop guard").
-        app.passTokens.add(
-            PassToken(
-                dialedNumber = handle.schemeSpecificPart.orEmpty(),
-                account = target.account,
-                expiresAtMillis = System.currentTimeMillis() + PASS_TOKEN_TTL_MILLIS,
-            ),
-        )
-        val accountHandle = app.assembler.handleFor(target.account)
-        if (accountHandle == null) {
-            // The SIM vanished between the chooser opening and the tap; the
-            // original call is already canceled, so just don't re-place onto
-            // a dead handle.
-            Log.e(TAG, "Chosen phone account no longer available; not re-placing")
-            return
-        }
-        val extras = Bundle().apply {
-            putParcelable(TelecomManager.EXTRA_PHONE_ACCOUNT_HANDLE, accountHandle)
-        }
-        try {
-            getSystemService(TelecomManager::class.java).placeCall(handle, extras)
-        } catch (e: SecurityException) {
-            // CALL_PHONE was checked above but can be revoked concurrently.
-            Log.e(TAG, "Re-placing the call failed", e)
-        }
+        // A failure (the SIM vanished between the chooser opening and the tap,
+        // or CALL_PHONE revoked concurrently) is logged by the helper; the
+        // original call is already canceled, so there is nothing to undo.
+        app.replaceCall(handle, target.account)
     }
 
     companion object {
         private const val TAG = "SimmoChooser"
         private const val EXTRA_SKIPPED_SIMS = "app.simmo.extra.SKIPPED_SIMS"
-
-        /** How long the re-placed call has to reach the service. */
-        private const val PASS_TOKEN_TTL_MILLIS = 30_000L
 
         private val extrasJson = Json { ignoreUnknownKeys = true }
 
