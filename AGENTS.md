@@ -86,17 +86,17 @@ fixing it in the same commit.
 ## Commit messages
 
 - Write every subject for end users, sentence case, plain English, no internal symbol
-  names, ≤ ~70 characters; engineering detail goes in the body. This repo will adopt
-  Type Launcher's release pipeline (commit subjects become the Play "What's new" list),
-  so the discipline applies from day one.
+  names, ≤ ~70 characters; engineering detail goes in the body. This repo uses Type
+  Launcher's release pipeline: every release-worthy commit subject in a push to `main`
+  ships as a bullet in the Firebase and Play "What's new" list (see the `deploy` job).
 - Because the repo rebase-merges, the PR title never lands on `main` — each commit's
   own subject does. Title **every** commit on the branch by these rules, not just the
   PR.
 - Keep non-user-facing commits out of release notes with a subject prefix, used
   precisely (the prefix is a promise the commit has **no user-visible effect**):
   - `ci:` — CI / workflow plumbing.
-  - `docs:` — documentation only (`PRIVACY.md`, once it exists, is the exception — it
-    is user-facing).
+  - `docs:` — documentation only (`docs/PRIVACY.md` is the exception — it backs the
+    hosted privacy policy, so it is user-facing).
   - `internal:` — build config, dependency upgrades, other plumbing.
   - `refactor:` — behavior-preserving code changes.
   - `test:` / `tests:` — test-only changes.
