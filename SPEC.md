@@ -271,7 +271,12 @@ supports:
    report failure anyway), and cancelling first also rules out opening the app on top of
    a still-proceeding call. A launch that then fails can't be un-cancelled, so Simmo
    surfaces it (the same notification, with **Settings** to fix the app and **Redial** to
-   retry). A number with no E.164 form (short code, undetermined) skips the rule. The
+   retry) and, because notifications are optional, also drops the user in the dialer with
+   the number — a permission-free recovery. That recovery redial mints a short-lived
+   loop-guard pass token (see "Redirect-loop guard") so it proceeds on the carrier instead
+   of re-entering the still-failing rule; unlike the chooser's account-pinned token, the
+   dialer can't pin a SIM, so this token matches the number on any account. A number with
+   no E.164 form (short code, undetermined) skips the rule. The
    receiving app takes over; whether it auto-dials or pre-fills is its behavior, not
    ours. Requires interactive context. (Readiness beyond "installed" — Google Voice's
    linked number, a Teams Phone plan, Viber Out credit — isn't detectable from the
