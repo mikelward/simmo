@@ -22,7 +22,7 @@
     <!-- TODO: translate -->
     <string name="onboarding_continue" tools:ignore="MissingTranslation">Continue</string>
     <!-- TODO: translate -->
-    <string name="rules_title" tools:ignore="MissingTranslation">Rules</string>
+    <string name="rules_title" tools:ignore="MissingTranslation">Calling rules</string>
     <!-- TODO: translate -->
     <string name="rules_explainer" tools:ignore="MissingTranslation">Checked top to bottom for every call; the first rule that can act wins.</string>
     <!-- TODO: translate -->
@@ -132,7 +132,7 @@
     <!-- TODO: translate -->
     <string name="chooser_cancel" tools:ignore="MissingTranslation">Cancel call</string>
     <!-- TODO: translate -->
-    <string name="sim_settings" tools:ignore="MissingTranslation">SIM settings</string>
+    <string name="system_settings" tools:ignore="MissingTranslation">System settings</string>
     <!-- TODO: translate -->
     <string name="group_eu_eea" tools:ignore="MissingTranslation">EU/EEA</string>
     <!-- TODO: translate -->

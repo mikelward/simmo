@@ -10,7 +10,7 @@ import android.util.Log
 private const val TAG = "SimmoSimSettings"
 
 /**
- * Where "SIM settings" jumps land, most specific first: apps cannot enable or
+ * Where "System settings" jumps land, most specific first: apps cannot enable or
  * disable SIMs themselves (carrier privileges), so the best any Simmo surface
  * can do is hand the user to the system's embedded-SIM management screen,
  * falling back to the generic network settings. The eUICC screen is only a

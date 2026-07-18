@@ -69,7 +69,7 @@ class SimRegistryScreenshotTest {
         composeRule.onNodeWithText("Last seen Mar 2, 2026").assertExists()
         // The jump to system settings (the Quick Settings tile's landing
         // screen leans on it: enabling SIMs is Settings' job).
-        composeRule.onNodeWithText("SIM settings").assertExists()
+        composeRule.onNodeWithText("System settings").assertExists()
         captureSnapshot("sim_registry.png")
     }
 
