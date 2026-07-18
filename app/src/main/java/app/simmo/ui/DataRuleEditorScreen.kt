@@ -55,9 +55,10 @@ sealed interface DataEditorTarget {
     @SerialName("new")
     data object New : DataEditorTarget
 
+    /** Editing an existing data rule by its stable [DataRule.id]; see [EditorTarget.Existing]. */
     @Serializable
     @SerialName("existing")
-    data class Existing(val index: Int, val rule: DataRule) : DataEditorTarget
+    data class Existing(val id: String, val rule: DataRule) : DataEditorTarget
 }
 
 @Composable
@@ -100,12 +101,12 @@ fun DataRuleEditorScreen(
             when (target) {
                 DataEditorTarget.New -> viewModel.addDataRule(rule, pendingGroups)
                 is DataEditorTarget.Existing ->
-                    viewModel.replaceDataRule(target.index, rule, pendingGroups)
+                    viewModel.replaceDataRule(target.id, rule, pendingGroups)
             }
             onDone()
         },
         onDelete = (target as? DataEditorTarget.Existing)?.let { existing ->
-            { viewModel.removeDataRule(existing.index); onDone() }
+            { viewModel.removeDataRule(existing.id); onDone() }
         },
         onCancel = onDone,
     )
@@ -377,6 +378,9 @@ internal fun DataRuleEditorContent(
                                 // Editing a paused-off rule must not silently
                                 // re-enable it.
                                 enabled = initial?.enabled ?: true,
+                                // Keep the edited rule's id so the save replaces
+                                // it in place; a new rule is assigned one on write.
+                                id = initial?.id.orEmpty(),
                             ),
                         )
                     },

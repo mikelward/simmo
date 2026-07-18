@@ -36,7 +36,7 @@ class RuleEditorScreenshotTest {
             MaterialTheme {
                 RuleEditorContent(
                     target = EditorTarget.Existing(
-                        0,
+                        "r",
                         SimmoRule(RuleMatcher.Country("AU"), RuleAction.UseSim(telstra)),
                     ),
                     simOptions = listOf(
@@ -74,7 +74,7 @@ class RuleEditorScreenshotTest {
             MaterialTheme {
                 RuleEditorContent(
                     target = EditorTarget.Existing(
-                        0,
+                        "r",
                         SimmoRule(
                             RuleMatcher.Countries(listOf("FR", "DE", "IT")),
                             RuleAction.UseSim(telstra),
@@ -113,7 +113,7 @@ class RuleEditorScreenshotTest {
             MaterialTheme {
                 RuleEditorContent(
                     target = EditorTarget.Existing(
-                        0,
+                        "r",
                         // The "my plan also covers the UK" shape: one EU/EEA
                         // group entry plus a hand-picked country beside it.
                         SimmoRule(
@@ -153,7 +153,7 @@ class RuleEditorScreenshotTest {
             MaterialTheme {
                 RuleEditorContent(
                     target = EditorTarget.Existing(
-                        0,
+                        "r",
                         SimmoRule(RuleMatcher.Country("US"), RuleAction.UseMatchingCountrySim),
                     ),
                     simOptions = listOf(SimOptionUi(telstra, "Telstra AU", active = true)),
@@ -183,7 +183,7 @@ class RuleEditorScreenshotTest {
             MaterialTheme {
                 RuleEditorContent(
                     target = EditorTarget.Existing(
-                        0,
+                        "r",
                         // A SIP-account rule whose account is still registered:
                         // its row shows selected among the SIM actions.
                         SimmoRule(
@@ -217,7 +217,7 @@ class RuleEditorScreenshotTest {
             MaterialTheme {
                 RuleEditorContent(
                     target = EditorTarget.Existing(
-                        0,
+                        "r",
                         // The stored account is no longer registered: it still
                         // shows (marked unavailable) so the rule can be kept.
                         SimmoRule(
@@ -250,7 +250,7 @@ class RuleEditorScreenshotTest {
             MaterialTheme {
                 RuleEditorContent(
                     target = EditorTarget.Existing(
-                        0,
+                        "r",
                         // A Google Voice hand-off rule edited while notifications
                         // are off: the enable hint sits under the selected action.
                         SimmoRule(

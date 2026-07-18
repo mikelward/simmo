@@ -20,6 +20,8 @@ data class DataRule(
     val expectation: DataExpectation,
     /** User toggle, same semantics as [Rule.enabled]. */
     val enabled: Boolean = true,
+    /** Stable identity, same semantics as [Rule.id]. */
+    val id: String = "",
 )
 
 /**
@@ -115,6 +117,18 @@ data class DataRuleBook(
     fun withRuleRemoved(index: Int): DataRuleBook =
         copy(rules = rules.filterIndexed { i, _ -> i != index })
 
+    /** Replace the rule with [id]; a no-op if none matches (a blank [id] matches nothing). */
+    fun withRuleReplaced(id: String, rule: DataRule): DataRuleBook =
+        if (id.isBlank()) this else copy(rules = rules.map { if (it.id == id) rule else it })
+
+    /** Remove the rule with [id]; a no-op if none matches (a blank [id] matches nothing). */
+    fun withRuleRemoved(id: String): DataRuleBook =
+        if (id.isBlank()) this else copy(rules = rules.filterNot { it.id == id })
+
+    /** Insert a copy of the rule at [index] below it under [newId]; see [RuleBook.withRuleDuplicated]. */
+    fun withRuleDuplicated(index: Int, newId: String): DataRuleBook =
+        rules.getOrNull(index)?.let { withRuleInserted(index + 1, it.copy(id = newId)) } ?: this
+
     /** Reorder for drag-and-drop; out-of-range indices are a no-op. */
     fun withRuleMoved(fromIndex: Int, toIndex: Int): DataRuleBook {
         if (fromIndex == toIndex) return this
@@ -136,6 +150,7 @@ data class DataRuleBook(
             DataRule(
                 matcher = RuleMatcher.Countries(groupIds = listOf(CountryGroups.EU_EEA)),
                 expectation = DataExpectation.RoamingOk(DataSimScope.HomedInMatchedCountries),
+                id = "default-eu-roaming",
             ),
         )
     }

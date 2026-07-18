@@ -51,7 +51,7 @@ class RuleEditorNotificationsHintTest {
         composeRule.setContent {
             MaterialTheme {
                 RuleEditorContent(
-                    target = EditorTarget.Existing(0, SimmoRule(RuleMatcher.Country("US"), action)),
+                    target = EditorTarget.Existing("r", SimmoRule(RuleMatcher.Country("US"), action)),
                     simOptions = listOf(SimOptionUi(telstra, "Telstra AU", active = true)),
                     countryOptions = listOf(CountryOptionUi("US", "+1 United States")),
                     handOffApps = setOf(ContactCallApp.WHATSAPP),

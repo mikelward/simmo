@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -76,7 +77,11 @@ class SimmoStateHolderTest {
         val holder = SimmoStateHolder(store, backgroundScope, installId = "install-1")
         val rule = DataRule(RuleMatcher.Country("AU"), DataExpectation.AlwaysWarn)
         holder.updateDataRules { it.withRuleAdded(rule) }
-        assertEquals(rule, store.data.first().dataRules.rules.first())
+        // The write boundary mints an id for a rule added without one; the rest
+        // round-trips verbatim.
+        val stored = store.data.first().dataRules.rules.first()
+        assertEquals(rule, stored.copy(id = ""))
+        assertTrue(stored.id.isNotBlank())
         // A group built in the picker commits with the rule that references
         // it — one transaction, so the state never holds a dangling group id.
         val group = CustomGroup("g1", "Trip", listOf("AU", "NZ"))
@@ -86,8 +91,19 @@ class SimmoStateHolderTest {
         )
         holder.updateGroupsAndDataRules(listOf(group)) { it.withRuleAdded(grouped) }
         val state = store.data.first()
-        assertEquals(grouped, state.dataRules.rules.first())
+        assertEquals(grouped, state.dataRules.rules.first().copy(id = ""))
         assertEquals(listOf(group), state.customGroups)
+    }
+
+    @Test
+    fun `a rule added through the write boundary always gets an id`() = runTest {
+        // The chooser's "remember" persists directly via updateRules, bypassing
+        // the view-model's creation path — the boundary must still mint an id so
+        // the rule stays editable by id (Codex on PR #60).
+        val store = FakeDataStore(SimmoState(rules = RuleBook(emptyList()), installId = "install-1"))
+        val holder = SimmoStateHolder(store, backgroundScope, installId = "install-1")
+        holder.updateRules { it.withRuleAdded(Rule(RuleMatcher.Country("US"), RuleAction.Ask)) }
+        assertTrue(store.data.first().rules.rules.single().id.isNotBlank())
     }
 
     @Test
@@ -246,7 +262,10 @@ class SimmoStateHolderTest {
 
         val state = holder.state.filterNotNull().first { it.rules.rules.isNotEmpty() }
         assertEquals(listOf(group), state.customGroups)
-        assertEquals(rule, state.rules.rules.single())
+        // The boundary mints an id for the added rule; the rest is verbatim.
+        val storedRule = state.rules.rules.single()
+        assertEquals(rule, storedRule.copy(id = ""))
+        assertTrue(storedRule.id.isNotBlank())
         assertEquals(1, writes - writesBefore) // one atomic transaction, not two
     }
 

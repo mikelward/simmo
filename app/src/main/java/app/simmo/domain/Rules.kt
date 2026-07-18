@@ -173,6 +173,15 @@ data class Rule(
      * by older versions (no field) reads back as enabled.
      */
     val enabled: Boolean = true,
+    /**
+     * A stable identity that follows the rule through reorders, edits, and a
+     * delete-then-undo — unlike its list position, which shifts under it. The
+     * editor edits by id so an open editor never lands on the wrong rule, and
+     * an undone deletion re-inserts the same id at most once. Assigned when the
+     * rule is created ([newRuleId], or a fixed id for a preseeded default);
+     * blank only for a rule not yet given one.
+     */
+    val id: String = "",
 )
 
 /**
@@ -203,6 +212,29 @@ data class RuleBook(
     fun withRuleRemoved(index: Int): RuleBook =
         copy(rules = rules.filterIndexed { i, _ -> i != index })
 
+    /**
+     * Replace the rule with [id], keeping its position; a no-op if no rule has
+     * that id (it was deleted while its editor was open). Keyed by id, not
+     * position, so an edit lands on the intended rule even when a concurrent
+     * change shifted the list underneath the open editor. A blank [id] matches
+     * nothing — a blank id means "unassigned", never a target, so an id-keyed
+     * edit can never mass-match rules that share a blank id.
+     */
+    fun withRuleReplaced(id: String, rule: Rule): RuleBook =
+        if (id.isBlank()) this else copy(rules = rules.map { if (it.id == id) rule else it })
+
+    /** Remove the rule with [id]; a no-op if none matches (a blank [id] matches nothing). */
+    fun withRuleRemoved(id: String): RuleBook =
+        if (id.isBlank()) this else copy(rules = rules.filterNot { it.id == id })
+
+    /**
+     * Insert a copy of the rule at [index] directly below it, under [newId] —
+     * the duplicate is a distinct rule, so it must not share the original's id.
+     * A no-op when [index] is out of range.
+     */
+    fun withRuleDuplicated(index: Int, newId: String): RuleBook =
+        rules.getOrNull(index)?.let { withRuleInserted(index + 1, it.copy(id = newId)) } ?: this
+
     /** Reorder for drag-and-drop; out-of-range indices are a no-op. */
     fun withRuleMoved(fromIndex: Int, toIndex: Int): RuleBook {
         if (fromIndex == toIndex) return this
@@ -219,8 +251,8 @@ data class RuleBook(
          * matches the destination, else leave the call to the system.
          */
         fun defaultRules(): List<Rule> = listOf(
-            Rule(RuleMatcher.AnyDestination, RuleAction.UseMatchingCountrySim),
-            Rule(RuleMatcher.AnyDestination, RuleAction.SystemDefault),
+            Rule(RuleMatcher.AnyDestination, RuleAction.UseMatchingCountrySim, id = "default-home-country-sim"),
+            Rule(RuleMatcher.AnyDestination, RuleAction.SystemDefault, id = "default-system"),
         )
     }
 }

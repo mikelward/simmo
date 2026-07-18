@@ -94,9 +94,16 @@ sealed interface EditorTarget {
         val presetRegion: String? = null,
     ) : EditorTarget
 
+    /**
+     * Editing an existing rule, addressed by its stable [Rule.id] rather than
+     * its list position: the editor route can outlive process death and
+     * concurrent list changes (a delete-and-undo elsewhere), and an id lands
+     * the save on the intended rule where a stale index would not. [rule] is
+     * the snapshot the editor opened on, kept for prefill.
+     */
     @Serializable
     @SerialName("existing")
-    data class Existing(val index: Int, val rule: Rule) : EditorTarget
+    data class Existing(val id: String, val rule: Rule) : EditorTarget
 }
 
 /** The editor's current choices; drives which action needs a SIM selection. */
@@ -215,12 +222,12 @@ fun RuleEditorScreen(
                     if (presetSim != null) viewModel.addRuleForNewSim(presetSim, rule, pendingGroups)
                     else viewModel.addRule(rule, pendingGroups)
                 }
-                is EditorTarget.Existing -> viewModel.replaceRule(target.index, rule, pendingGroups)
+                is EditorTarget.Existing -> viewModel.replaceRule(target.id, rule, pendingGroups)
             }
             onDone()
         },
         onDelete = (target as? EditorTarget.Existing)?.let { existing ->
-            { viewModel.removeRule(existing.index); onDone() }
+            { viewModel.removeRule(existing.id); onDone() }
         },
         onCancel = onDone,
     )
@@ -989,6 +996,9 @@ internal fun ruleFromDraft(draft: EditorDraft, target: EditorTarget): Rule =
         draft.matcher,
         draft.action,
         enabled = (target as? EditorTarget.Existing)?.rule?.enabled ?: true,
+        // Keep the edited rule's stable id so the save replaces it in place; a
+        // new rule keeps blank and is assigned an id when it's persisted.
+        id = (target as? EditorTarget.Existing)?.rule?.id.orEmpty(),
     )
 
 /**
