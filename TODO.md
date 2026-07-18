@@ -483,7 +483,8 @@ System settings.
       call completion/failure rates) — decide and implement off the decision path;
       nothing beyond Firebase's automatic events is logged today.
 - [ ] Fill in the Play data safety form for crash reporting/analytics before the
-      first Play release built with Firebase enabled.
+      first Play release built with Firebase enabled — answers recorded in
+      `docs/play-store-internal-track.md` "App content declarations".
 - [x] A post-onboarding surface to change the "Make Simmo better" opt-in —
       landed as a Settings-screen toggle (was: onboarding-only, flagged by Codex
       on PR #37 as blocking the first release built with Firebase enabled; the
