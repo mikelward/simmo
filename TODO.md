@@ -362,14 +362,21 @@ Android Auto safeguards").
 - [x] CI screenshot job (mirroring Type Launcher's `connected-tests` job: per-class
       `--tests` record steps, snapshot refresh auto-commit, screenshot-diff PR
       comment).
-- [ ] versionCode derived from git commit count; report versionCode after merges, per
+- [x] versionCode derived from git commit count; report versionCode after merges, per
       Type Launcher's convention.
-- [ ] Debug keystore secret so CI builds install as updates on tester devices.
-- [ ] Firebase App Distribution job for tester builds.
-- [ ] Release keystore + Play internal track upload; one-time manual seed upload of
-      the signed AAB.
-- [ ] Release-notes-from-commit-subjects pipeline (`whatsnew-en-US`, 500-char cap,
-      non-user-facing prefixes skipped) — adopt from typelauncher's deploy job.
+- [x] Debug keystore signing config + CI plumbing so tester builds install as updates
+      (`docs/firebase-app-distribution.md`).
+- [x] Firebase App Distribution job for tester builds (`deploy` job; skips quietly
+      until the Firebase secrets are populated).
+- [x] Release keystore signing config + Play internal track upload
+      (`docs/play-store-internal-track.md`; skips quietly until secrets are
+      populated).
+- [x] Release-notes-from-commit-subjects pipeline (`whatsnew-en-US`, 500-char cap,
+      non-user-facing prefixes skipped) — adopted from typelauncher's deploy job.
+- [ ] Populate the `production` environment secrets (debug + release keystores,
+      Firebase, Play service account) and do the one-time manual seed upload of the
+      signed AAB per `docs/play-store-internal-track.md`; create the `production`
+      environment with deployment branches restricted to `main`.
 - [x] Play listing text: app title + short/full description, kept as fastlane
       metadata (`fastlane/metadata/android/en-US/`) so the future upload pipeline
       can push listing updates.
