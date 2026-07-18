@@ -118,9 +118,21 @@
     <!-- TODO: translate -->
     <string name="onboarding_notifications_button" tools:ignore="MissingTranslation">Allow</string>
     <!-- TODO: translate -->
+    <string name="onboarding_call_permission_label" tools:ignore="MissingTranslation">Retry failed calls (optional)</string>
+    <!-- TODO: translate -->
+    <string name="onboarding_call_permission_button" tools:ignore="MissingTranslation">Allow</string>
+    <!-- TODO: translate -->
     <string name="notification_channel_name" tools:ignore="MissingTranslation">SIM assist</string>
     <!-- TODO: translate -->
     <string name="notification_held_call_title" tools:ignore="MissingTranslation">%1$s is now active</string>
     <!-- TODO: translate -->
     <string name="notification_held_call_body" tools:ignore="MissingTranslation">Place your call to %1$s?</string>
+    <!-- TODO: translate -->
+    <string name="handoff_failed_title" tools:ignore="MissingTranslation">Couldn\'t open %1$s</string>
+    <!-- TODO: translate -->
+    <string name="handoff_failed_body" tools:ignore="MissingTranslation">Placed the call on your carrier instead.</string>
+    <!-- TODO: translate -->
+    <string name="handoff_failed_settings" tools:ignore="MissingTranslation">Settings</string>
+    <!-- TODO: translate -->
+    <string name="handoff_failed_redial" tools:ignore="MissingTranslation">Redial</string>
 </resources>

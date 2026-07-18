@@ -53,6 +53,35 @@ class SimmoCallRedirectionService : CallRedirectionService() {
             }
         }
 
+        // Cancel-and-forward to a calling app. Resolve *before* responding (the
+        // PackageManager IPC must not run after the watchdog is removed) — an
+        // uninstalled target proceeds unmodified. Then launch the app and cancel
+        // the carrier call *only if the launch didn't throw*: a launch that throws
+        // (no handler, security failure) places the call unmodified instead of
+        // stranding it, and surfaces a "couldn't open <app>" notification.
+        //
+        // Caveat: a *silently blocked* background-activity launch returns without
+        // throwing (Android's BAL restriction only logs), so we can't detect it
+        // here — that case would still cancel and strand. Whether the redirection
+        // binding exempts us from BAL, or this must move to a full-screen-intent
+        // launch, is the device-QA question in docs/qa-matrix.md (TODO.md).
+        fun handOff(intent: Intent, appLabel: String, packageName: String) {
+            if (intent.resolveActivity(packageManager) == null) {
+                respond { placeCallUnmodified() }
+                return
+            }
+            if (runCatching { startActivity(intent) }.isSuccess) {
+                respond { cancelCall() }
+            } else {
+                respond { placeCallUnmodified() }
+                app.notifications.postHandOffFailed(
+                    appLabel,
+                    packageName,
+                    handle.schemeSpecificPart.orEmpty(),
+                )
+            }
+        }
+
         mainHandler.postDelayed(
             { respond { placeCallUnmodified() } },
             watchdogToken,
@@ -84,52 +113,32 @@ class SimmoCallRedirectionService : CallRedirectionService() {
                     }
                 }
 
-                is Verdict.ForwardToApp -> {
-                    // Cancel-and-forward to the app's deep link (e.g. Google
-                    // Voice, Teams). Resolve *before* latching a response — the
-                    // same deadline-safe pattern as ForwardToContactApp: while
-                    // unresolved the watchdog is still armed. If the app can't
-                    // take it (uninstalled since the snapshot), never strand the
-                    // call — place it unmodified.
-                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(verdict.uri))
+                is Verdict.ForwardToApp -> handOff(
+                    // The app's number-carrying deep link (e.g. Google Voice, Teams).
+                    Intent(Intent.ACTION_VIEW, Uri.parse(verdict.uri))
                         .setPackage(verdict.packageName)
-                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    if (intent.resolveActivity(packageManager) != null) {
-                        respond {
-                            cancelCall()
-                            startActivity(intent)
-                        }
-                    } else {
-                        respond { placeCallUnmodified() }
-                    }
-                }
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                    verdict.appLabel,
+                    verdict.packageName,
+                )
 
-                is Verdict.ForwardToContactApp -> {
-                    // Place the call to the contact via the app (e.g. WhatsApp)
-                    // by ACTION_VIEW-ing its Data row. Resolve *before* latching a
-                    // response: this PackageManager IPC must not run after respond()
-                    // removes the watchdog, or a stall could eat Telecom's deadline.
-                    // While it's unresolved the watchdog is still armed and will
-                    // place the call unmodified. If the app can't take it
-                    // (uninstalled since the snapshot), never strand the call.
-                    val dataUri =
-                        ContentUris.withAppendedId(ContactsContract.Data.CONTENT_URI, verdict.dataRowId)
-                    val intent = Intent(Intent.ACTION_VIEW)
-                        // The MIME type is what selects the app's call action on
-                        // the contact row; ACTION_VIEW on the bare URI resolves to
-                        // the generic contact viewer instead.
-                        .setDataAndType(dataUri, verdict.mimeType)
+                is Verdict.ForwardToContactApp -> handOff(
+                    // The contact's per-contact call row (e.g. WhatsApp). The MIME
+                    // type selects the app's call action; ACTION_VIEW on the bare
+                    // URI would resolve to the generic contact viewer instead.
+                    Intent(Intent.ACTION_VIEW)
+                        .setDataAndType(
+                            ContentUris.withAppendedId(
+                                ContactsContract.Data.CONTENT_URI,
+                                verdict.dataRowId,
+                            ),
+                            verdict.mimeType,
+                        )
                         .setPackage(verdict.packageName)
-                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    if (intent.resolveActivity(packageManager) != null) {
-                        respond {
-                            cancelCall()
-                            startActivity(intent)
-                        }
-                    } else {
-                        respond { placeCallUnmodified() }
-                    }
-                }
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                    verdict.appLabel,
+                    verdict.packageName,
+                )
 
                 // The chooser re-places the call and mints the pass token
                 // (SPEC "The chooser (Ask flow)"). Background-activity-launch

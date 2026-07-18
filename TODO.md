@@ -205,9 +205,21 @@ can't dial an arbitrary number and are out of scope.
         vs pre-fill, and the installed-but-unprovisioned (no linked number / no Teams
         Phone plan / no Viber Out credit) behavior; and that background-activity-launch
         rules don't swallow the `startActivity` from the redirection service.
-  - [ ] Surface hand-off failure to the user where feasible (an app that opens but can't
-        place the call leaves the user with no call); best-effort per the softened
-        strand stance in AGENTS.md.
+  - [x] Surface hand-off launch failure: the service launches the app **before**
+        cancelling the carrier call, so a failed/blocked launch places the call
+        unmodified instead of stranding it, and posts a "Couldn't open <app>"
+        notification with **Settings** (fix the app) and **Redial** (retry). Applies to
+        the dial-intent and WhatsApp hand-offs. (The undetectable case — the app opens
+        to a setup screen because it isn't provisioned — still can't be surfaced
+        reactively; a proactive editor hint is the follow-up.)
+  - [ ] Proactive readiness hint in the editor when a hand-off app is picked ("requires
+        <app> set up to place calls") — the only honest coverage of the undetectable
+        installed-but-unprovisioned case.
+  - [ ] Background-activity-launch (BAL): a silently blocked `startActivity` from the
+        service returns without throwing, so the launch-before-cancel guard can't catch
+        it and would still cancel + strand. Device-QA whether the redirection binding
+        exempts us from BAL; if not, launch the hand-off via a full-screen-intent
+        notification (the sanctioned background-launch path) — see docs/qa-matrix.md.
 - [ ] Reachable-app discovery beyond "installed": resolve each candidate intent + detect
       readiness (linked number / calling plan) where possible, off the decision path.
 - [ ] Phone-account redirect: keep for any VoIP app that does register a Telecom account,

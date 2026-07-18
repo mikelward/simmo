@@ -263,13 +263,17 @@ supports:
    targets are **Google Voice**, **Microsoft Teams**, and **Viber**). The number is normalized to
    E.164 off the fast path (the same warm parse country detection uses) before it is
    placed in the deep link. The launch intent is **resolved before the carrier call is
-   cancelled**, so a target uninstalled since the snapshot proceeds unmodified rather
-   than stranding the call; a number with no E.164 form (short code, undetermined)
-   skips the rule. The receiving app takes over; whether it auto-dials or pre-fills is
-   its behavior, not ours. Requires interactive context. (Readiness beyond "installed"
-   — Google Voice's linked number, a Teams Phone plan — isn't detectable from the
-   intent, so an installed-but-unprovisioned target can still land on a setup screen;
-   that case is owed a device-QA pass.)
+   cancelled**, and the app is **launched before the call is cancelled** — the carrier
+   call is only cancelled once the app actually opens, so a launch that fails or is
+   blocked places the call unmodified instead of stranding it, and Simmo posts a
+   "couldn't open <app>" notification (with **Settings** to fix the app and **Redial**
+   to retry) so the failed hand-off is visible. A number with no E.164 form (short
+   code, undetermined) skips the rule. The receiving app takes over; whether it
+   auto-dials or pre-fills is its behavior, not ours. Requires interactive context.
+   (Readiness beyond "installed" — Google Voice's linked number, a Teams Phone plan,
+   Viber Out credit — isn't detectable from the intent, so an installed-but-unprovisioned
+   target can still *open* to a setup screen; Simmo can't detect that and only surfaces
+   the *launch* failure. That undetectable case is owed a device-QA pass.)
 3. **App-to-app (per-contact)**: for apps that call *contacts*, not arbitrary numbers
    (e.g. WhatsApp), Simmo hands off only when the dialed number belongs to a contact
    reachable on that app. It resolves the number against a warm contact index (built off
