@@ -54,6 +54,8 @@
     <!-- TODO: translate -->
     <string name="country_picker_suggested" tools:ignore="MissingTranslation">Suggested</string>
     <!-- TODO: translate -->
+    <string name="country_picker_suggest_from_contacts" tools:ignore="MissingTranslation">Suggest countries from your contacts</string>
+    <!-- TODO: translate -->
     <string name="editor_do_label" tools:ignore="MissingTranslation">Use</string>
     <!-- TODO: translate -->
     <string name="editor_sim_disabled_suffix" tools:ignore="MissingTranslation">%1$s (disabled)</string>

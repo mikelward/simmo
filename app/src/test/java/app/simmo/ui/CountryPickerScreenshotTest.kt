@@ -126,6 +126,35 @@ class CountryPickerScreenshotTest {
         captureSnapshot("country_picker_suggested.png")
     }
 
+    @Test
+    fun countryPicker_offersContactsGrantWhenUngranted() {
+        composeRule.setContent {
+            MaterialTheme {
+                CountryPickerContent(
+                    options = listOf(
+                        option("AU", "Australia", 61),
+                        option("FR", "France", 33),
+                    ),
+                    // No suggestions and contacts not granted → offer to grant,
+                    // so the Suggested feature is discoverable on its own.
+                    suggested = emptyList(),
+                    contactsGranted = false,
+                    onRequestContacts = {},
+                    query = "",
+                    onQueryChange = {},
+                    selectedRegions = emptySet(),
+                    onSelect = {},
+                    onBack = {},
+                )
+            }
+        }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithText("Suggest countries from your contacts").assertExists()
+        composeRule.onNodeWithText("+61 Australia").assertExists()
+        captureSnapshot("country_picker_suggest_contacts.png")
+    }
+
     private fun captureSnapshot(name: String, widthPx: Int = 1080, heightPx: Int = 1920) {
         val isRecord = System.getProperty("roborazzi.test.record") == "true"
         val isVerify = System.getProperty("roborazzi.test.verify") == "true"

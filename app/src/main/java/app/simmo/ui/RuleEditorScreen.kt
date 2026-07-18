@@ -1,6 +1,8 @@
 package app.simmo.ui
 
 import android.Manifest
+import android.content.Context
+import android.content.pm.PackageManager
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -20,6 +22,7 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -30,6 +33,7 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -40,8 +44,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.simmo.R
 import app.simmo.domain.ContactCallApp
@@ -98,17 +107,38 @@ fun RuleEditorScreen(
     val suggestedCountries by viewModel.suggestedCountries.collectAsStateWithLifecycle()
     val handOffApps by viewModel.handOffApps.collectAsStateWithLifecycle()
     val dialHandoffApps by viewModel.dialHandoffApps.collectAsStateWithLifecycle()
-    // App-to-app hand-off resolves the dialed number to a contact, which needs
-    // READ_CONTACTS. Request it when the user picks such an action; a grant
-    // refreshes the warm contact index so the rule can act.
+    // Contacts (READ_CONTACTS) back two things here: the app-to-app hand-off's
+    // reverse lookup, and the country picker's "Suggested" bucket. Both read the
+    // same warm index, so one grant serves both. Request it when the user picks a
+    // contact-app action or taps the picker's suggest affordance; a grant
+    // refreshes the index and flips [contactsGranted] so the affordance yields to
+    // the filled bucket.
+    val context = LocalContext.current
+    var contactsGranted by remember { mutableStateOf(isContactsGranted(context)) }
     val contactsLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
-    ) { granted -> if (granted) viewModel.onContactsAccessGranted() }
+    ) { granted ->
+        contactsGranted = granted
+        if (granted) viewModel.onContactsAccessGranted()
+    }
+    // A grant or revoke made in Settings bypasses the launcher, so re-check on
+    // every resume — otherwise a revocation would leave the prompt suppressed
+    // (stale true) with no way to re-request from the picker. MainActivity does
+    // the same for its top-level permission state and the warm index refresh.
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) contactsGranted = isContactsGranted(context)
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
     RuleEditorContent(
         target = target,
         simOptions = simOptions,
         countryOptions = countryOptions,
         suggestedCountries = suggestedCountries,
+        contactsGranted = contactsGranted,
         groupOptions = viewModel.groupOptions,
         handOffApps = handOffApps,
         dialHandoffApps = dialHandoffApps,
@@ -142,6 +172,8 @@ internal fun RuleEditorContent(
     onCancel: () -> Unit,
     /** Contact-derived countries shown atop the picker; empty hides the section. */
     suggestedCountries: List<CountryOptionUi> = emptyList(),
+    /** Whether READ_CONTACTS is granted; false shows the picker's "suggest" affordance. */
+    contactsGranted: Boolean = true,
     groupOptions: List<CountryGroupOptionUi> = emptyList(),
     /** Installed app-to-app hand-off targets; each is offered as an action. */
     handOffApps: Set<ContactCallApp> = emptySet(),
@@ -204,6 +236,8 @@ internal fun RuleEditorContent(
         CountryPickerContent(
             options = countryOptions,
             suggested = suggestedCountries,
+            contactsGranted = contactsGranted,
+            onRequestContacts = onRequestContactsAccess,
             query = countryQuery,
             onQueryChange = { countryQuery = it },
             selectedRegions = regions.map { it.uppercase() }.toSet(),
@@ -455,6 +489,33 @@ private fun SelectedCountryRow(
     }
 }
 
+/**
+ * The picker's contacts-permission affordance: shown on a blank query when
+ * READ_CONTACTS isn't granted, so the "Suggested" bucket is discoverable on its
+ * own instead of only filling after the WhatsApp hand-off happens to grant it.
+ * Tapping requests the same permission and, on grant, the bucket replaces it.
+ */
+@Composable
+private fun SuggestFromContactsRow(onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        // Sized like the radio buttons so the label text columns line up.
+        Box(modifier = Modifier.size(48.dp), contentAlignment = Alignment.Center) {
+            Icon(imageVector = Icons.Filled.Person, contentDescription = null)
+        }
+        Text(
+            text = stringResource(R.string.country_picker_suggest_from_contacts),
+            style = MaterialTheme.typography.bodyLarge,
+        )
+    }
+}
+
 /** Opens the searchable country picker; each pick adds one country to the rule. */
 @Composable
 private fun AddCountryRow(onClick: () -> Unit) {
@@ -490,6 +551,9 @@ internal fun CountryPickerContent(
     onBack: () -> Unit,
     /** Contact-derived countries shown under a "Suggested" header on a blank query. */
     suggested: List<CountryOptionUi> = emptyList(),
+    /** When false, a blank query shows a tappable affordance to grant READ_CONTACTS. */
+    contactsGranted: Boolean = true,
+    onRequestContacts: () -> Unit = {},
     groups: List<CountryGroupOptionUi> = emptyList(),
     selectedGroupIds: Set<String> = emptySet(),
     onSelectGroup: (String) -> Unit = {},
@@ -498,10 +562,13 @@ internal fun CountryPickerContent(
     val ranked = remember(options, query) { rankCountries(options, query) }
     // The suggested shortcut is for browsing, not searching: once the user
     // types, the ranked results and matching groups already surface the
-    // relevant countries, so the bucket only shows on a blank query.
-    val showSuggested = remember(query, suggested) {
-        suggested.isNotEmpty() && foldForSearch(query).isEmpty()
-    }
+    // relevant countries, so both the bucket and the grant affordance only
+    // show on a blank query.
+    val isBlankQuery = remember(query) { foldForSearch(query).isEmpty() }
+    val showSuggested = isBlankQuery && suggested.isNotEmpty()
+    // Without contacts the bucket can't be built, so offer to grant instead —
+    // the same READ_CONTACTS the WhatsApp hand-off uses, one shared grant.
+    val showSuggestPrompt = isBlankQuery && suggested.isEmpty() && !contactsGranted
     // Groups sit above the countries: always on a blank query, and for a
     // typed one when it matches the group itself (EU, EEA, Europe, …) OR any
     // member country — searching "France" suggests EU/EEA right where the
@@ -542,6 +609,11 @@ internal fun CountryPickerContent(
                             text = option.label,
                             onSelect = { onSelect(option.regionCode) },
                         )
+                    }
+                }
+                if (showSuggestPrompt) {
+                    item(key = "suggest-from-contacts") {
+                        SuggestFromContactsRow(onClick = onRequestContacts)
                     }
                 }
                 items(visibleGroups, key = { "group:${it.id}" }) { group ->
@@ -692,6 +764,10 @@ internal fun isValid(
     if (action == ActionChoice.USE_SIM && simOptions.none { it.ref == simRef }) return false
     return true
 }
+
+private fun isContactsGranted(context: Context): Boolean =
+    ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CONTACTS) ==
+        PackageManager.PERMISSION_GRANTED
 
 /** Persists the rule's chosen countries across recreation. */
 private val RegionsSaver: Saver<List<String>, Any> = listSaver(
