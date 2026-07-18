@@ -353,13 +353,21 @@ Android Auto safeguards").
       single surface, not per-permission nags; the editor's hand-off hint covers the
       editing moment only, and a role/phone-state loss currently just drops the user
       back to onboarding with no explanation on the rules list itself.
-- [ ] Decide on crash reporting (Crashlytics) and usage analytics — under
-      consideration per SPEC "Permissions and privacy". Would add the `INTERNET`
-      permission. Candidate signals: SIM name × destination country routing counts,
-      call completion/failure rates — never contact names/numbers or dialed
-      numbers. Shipping it requires updating `docs/PRIVACY.md` and the Play data
-      safety form in the same release. Onboarding already records a "Make Simmo
-      better" opt-in (default on) that any shipped analytics must honor.
+- [x] Decide on crash reporting (Crashlytics) and usage analytics — decided and
+      landed per SPEC "Permissions and privacy": Firebase Crashlytics + Analytics
+      compiled in, dormant without a `google-services.json` at build time
+      (`SETUP.md`), collection gated on the "Make Simmo better" opt-in. Only
+      automatic telemetry so far; the candidate custom signals (SIM name ×
+      destination country routing counts, call completion/failure rates — never
+      contact names/numbers or dialed numbers) are still open, below.
+- [ ] Custom analytics signals (SIM name × destination country routing counts,
+      call completion/failure rates) — decide and implement off the decision path;
+      nothing beyond Firebase's automatic events is logged today.
+- [ ] Fill in the Play data safety form for crash reporting/analytics before the
+      first Play release built with Firebase enabled.
+- [ ] A post-onboarding surface to change the "Make Simmo better" opt-in — today
+      the toggle exists only on the onboarding screen, so a user who finished
+      setup has no in-app way to change their mind.
 - [ ] Evaluate confirm-first system redirect UX vs. custom chooser for the simple case.
 - [ ] Carrier-name stability for re-binding (roaming/MVNO rebrand data needed).
 - [ ] Per-number overrides.

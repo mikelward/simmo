@@ -3,16 +3,40 @@
 **Effective date: July 18, 2026**
 
 Simmo picks the right SIM (or calling app) for your outgoing calls based on rules
-you set. The short version of this policy: **Simmo collects nothing, transmits
-nothing, and has no internet access.**
+you set. The short version of this policy: **everything Simmo does with your calls
+happens on your device. The numbers you dial and your contacts are never collected
+or transmitted. The only data that can leave your device is optional crash
+reporting and usage statistics, controlled by the "Make Simmo better" switch.**
 
-## No data collection
+## What Simmo collects
 
-- Simmo does not request the internet permission, so the app cannot send anything
-  off your device — you can verify this from the app's manifest.
-- Simmo contains no analytics, no advertising, and no third-party SDKs.
-- Nothing about you, your contacts, or your calls is collected or shared with
-  anyone, including us.
+- The numbers you dial, your contacts, and your rules are **never** collected or
+  shared with anyone, including us.
+- Simmo contains no advertising, and requests that the advertising ID never be
+  available to the app.
+- If the "Make Simmo better" switch is on, Simmo collects crash reports and
+  anonymous usage statistics — see the next section.
+
+## Crash reporting and usage statistics ("Make Simmo better")
+
+Simmo uses Firebase Crashlytics and Google Analytics for Firebase to help us fix
+crashes and understand which features are used:
+
+- **Crash reports**: a technical trace of where the app crashed, plus device
+  information such as model, operating system version, and free memory at the
+  time of the crash.
+- **Usage statistics**: standard app events such as first open, which screens
+  are viewed, and session length, tied to a random per-install identifier.
+
+Neither ever includes the numbers you dial, your contacts, or the contents of
+your rules, and ad personalization is turned off.
+
+Both are controlled by the **"Make Simmo better"** switch shown during setup: it
+is on by default, nothing is collected before your stored choice is read, and
+turning it off stops both crash reporting and usage statistics. This data is
+processed by Google's Firebase services on our behalf; see
+[Firebase's privacy documentation](https://firebase.google.com/support/privacy)
+for how Firebase handles it.
 
 ## Dialed numbers
 
@@ -33,8 +57,7 @@ app's own privacy policy.
 Your rules, your settings, and a registry of the SIMs your device has used (their
 names and carriers, so rules can refer to them, plus each SIM's home country and
 its own phone number — when your device reports them — so you can tell your SIMs
-apart on the SIMs screen). Simmo itself never transmits this data anywhere —
-without internet access, it has no way to.
+apart on the SIMs screen). Simmo never transmits this data anywhere.
 
 Like most Android apps, this app data is included in Android's standard backup and
 device-to-device transfer, so if you have device backup turned on, Android copies
@@ -84,14 +107,12 @@ Emergency calls are never redirected, altered, or interfered with in any way.
 
 ## Possible future changes
 
-We are considering adding crash reporting (for example, Firebase Crashlytics) and
-app usage analytics in a future version, to help diagnose crashes and understand
-how features are used. The analytics under consideration would cover things like
-which SIM (by the name you gave it) is used to call which destination country, and
-how often calls complete or fail — never contact names, contact numbers, or the
-phone numbers you dial. The statements above describe the app as it is today. If
-crash reporting or analytics ship, this policy will be updated at the same time to
-describe exactly what is collected and why, and the effective date will change.
+We are considering adding usage statistics about routing itself in a future
+version: which SIM (by the name you gave it) is used to call which destination
+country, and how often calls complete or fail — never contact names, contact
+numbers, or the phone numbers you dial. These would be covered by the same "Make
+Simmo better" switch. If they ship, this policy will be updated at the same time
+to describe exactly what is collected and why, and the effective date will change.
 
 ## Changes to this policy
 
