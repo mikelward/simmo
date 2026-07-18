@@ -153,7 +153,19 @@ fun List<RegisteredSim>.recordSeen(active: List<ActiveSim>, nowMillis: Long): Li
                 sim.displayName.matchesIgnoringCaseAndSpace(entry.displayName)
         } ?: return@map entry
         claimed += match.subscriptionId
-        entry.refreshedFrom(match, nowMillis).copy(subscriptionId = match.subscriptionId)
+        // A re-bind adopts a different subscription — after a restore it can
+        // be a different physical SIM that merely shares carrier + name — so
+        // country and own number are taken verbatim, blanks included; the
+        // last-known fallback must not resurrect the old profile's values
+        // (Codex on PR #36).
+        entry.copy(
+            subscriptionId = match.subscriptionId,
+            carrierName = match.carrierName,
+            displayName = match.displayName,
+            lastSeenEpochMillis = nowMillis,
+            countryIso = match.countryIso,
+            phoneNumber = match.phoneNumber,
+        )
     }
     val new = active.filter { it.subscriptionId !in claimed }.map {
         RegisteredSim(
@@ -166,10 +178,12 @@ fun List<RegisteredSim>.recordSeen(active: List<ActiveSim>, nowMillis: Long): Li
 }
 
 /**
- * The entry updated with what an active sighting of the SIM reports. Country
- * and own number keep the last-known value when the fresh read is blank — the
- * platform reports them intermittently (and the number needs a separate
- * permission), and "last seen" beats "forgotten".
+ * The entry updated with what an active sighting of the same subscription
+ * reports (the exact-ID refresh path only — re-binds take fresh values
+ * verbatim, see [recordSeen]). Country and own number keep the last-known
+ * value when the fresh read is blank — the platform reports them
+ * intermittently (and the number needs a separate permission), and for the
+ * same subscription "last seen" beats "forgotten".
  */
 private fun RegisteredSim.refreshedFrom(sim: ActiveSim, nowMillis: Long): RegisteredSim = copy(
     carrierName = sim.carrierName,

@@ -101,6 +101,22 @@ class SimRegistryRecordTest {
     }
 
     @Test
+    fun `re-binding does not inherit the old row's country and number`() {
+        // Restore case: the row that re-binds by carrier + name on the new
+        // device can be a different physical SIM. A blank read must not
+        // resurrect the old device's number/country onto it (Codex on PR #36);
+        // the last-known fallback is for the exact-subscription refresh only.
+        val restored = RegisteredSim(
+            SimRef.INVALID_SUBSCRIPTION_ID, "Telstra", "Telstra personal", 100L,
+            countryIso = "au", phoneNumber = "+61412345678",
+        )
+        assertEquals(
+            listOf(RegisteredSim(1, "Telstra", "Telstra personal", 900L)),
+            listOf(restored).recordSeen(listOf(telstraActive), nowMillis = 900L),
+        )
+    }
+
+    @Test
     fun `re-binding a re-downloaded profile refreshes country and number`() {
         val stale = RegisteredSim(5, "Telstra", "Telstra personal", 100L, countryIso = "au")
         val redownloaded = ActiveSim(
