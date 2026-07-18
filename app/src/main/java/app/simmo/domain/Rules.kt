@@ -49,6 +49,29 @@ fun RuleMatcher.regionCodes(): List<String> = when (this) {
 fun RuleMatcher.groupIds(): List<String> = (this as? RuleMatcher.Countries)?.groupIds.orEmpty()
 
 /**
+ * Whether this matcher matches [region] (ISO code, any case; null for an
+ * undetermined destination — only [RuleMatcher.AnyDestination] matches then).
+ * Group membership resolves at evaluation time from the in-memory tables —
+ * built-ins from the static table, the user's custom groups from
+ * [customGroups] — so one stored group entry tracks membership across app
+ * updates and edits alike. Shared by the calling-rule engine (matching the
+ * call's destination) and the roaming watch (matching the current network
+ * country).
+ */
+fun RuleMatcher.matchesRegion(region: String?, customGroups: Map<String, List<String>>): Boolean =
+    when (this) {
+        RuleMatcher.AnyDestination -> true
+        is RuleMatcher.Country -> region != null && regionCode.equals(region, ignoreCase = true)
+        is RuleMatcher.Countries -> region != null &&
+            (
+                regionCodes.any { it.equals(region, ignoreCase = true) } ||
+                    groupIds.any { id ->
+                        groupMembers(id, customGroups).any { it.equals(region, ignoreCase = true) }
+                    }
+                )
+    }
+
+/**
  * The matcher over hand-picked [regionCodes] and/or [groupIds] (deduped,
  * order kept; at least one required). Group-less matchers keep the forms
  * [countryMatcher] chooses, including the legacy single-country one.
