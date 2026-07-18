@@ -159,6 +159,23 @@ class SimmoApp : Application() {
                 taps = optInTaps,
             )
         }
+        appScope.launch {
+            // One sequential collector persists the opt-in taps: parallel
+            // per-tap jobs could finish out of tap order and leave an earlier
+            // choice on disk. The StateFlow conflates to the newest value —
+            // the only one that matters.
+            optInTaps.filterNotNull().collect { enabled ->
+                // The durable marker first — a tiny commit with no
+                // state-holder wait — so a crash before the main write still
+                // leaves the choice on disk for the next launch's cleanup
+                // (see the telemetry collector above).
+                getSharedPreferences(TELEMETRY_PREFS, MODE_PRIVATE)
+                    .edit()
+                    .putBoolean(KEY_OPT_IN, enabled)
+                    .commit()
+                stateHolderFlow.filterNotNull().first().setAnalyticsOptIn(enabled)
+            }
+        }
         refreshTelephony()
 
         getSystemService(SubscriptionManager::class.java).addOnSubscriptionsChangedListener(
@@ -252,28 +269,20 @@ class SimmoApp : Application() {
     fun clearContacts() = assembler.clearContacts()
 
     /**
-     * Persists the "Make Simmo better" onboarding choice. Waits for the state
-     * holder rather than dropping the write — the toggle can be flipped in the
-     * first seconds after install, before the eager load has published.
+     * Records the "Make Simmo better" onboarding choice. The persister
+     * coroutine writes it durably (waiting for the state holder rather than
+     * dropping the write — the toggle can be flipped in the first seconds
+     * after install, before the eager load has published), and telemetry
+     * follows it immediately.
      */
     fun setAnalyticsOptIn(enabled: Boolean) {
-        // The persisted write below can lag (it waits for the state holder),
-        // and a crash or upload in that window must already honor the tap:
-        // apply to the SDKs now, and publish the tap so the gate's collector
-        // masks any staler persisted emission instead of briefly re-enabling
-        // collection from it.
+        // Publishing the tap does everything ordered: the gate's collector
+        // masks staler persisted emissions with it, and the persister
+        // coroutine (onCreate) writes it to disk sequentially. Apply to the
+        // SDKs now as well — a crash or upload while those writes are in
+        // flight must already honor the tap.
         optInTaps.value = enabled
         telemetry?.set(enabled)
-        appScope.launch {
-            // The durable marker first — a tiny commit with no state-holder
-            // wait — so a crash before the main write still leaves the choice
-            // on disk for the next launch's cleanup (see onCreate).
-            getSharedPreferences(TELEMETRY_PREFS, MODE_PRIVATE)
-                .edit()
-                .putBoolean(KEY_OPT_IN, enabled)
-                .commit()
-            stateHolderFlow.filterNotNull().first().setAnalyticsOptIn(enabled)
-        }
     }
 
     private suspend fun recordSims() {
