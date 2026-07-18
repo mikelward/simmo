@@ -177,8 +177,11 @@ active). A regular app can neither enumerate inactive profiles nor enable one �
 require carrier privileges or system permissions — so Simmo:
 
 1. Maintains a **SIM registry**: every subscription Simmo has ever seen active, with its
-   stable identity and last-seen time. Rules can reference any registered SIM, active or
-   not. Registry entries can be renamed and deleted in settings.
+   stable identity, last-seen time, and last-known home country and own line number
+   (captured while the SIM was active, so they still show for a disabled profile; the
+   number needs optional `READ_PHONE_NUMBERS`). Rules can reference any registered SIM,
+   active or not. The SIMs screen shows each entry with its number and country; registry
+   entries can be renamed and deleted in settings.
 2. A rule targeting an inactive SIM is skipped during evaluation (see "Rules"), but
    when the chooser opens it explains that the rule wanted (e.g.) Telstra, offers a
    one-tap jump to the system SIM management screen, and offers the active SIMs /
@@ -327,6 +330,10 @@ UI is forbidden).
 
 - `ROLE_CALL_REDIRECTION` (role, not permission) — the interception hook.
 - `READ_PHONE_STATE` — enumerate subscriptions and phone accounts.
+- `READ_PHONE_NUMBERS` (optional) — each SIM's own line number for the SIMs screen.
+  Requested there, only when the phone grant is already held: the two share Android's
+  Phone permission group, so the request is granted silently, without a dialog. A
+  denial just leaves the number off the row.
 - `CALL_PHONE` — re-place calls after Ask / enable flows.
 - `READ_CONTACTS` (optional, requested when a feature needs it — app-to-app hand-off, or
   same-contact number correction — and offered as an onboarding row) — the
@@ -420,7 +427,9 @@ redirection service only ever reads the snapshot.
   better Ask UX than a custom chooser for the simple two-SIM case.
 - Whether carrier names are stable enough across MVNO/roaming rebrands for the
   re-binding fallback, or whether the registry should also pin country + number prefix
-  of the profile.
+  of the profile. (The registry now records last-known country and own number for
+  display on the SIMs screen; whether they join the re-binding identity ladder is the
+  open part.)
 - Whether to offer per-rule "and remember for this number" overrides when a user
   diverges from a country rule for one number repeatedly.
 - Quick Settings tile shape: a shortcut into Simmo's rules, a quick "switch data /

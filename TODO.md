@@ -156,6 +156,9 @@ small stack), fully unit-tested, with `./gradlew test` and `./gradlew lint` gree
 - [x] SIM registry screen: every registered SIM with active/last-seen state,
       reached from the rules list; stale entries can be deleted (active ones
       can't — the next telephony refresh would just re-register them).
+- [x] SIMs screen rows show each SIM's own number and country (last-known,
+      captured into the registry while the SIM was active; the number needs
+      optional `READ_PHONE_NUMBERS`, requested silently on that screen).
 - [ ] Rename SIMs on the registry screen (maintainer: deferred). Must be a
       *nickname* layered over the stored identity, never an edit of
       displayName — carrier + display name is the re-binding ladder (SPEC "SIM
