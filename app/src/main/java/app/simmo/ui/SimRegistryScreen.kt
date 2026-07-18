@@ -139,7 +139,7 @@ internal fun SimRegistryContent(
                     .fillMaxWidth()
                     .padding(bottom = 16.dp),
             ) {
-                Text(stringResource(R.string.sim_settings))
+                Text(stringResource(R.string.system_settings))
             }
             LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 // Deliberately no item keys: after a restore invalidates every

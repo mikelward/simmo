@@ -44,6 +44,6 @@ class MainActivityRecreationTest {
         composeRule.waitForIdle()
 
         composeRule.onNodeWithText("Continue").assertExists()
-        composeRule.onNodeWithText("Rules").assertDoesNotExist()
+        composeRule.onNodeWithText("Calling rules").assertDoesNotExist()
     }
 }
