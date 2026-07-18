@@ -38,6 +38,19 @@ class TelemetryGate(private val setCollectionEnabled: (Boolean) -> Unit) {
             return TelemetryGate { enabled ->
                 analytics.setAnalyticsCollectionEnabled(enabled)
                 crashlytics.setCrashlyticsCollectionEnabled(enabled)
+                if (!enabled) {
+                    // Crashlytics only honors the disable from the next
+                    // launch, and already-captured reports stay on disk: drop
+                    // them so an opt-out is effective now — and since the
+                    // stored false re-applies here on every later launch, a
+                    // crash captured in the tail of the opt-out session is
+                    // deleted before a re-enable could ever upload it.
+                    crashlytics.deleteUnsentReports()
+                    // Unlink the analytics identity too, so a later re-enable
+                    // starts a fresh app-instance ID instead of resuming the
+                    // old stream.
+                    analytics.resetAnalyticsData()
+                }
             }
         }
     }
