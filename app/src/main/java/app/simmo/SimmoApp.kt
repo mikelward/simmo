@@ -58,6 +58,9 @@ class SimmoApp : Application() {
     private val detector = PhoneNumberCountryDetector()
     private val stateHolderFlow = MutableStateFlow<SimmoStateHolder?>(null)
 
+    /** Null in builds without a Firebase config (see SETUP.md). */
+    private val telemetry by lazy { TelemetryGate.firebase(this) }
+
     /**
      * Snapshot readiness includes warm parsing metadata: until [detector]'s
      * warm-up completes, decisions would load parser tables on the live
@@ -134,8 +137,8 @@ class SimmoApp : Application() {
             // Crash reporting and analytics follow the persisted "Make Simmo
             // better" choice; until the state loads, the manifest keeps
             // collection off. No-op in builds without a Firebase config.
-            val telemetry = TelemetryGate.firebase(this@SimmoApp) ?: return@launch
-            telemetry.follow(
+            val gate = telemetry ?: return@launch
+            gate.follow(
                 stateHolderFlow.filterNotNull().first().state
                     .filterNotNull()
                     .map { it.analyticsOptIn },
@@ -239,6 +242,11 @@ class SimmoApp : Application() {
      * first seconds after install, before the eager load has published.
      */
     fun setAnalyticsOptIn(enabled: Boolean) {
+        // Apply to the SDKs before persisting: the write below can lag (it
+        // waits for the state holder), and a crash or upload in that window
+        // must already honor the tap. The persisted flow re-applies the same
+        // value later, which the SDK switches take idempotently.
+        telemetry?.set(enabled)
         appScope.launch {
             stateHolderFlow.filterNotNull().first().setAnalyticsOptIn(enabled)
         }

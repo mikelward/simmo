@@ -19,6 +19,11 @@ import kotlinx.coroutines.flow.distinctUntilChanged
  */
 class TelemetryGate(private val setCollectionEnabled: (Boolean) -> Unit) {
 
+    /** Applies [enabled] to the collection switches right now. */
+    fun set(enabled: Boolean) {
+        setCollectionEnabled(enabled)
+    }
+
     /** Applies [optIns] to the collection switches as it changes; never returns. */
     suspend fun follow(optIns: Flow<Boolean>) {
         optIns.distinctUntilChanged().collect { setCollectionEnabled(it) }
