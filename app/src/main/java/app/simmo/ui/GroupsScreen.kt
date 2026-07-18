@@ -13,6 +13,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -21,6 +22,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -174,6 +176,8 @@ internal fun GroupEditor(
     }
     var showPicker by rememberSaveable { mutableStateOf(false) }
     var pickerQuery by rememberSaveable { mutableStateOf("") }
+    // Delete asks first; saveable so the confirm survives a rotation.
+    var confirmDelete by rememberSaveable { mutableStateOf(false) }
     if (showPicker) {
         CountryPickerContent(
             options = countryOptions,
@@ -237,7 +241,9 @@ internal fun GroupEditor(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 if (onDelete != null) {
-                    OutlinedButton(onClick = onDelete) { Text(stringResource(R.string.editor_delete)) }
+                    OutlinedButton(onClick = { confirmDelete = true }) {
+                        Text(stringResource(R.string.editor_delete))
+                    }
                 }
                 OutlinedButton(onClick = onCancel) { Text(stringResource(R.string.editor_cancel)) }
                 Button(
@@ -248,6 +254,29 @@ internal fun GroupEditor(
                 }
             }
         }
+    }
+    if (confirmDelete && onDelete != null) {
+        AlertDialog(
+            onDismissRequest = { confirmDelete = false },
+            // The group's name (its own, from [initial]) makes clear which is going.
+            title = { Text(stringResource(R.string.group_delete_title, initial?.name.orEmpty())) },
+            text = { Text(stringResource(R.string.group_delete_body)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        confirmDelete = false
+                        onDelete()
+                    },
+                ) {
+                    Text(stringResource(R.string.editor_delete))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmDelete = false }) {
+                    Text(stringResource(R.string.editor_cancel))
+                }
+            },
+        )
     }
 }
 

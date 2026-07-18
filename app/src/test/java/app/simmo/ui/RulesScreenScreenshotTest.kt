@@ -86,6 +86,28 @@ class RulesScreenScreenshotTest {
         composeRule.runOnIdle { assertEquals(0, duplicated) }
     }
 
+    @Test
+    fun deletingARuleAsksToConfirmFirst() {
+        var deleted = -1
+        composeRule.setContent {
+            MaterialTheme {
+                RulesScreenContent(
+                    rows = listOf(RuleRowUi("+61 Australia", ActionUi.UseSim("Telstra"))),
+                    onDeleteRule = { deleted = it },
+                )
+            }
+        }
+
+        composeRule.onNodeWithContentDescription("More options").performClick()
+        composeRule.onNodeWithText("Delete").performClick() // the menu item
+        // The confirm dialog appears and nothing is deleted yet.
+        composeRule.onNodeWithText("Delete this rule?").assertExists()
+        composeRule.runOnIdle { assertEquals(-1, deleted) }
+        // Confirming deletes.
+        composeRule.onNodeWithText("Delete").performClick()
+        composeRule.runOnIdle { assertEquals(0, deleted) }
+    }
+
     private fun captureSnapshot(name: String, widthPx: Int = 1080, heightPx: Int = 1920) {
         val isRecord = System.getProperty("roborazzi.test.record") == "true"
         val isVerify = System.getProperty("roborazzi.test.verify") == "true"
