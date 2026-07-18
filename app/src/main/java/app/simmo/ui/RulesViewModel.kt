@@ -8,6 +8,8 @@ import androidx.lifecycle.viewModelScope
 import app.simmo.SimmoApp
 import app.simmo.domain.ActiveSim
 import app.simmo.domain.ContactCallApp
+import app.simmo.domain.DialHandoffApp
+import app.simmo.telecom.installedDialHandoffApps
 import app.simmo.domain.RegisteredSim
 import app.simmo.domain.Rule
 import app.simmo.domain.RuleAction
@@ -139,6 +141,16 @@ class RulesViewModel(
     val handOffApps: StateFlow<Set<ContactCallApp>> =
         flowOf(Unit)
             .map { installedContactCallApps(app.packageManager) }
+            .flowOn(Dispatchers.Default)
+            .stateIn(viewModelScope, SharingStarted.Eagerly, emptySet())
+
+    /**
+     * Installed dial-intent hand-off targets (Google Voice, Teams), so the editor
+     * offers only reachable apps. PackageManager query, off the main thread.
+     */
+    val dialHandoffApps: StateFlow<Set<DialHandoffApp>> =
+        flowOf(Unit)
+            .map { installedDialHandoffApps(app.packageManager) }
             .flowOn(Dispatchers.Default)
             .stateIn(viewModelScope, SharingStarted.Eagerly, emptySet())
 
@@ -462,7 +474,7 @@ internal fun Rule.toRow(
             RuleRowUi(matcherLabel, ActionUi.HandOffApp(a.account.id))
 
         is RuleAction.HandOff.ViaDialIntent ->
-            RuleRowUi(matcherLabel, ActionUi.HandOffApp(a.packageName))
+            RuleRowUi(matcherLabel, ActionUi.HandOffApp(a.app.label))
 
         is RuleAction.HandOff.ViaContactApp ->
             RuleRowUi(matcherLabel, ActionUi.HandOffApp(a.app.label))

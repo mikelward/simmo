@@ -95,10 +95,15 @@ sealed interface RuleAction {
         @SerialName("handOffAccount")
         data class ViaPhoneAccount(val account: PhoneAccountRef) : HandOff
 
-        /** Cancel and forward the number via the app's dial intent; needs interactive UI. */
+        /**
+         * Cancel the carrier call and forward the dialed number to a calling
+         * app's number-carrying deep link (e.g. Google Voice, Teams). Needs an
+         * interactive context; skipped hands-free. The number is normalized to
+         * E.164 off the fast path and only fired when the target app is installed.
+         */
         @Serializable
         @SerialName("handOffIntent")
-        data class ViaDialIntent(val packageName: String) : HandOff
+        data class ViaDialIntent(val app: DialHandoffApp) : HandOff
 
         /**
          * Cancel and place the call to a *contact* via the app's per-contact

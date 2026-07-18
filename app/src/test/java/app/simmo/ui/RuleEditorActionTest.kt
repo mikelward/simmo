@@ -1,6 +1,8 @@
 package app.simmo.ui
 
 import app.simmo.domain.ContactCallApp
+import app.simmo.domain.DialHandoffApp
+import app.simmo.domain.PhoneAccountRef
 import app.simmo.domain.RuleAction
 import app.simmo.domain.SimRef
 import org.junit.Assert.assertEquals
@@ -29,7 +31,8 @@ class RuleEditorActionTest {
 
     @Test
     fun `actions the editor cannot represent have no control`() {
-        assertNull(ActionChoice.of(RuleAction.HandOff.ViaDialIntent("com.google.android.apps.voice")))
+        // Phone-account hand-off has no editor control yet; dial-intent does.
+        assertNull(ActionChoice.of(RuleAction.HandOff.ViaPhoneAccount(PhoneAccountRef("acct"))))
     }
 
     @Test
@@ -40,13 +43,23 @@ class RuleEditorActionTest {
     }
 
     @Test
+    fun `Google Voice and Teams hand-off map to and from their controls`() {
+        for (app in DialHandoffApp.entries) {
+            val action = RuleAction.HandOff.ViaDialIntent(app)
+            val choice = ActionChoice.ofDial(app)
+            assertEquals(choice, ActionChoice.of(action))
+            assertEquals(action, resolveEditorAction(choice, simRef = null, keepAction = null))
+        }
+    }
+
+    @Test
     fun `saving with a chosen control uses that action`() {
         assertEquals(
             RuleAction.UseMatchingCountrySim,
             resolveEditorAction(
                 ActionChoice.MATCHING_SIM,
                 simRef = null,
-                keepAction = RuleAction.HandOff.ViaDialIntent("com.example.voip"),
+                keepAction = RuleAction.HandOff.ViaPhoneAccount(PhoneAccountRef("acct-voip")),
             ),
         )
         assertEquals(
@@ -61,7 +74,7 @@ class RuleEditorActionTest {
 
     @Test
     fun `saving without changing an unsupported action preserves it`() {
-        val handOff = RuleAction.HandOff.ViaDialIntent("com.google.android.apps.voice")
+        val handOff = RuleAction.HandOff.ViaPhoneAccount(PhoneAccountRef("acct-voip"))
         assertEquals(handOff, resolveEditorAction(choice = null, simRef = null, keepAction = handOff))
     }
 

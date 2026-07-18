@@ -259,9 +259,17 @@ supports:
    redirects the call to that account — same mechanism as a SIM redirect, works even in
    non-interactive contexts.
 2. **Cancel-and-forward**: otherwise, Simmo cancels the carrier call and launches the
-   target app with the dialed number (its dial intent). The receiving app takes over;
-   whether it auto-dials or pre-fills is its behavior, not ours. Requires interactive
-   context.
+   target app at the dialed number via the app's number-carrying deep link (the MVP
+   targets are **Google Voice** and **Microsoft Teams**). The number is normalized to
+   E.164 off the fast path (the same warm parse country detection uses) before it is
+   placed in the deep link. The launch intent is **resolved before the carrier call is
+   cancelled**, so a target uninstalled since the snapshot proceeds unmodified rather
+   than stranding the call; a number with no E.164 form (short code, undetermined)
+   skips the rule. The receiving app takes over; whether it auto-dials or pre-fills is
+   its behavior, not ours. Requires interactive context. (Readiness beyond "installed"
+   — Google Voice's linked number, a Teams Phone plan — isn't detectable from the
+   intent, so an installed-but-unprovisioned target can still land on a setup screen;
+   that case is owed a device-QA pass.)
 3. **App-to-app (per-contact)**: for apps that call *contacts*, not arbitrary numbers
    (e.g. WhatsApp), Simmo hands off only when the dialed number belongs to a contact
    reachable on that app. It resolves the number against a warm contact index (built off

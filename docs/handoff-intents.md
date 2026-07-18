@@ -55,6 +55,13 @@ without `+`; `«E164enc»` = URL-encoded for a query value (`+` → `%2B`, e.g.
 
 ## MVP targets
 
+**Status:** Google Voice and Teams are **implemented** as cancel-and-forward targets
+(`DialHandoffApp`, `RuleAction.HandOff.ViaDialIntent`) — the number is normalized to
+E.164 off the fast path, the deep link resolved before the carrier call is cancelled,
+and each is offered in the editor only when installed. Viber is deferred (same pattern —
+add a `DialHandoffApp` entry). The device-test checklist below is still owed; the launch
+behavior (app vs browser, auto-dial vs pre-fill, unprovisioned handling) is unconfirmed.
+
 ### 1. Google Voice — `com.google.android.apps.googlevoice`
 
 | | |

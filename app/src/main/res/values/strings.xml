@@ -26,7 +26,7 @@
     <!-- TODO: translate -->
     <string name="rule_action_matching_sim" tools:ignore="MissingTranslation">SIM for that country</string>
     <!-- TODO: translate -->
-    <string name="rule_action_hand_off" tools:ignore="MissingTranslation">Hand off to %1$s</string>
+    <string name="rule_action_hand_off" tools:ignore="MissingTranslation">%1$s</string>
     <!-- TODO: translate -->
     <string name="rule_action_ask" tools:ignore="MissingTranslation">Ask which SIM to use</string>
     <!-- TODO: translate -->
