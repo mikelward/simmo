@@ -95,6 +95,7 @@ fun RuleEditorScreen(
 ) {
     val simOptions by viewModel.simOptions.collectAsStateWithLifecycle()
     val countryOptions by viewModel.countryOptions.collectAsStateWithLifecycle()
+    val suggestedCountries by viewModel.suggestedCountries.collectAsStateWithLifecycle()
     val handOffApps by viewModel.handOffApps.collectAsStateWithLifecycle()
     val dialHandoffApps by viewModel.dialHandoffApps.collectAsStateWithLifecycle()
     // App-to-app hand-off resolves the dialed number to a contact, which needs
@@ -107,6 +108,7 @@ fun RuleEditorScreen(
         target = target,
         simOptions = simOptions,
         countryOptions = countryOptions,
+        suggestedCountries = suggestedCountries,
         groupOptions = viewModel.groupOptions,
         handOffApps = handOffApps,
         dialHandoffApps = dialHandoffApps,
@@ -138,6 +140,8 @@ internal fun RuleEditorContent(
     onSave: (EditorDraft) -> Unit,
     onDelete: (() -> Unit)?,
     onCancel: () -> Unit,
+    /** Contact-derived countries shown atop the picker; empty hides the section. */
+    suggestedCountries: List<CountryOptionUi> = emptyList(),
     groupOptions: List<CountryGroupOptionUi> = emptyList(),
     /** Installed app-to-app hand-off targets; each is offered as an action. */
     handOffApps: Set<ContactCallApp> = emptySet(),
@@ -199,6 +203,7 @@ internal fun RuleEditorContent(
     if (showCountryPicker) {
         CountryPickerContent(
             options = countryOptions,
+            suggested = suggestedCountries,
             query = countryQuery,
             onQueryChange = { countryQuery = it },
             selectedRegions = regions.map { it.uppercase() }.toSet(),
@@ -483,12 +488,20 @@ internal fun CountryPickerContent(
     selectedRegions: Set<String>,
     onSelect: (String) -> Unit,
     onBack: () -> Unit,
+    /** Contact-derived countries shown under a "Suggested" header on a blank query. */
+    suggested: List<CountryOptionUi> = emptyList(),
     groups: List<CountryGroupOptionUi> = emptyList(),
     selectedGroupIds: Set<String> = emptySet(),
     onSelectGroup: (String) -> Unit = {},
 ) {
     BackHandler(onBack = onBack)
     val ranked = remember(options, query) { rankCountries(options, query) }
+    // The suggested shortcut is for browsing, not searching: once the user
+    // types, the ranked results and matching groups already surface the
+    // relevant countries, so the bucket only shows on a blank query.
+    val showSuggested = remember(query, suggested) {
+        suggested.isNotEmpty() && foldForSearch(query).isEmpty()
+    }
     // Groups sit above the countries: always on a blank query, and for a
     // typed one when it matches the group itself (EU, EEA, Europe, …) OR any
     // member country — searching "France" suggests EU/EEA right where the
@@ -513,6 +526,24 @@ internal fun CountryPickerContent(
                 modifier = Modifier.fillMaxWidth().weight(1f),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
+                // Contact-derived shortcuts sit above everything, under their own
+                // header so their out-of-alphabetical order reads as intentional.
+                if (showSuggested) {
+                    item(key = "suggested-header") {
+                        Text(
+                            text = stringResource(R.string.country_picker_suggested),
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    items(suggested, key = { "suggested:${it.regionCode}" }) { option ->
+                        ChoiceRow(
+                            selected = option.regionCode.uppercase() in selectedRegions,
+                            text = option.label,
+                            onSelect = { onSelect(option.regionCode) },
+                        )
+                    }
+                }
                 items(visibleGroups, key = { "group:${it.id}" }) { group ->
                     GroupRow(
                         selected = group.id in selectedGroupIds,

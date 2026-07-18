@@ -143,9 +143,12 @@ class SnapshotAssembler(
     @Volatile
     private var networkRegion: String = ""
 
-    /** Warm contact reverse-lookup for app-to-app hand-off; empty until read. */
-    @Volatile
-    private var contacts: ContactNumberIndex = ContactNumberIndex.EMPTY
+    /**
+     * Warm contact reverse-lookup for app-to-app hand-off; empty until read.
+     * A [StateFlow] so the UI can also derive the country picker's "Suggested"
+     * bucket from it; the decision path still reads the current value in memory.
+     */
+    private val contactsFlow = MutableStateFlow(ContactNumberIndex.EMPTY)
 
     /**
      * Package names of installed dial-intent hand-off apps (Google Voice, Teams).
@@ -198,7 +201,7 @@ class SnapshotAssembler(
             // A clear during the read bumped the generation; its empty index is
             // the safe truth and this read predates the change — drop it and let
             // the next (debounced) refresh republish post-change rows.
-            if (generation == contactsGeneration) contacts = fresh
+            if (generation == contactsGeneration) contactsFlow.value = fresh
         }
     }
 
@@ -214,7 +217,7 @@ class SnapshotAssembler(
     fun clearContacts() {
         synchronized(contactsWriteLock) {
             contactsGeneration++
-            contacts = ContactNumberIndex.EMPTY
+            contactsFlow.value = ContactNumberIndex.EMPTY
         }
     }
 
@@ -227,6 +230,9 @@ class SnapshotAssembler(
 
     /** For the UI: disabled-SIM greying must track live telephony changes. */
     fun simsAndAccounts(): StateFlow<TelephonyReader.SimsAndAccounts> = simsFlow.asStateFlow()
+
+    /** For the UI: the picker's "Suggested" countries track contact-index refreshes. */
+    fun contacts(): StateFlow<ContactNumberIndex> = contactsFlow.asStateFlow()
 
     fun handleFor(ref: PhoneAccountRef): PhoneAccountHandle? = simsFlow.value.handlesByRef[ref]
 
@@ -243,7 +249,7 @@ class SnapshotAssembler(
             // handOffApps backs dial-intent hand-off, the contact index the app-to-app one.
             handOffAccounts = emptySet(),
             handOffApps = handOffApps,
-            contacts = contacts,
+            contacts = contactsFlow.value,
         )
     }
 }

@@ -93,6 +93,39 @@ class CountryPickerScreenshotTest {
         captureSnapshot("country_picker_group.png")
     }
 
+    @Test
+    fun countryPicker_suggestsContactCountriesOnBlankQuery() {
+        composeRule.setContent {
+            MaterialTheme {
+                CountryPickerContent(
+                    options = listOf(
+                        option("AU", "Australia", 61),
+                        option("FR", "France", 33),
+                        option("GB", "United Kingdom", 44),
+                        option("US", "United States", 1),
+                    ),
+                    // Contact-derived shortcuts sit under "Suggested" atop the list.
+                    suggested = listOf(
+                        option("GB", "United Kingdom", 44),
+                        option("US", "United States", 1),
+                    ),
+                    query = "",
+                    onQueryChange = {},
+                    selectedRegions = emptySet(),
+                    onSelect = {},
+                    onBack = {},
+                )
+            }
+        }
+        composeRule.waitForIdle()
+
+        // The "Suggested" header renders, and a non-suggested country still
+        // appears in the full list below (blank query shows everything).
+        composeRule.onNodeWithText("Suggested").assertExists()
+        composeRule.onNodeWithText("+61 Australia").assertExists()
+        captureSnapshot("country_picker_suggested.png")
+    }
+
     private fun captureSnapshot(name: String, widthPx: Int = 1080, heightPx: Int = 1920) {
         val isRecord = System.getProperty("roborazzi.test.record") == "true"
         val isVerify = System.getProperty("roborazzi.test.verify") == "true"

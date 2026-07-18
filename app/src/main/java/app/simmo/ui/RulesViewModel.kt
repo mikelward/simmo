@@ -119,6 +119,24 @@ class RulesViewModel(
             .flowOn(Dispatchers.Default)
             .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
+    /**
+     * The countries to surface in the picker's "Suggested" bucket: the ones the
+     * user's contacts have numbers in, most-common first, capped at
+     * [SUGGESTED_COUNTRY_LIMIT]. Derived off the main thread from the warm
+     * contact index (empty without READ_CONTACTS) and re-derived when it
+     * refreshes, so granting contacts fills the bucket without a manual reload.
+     */
+    val suggestedCountries: StateFlow<List<CountryOptionUi>> =
+        combine(app.assembler.contacts(), countryOptions) { contacts, options ->
+            if (options.isEmpty()) return@combine emptyList()
+            val optionByRegion = options.associateBy { it.regionCode.uppercase() }
+            contacts.regionsByContactCount()
+                .mapNotNull { optionByRegion[it.uppercase()] }
+                .take(SUGGESTED_COUNTRY_LIMIT)
+        }
+            .flowOn(Dispatchers.Default)
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
     /** The country groups the picker offers, labels resolved once. */
     val groupOptions: List<CountryGroupOptionUi> = CountryGroups.allIds().map { id ->
         val label = application.getString(groupLabelRes(id))
@@ -286,6 +304,9 @@ class RulesViewModel(
     private companion object {
         const val KEY_EDITOR_TARGET = "editor_target"
         const val KEY_REGISTRY_OPEN = "registry_open"
+
+        /** How many contact-derived countries the "Suggested" bucket shows. */
+        const val SUGGESTED_COUNTRY_LIMIT = 5
     }
 }
 

@@ -87,4 +87,44 @@ class ContactLookupTest {
         assertEquals("Al", index.lookup("(415) 555-0123", "US")?.displayName)
         assertNull(index.lookup("0415550123", "AU"))
     }
+
+    @Test
+    fun `suggested regions are ranked by contact count, ties broken by region`() {
+        // Two AU numbers, one US, one GB — AU leads, then GB and US tie on 1
+        // and sort by region code (GB before US) for a stable order.
+        val index = buildContactNumberIndex(
+            numbers = listOf(
+                number("Mum", "+61412345678", key = "mum"),
+                number("Dad", "+61498765432", key = "dad"),
+                number("Al", "+14155550123", key = "al"),
+                number("Bea", "+442071234567", key = "bea"),
+            ),
+            callActions = emptyList(),
+            defaultRegion = "AU",
+        )
+        assertEquals(listOf("AU", "GB", "US"), index.regionsByContactCount())
+    }
+
+    @Test
+    fun `suggested regions count distinct contacts, not numbers`() {
+        // One AU contact with three numbers must not outrank two GB contacts:
+        // ranking is by people, not phone rows.
+        val index = buildContactNumberIndex(
+            numbers = listOf(
+                number("Mum", "+61412345678", key = "mum"),
+                number("Mum", "+61498765432", key = "mum"),
+                number("Mum", "+61390001234", key = "mum"),
+                number("Bea", "+442071234567", key = "bea"),
+                number("Cy", "+442079999999", key = "cy"),
+            ),
+            callActions = emptyList(),
+            defaultRegion = "AU",
+        )
+        assertEquals(listOf("GB", "AU"), index.regionsByContactCount())
+    }
+
+    @Test
+    fun `an empty index suggests no regions`() {
+        assertEquals(emptyList<String>(), ContactNumberIndex.EMPTY.regionsByContactCount())
+    }
 }
