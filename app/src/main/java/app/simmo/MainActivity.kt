@@ -43,6 +43,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import app.simmo.ui.EditorTarget
+import app.simmo.ui.GroupsScreen
 import app.simmo.ui.RuleEditorScreen
 import app.simmo.ui.RulesScreen
 import app.simmo.ui.RulesViewModel
@@ -95,6 +96,7 @@ class MainActivity : ComponentActivity() {
                     // mid-registry-browse) keeps the user where they were.
                     val target by vm.editorTarget.collectAsStateWithLifecycle()
                     val registryOpen by vm.registryOpen.collectAsStateWithLifecycle()
+                    val groupsOpen by vm.groupsOpen.collectAsStateWithLifecycle()
                     val editing = target
                     when {
                         // The editor wins: it can only be open from the rules
@@ -113,10 +115,16 @@ class MainActivity : ComponentActivity() {
                             onBack = vm::closeSimRegistry,
                         )
 
+                        groupsOpen -> GroupsScreen(
+                            viewModel = vm,
+                            onBack = vm::closeGroups,
+                        )
+
                         else -> RulesScreen(
                             viewModel = vm,
                             onAddRule = vm::openNewRule,
                             onEditRule = vm::openEditRule,
+                            onOpenGroups = vm::openGroups,
                         )
                     }
                 } else {

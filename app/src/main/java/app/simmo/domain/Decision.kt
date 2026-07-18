@@ -38,6 +38,8 @@ data class DecisionSnapshot(
     val activeSims: List<ActiveSim>,
     val defaultRegion: String,
     val passTokens: List<PassToken> = emptyList(),
+    /** User-defined group id → member regions (uppercased); built off-path. */
+    val customGroups: Map<String, List<String>> = emptyMap(),
     /** Enabled call-capable phone accounts of third-party (hand-off) apps. */
     val handOffAccounts: Set<PhoneAccountRef> = emptySet(),
     /** Installed apps that can receive a dial-intent hand-off. */
@@ -140,7 +142,7 @@ class DecisionEngine(private val countryDetector: CountryDetector) {
         for (rule in snapshot.rules.rules) {
             // A user-disabled rule is kept in the list but never acts.
             if (!rule.enabled) continue
-            if (!rule.matcher.matches(destination)) continue
+            if (!rule.matcher.matches(destination, snapshot.customGroups)) continue
             when (val action = rule.action) {
                 is RuleAction.UseSim -> when (val resolved = resolveSim(action.sim, snapshot.activeSims)) {
                     is SimResolution.Active ->
@@ -219,17 +221,21 @@ class DecisionEngine(private val countryDetector: CountryDetector) {
         return Verdict.Proceed(ProceedReason.NO_APPLICABLE_RULE)
     }
 
-    private fun RuleMatcher.matches(destination: String?): Boolean = when (this) {
+    private fun RuleMatcher.matches(
+        destination: String?,
+        customGroups: Map<String, List<String>>,
+    ): Boolean = when (this) {
         RuleMatcher.AnyDestination -> true
         is RuleMatcher.Country -> destination != null && regionCode.equals(destination, ignoreCase = true)
         is RuleMatcher.Countries -> destination != null &&
             (
                 regionCodes.any { it.equals(destination, ignoreCase = true) } ||
-                    // Group membership resolves from the in-memory table at
-                    // decision time, so one stored "EU/EEA" entry tracks
-                    // membership across app updates.
+                    // Group membership resolves from the in-memory snapshot at
+                    // decision time — the static table for built-ins, the user's
+                    // custom groups for the rest — so one stored group entry
+                    // tracks membership across app updates and edits alike.
                     groupIds.any { id ->
-                        CountryGroups.members(id).any { it.equals(destination, ignoreCase = true) }
+                        groupMembers(id, customGroups).any { it.equals(destination, ignoreCase = true) }
                     }
                 )
     }

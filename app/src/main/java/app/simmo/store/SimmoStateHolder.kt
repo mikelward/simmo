@@ -2,6 +2,7 @@ package app.simmo.store
 
 import androidx.datastore.core.DataStore
 import app.simmo.domain.ActiveSim
+import app.simmo.domain.CustomGroup
 import app.simmo.domain.RegisteredSim
 import app.simmo.domain.RuleBook
 import app.simmo.domain.SimRef
@@ -107,6 +108,14 @@ class SimmoStateHolder(
         store.updateData {
             val valid = it.withInstallValidated(installId)
             valid.copy(simRegistry = valid.simRegistry.withoutSim(ref))
+        }
+    }
+
+    /** Add / edit / delete a user-defined country group (the Groups screen). */
+    suspend fun updateCustomGroups(transform: (List<CustomGroup>) -> List<CustomGroup>) {
+        store.updateData {
+            val valid = it.withInstallValidated(installId)
+            valid.copy(customGroups = transform(valid.customGroups))
         }
     }
 

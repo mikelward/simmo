@@ -84,6 +84,22 @@
     <!-- TODO: translate -->
     <string name="rule_disabled" tools:ignore="MissingTranslation">Disabled</string>
     <!-- TODO: translate -->
+    <string name="groups_open" tools:ignore="MissingTranslation">Country groups</string>
+    <!-- TODO: translate -->
+    <string name="groups_title" tools:ignore="MissingTranslation">Country groups</string>
+    <!-- TODO: translate -->
+    <string name="groups_explainer" tools:ignore="MissingTranslation">Groups let one rule cover a set of countries — like your plan\'s included destinations.</string>
+    <!-- TODO: translate -->
+    <string name="groups_empty" tools:ignore="MissingTranslation">No groups yet. Add one to use it across your rules.</string>
+    <!-- TODO: translate -->
+    <string name="groups_add" tools:ignore="MissingTranslation">New group</string>
+    <!-- TODO: translate -->
+    <string name="groups_editor_title_new" tools:ignore="MissingTranslation">New group</string>
+    <!-- TODO: translate -->
+    <string name="groups_editor_title_edit" tools:ignore="MissingTranslation">Edit group</string>
+    <!-- TODO: translate -->
+    <string name="groups_name_label" tools:ignore="MissingTranslation">Group name</string>
+    <!-- TODO: translate -->
     <string name="new_sim_prompt_title" tools:ignore="MissingTranslation">New SIM: %1$s</string>
     <!-- TODO: translate -->
     <string name="new_sim_prompt_body" tools:ignore="MissingTranslation">Add a rule so your calls know when to use it.</string>

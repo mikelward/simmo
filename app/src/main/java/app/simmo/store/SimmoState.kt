@@ -1,5 +1,6 @@
 package app.simmo.store
 
+import app.simmo.domain.CustomGroup
 import app.simmo.domain.RegisteredSim
 import app.simmo.domain.RuleAction
 import app.simmo.domain.RuleBook
@@ -17,6 +18,8 @@ import kotlinx.serialization.Serializable
 data class SimmoState(
     val rules: RuleBook = RuleBook(),
     val simRegistry: List<RegisteredSim> = emptyList(),
+    /** User-defined country groups a rule can match by id (SPEC "Rules"). */
+    val customGroups: List<CustomGroup> = emptyList(),
     /** Overrides the network/SIM-derived default region when set (ISO code). */
     val defaultRegionOverride: String? = null,
     /**

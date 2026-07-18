@@ -17,6 +17,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Settings
@@ -61,6 +62,7 @@ fun RulesScreen(
     viewModel: RulesViewModel,
     onAddRule: () -> Unit,
     onEditRule: (Int) -> Unit,
+    onOpenGroups: () -> Unit = {},
 ) {
     val rows by viewModel.rows.collectAsStateWithLifecycle()
     val newSimPrompts by viewModel.newSimPrompts.collectAsStateWithLifecycle()
@@ -76,6 +78,7 @@ fun RulesScreen(
         onAddRuleForSim = viewModel::openNewRuleForSim,
         onDismissNewSimPrompt = viewModel::dismissNewSimPrompt,
         onOpenSimRegistry = viewModel::openSimRegistry,
+        onOpenGroups = onOpenGroups,
     )
 }
 
@@ -92,6 +95,7 @@ internal fun RulesScreenContent(
     onAddRuleForSim: (NewSimPromptUi) -> Unit = {},
     onDismissNewSimPrompt: (SimRef) -> Unit = {},
     onOpenSimRegistry: () -> Unit = {},
+    onOpenGroups: () -> Unit = {},
 ) {
     val listState = rememberLazyListState()
     val currentRows by rememberUpdatedState(rows)
@@ -135,6 +139,12 @@ internal fun RulesScreenContent(
                         style = MaterialTheme.typography.headlineMedium,
                         modifier = Modifier.weight(1f),
                     )
+                    IconButton(onClick = onOpenGroups) {
+                        Icon(
+                            imageVector = Icons.Filled.List,
+                            contentDescription = stringResource(R.string.groups_open),
+                        )
+                    }
                     IconButton(onClick = onOpenSimRegistry) {
                         Icon(
                             imageVector = Icons.Filled.Settings,

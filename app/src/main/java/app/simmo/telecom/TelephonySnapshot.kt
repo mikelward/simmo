@@ -246,6 +246,11 @@ class SnapshotAssembler(
             activeSims = simsFlow.value.activeSims,
             defaultRegion = state.defaultRegionOverride ?: networkRegion,
             passTokens = tokens.currentTokens(nowMillis()),
+            // Custom-group membership, resolved on the decision path from this
+            // in-memory map (built from the persisted state, never from I/O).
+            customGroups = state.customGroups.associate { group ->
+                group.id to group.regionCodes.map { it.uppercase() }
+            },
             // Phone-account hand-off target discovery lands later (TODO.md Phase 5);
             // handOffApps backs dial-intent hand-off, the contact index the app-to-app one.
             handOffAccounts = emptySet(),

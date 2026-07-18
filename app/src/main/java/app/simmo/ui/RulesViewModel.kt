@@ -8,7 +8,10 @@ import androidx.lifecycle.viewModelScope
 import app.simmo.SimmoApp
 import app.simmo.domain.ActiveSim
 import app.simmo.domain.ContactCallApp
+import app.simmo.domain.CustomGroup
 import app.simmo.domain.DialHandoffApp
+import app.simmo.domain.withGroupSaved
+import app.simmo.domain.withoutGroup
 import app.simmo.telecom.installedDialHandoffApps
 import app.simmo.domain.RegisteredSim
 import app.simmo.domain.Rule
@@ -97,12 +100,14 @@ class RulesViewModel(
             .flowOn(Dispatchers.Default)
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    private fun buildRows(state: SimmoState?, activeSims: List<ActiveSim>): List<RuleRowUi> =
-        state?.rules?.rules.orEmpty().map { rule ->
-            // A stored group id this version doesn't know still shows (as its
-            // raw id) rather than vanishing from the rule's description.
-            rule.toRow(activeSims, groupLabel = { id -> groupLabelsById[id] ?: id })
+    private fun buildRows(state: SimmoState?, activeSims: List<ActiveSim>): List<RuleRowUi> {
+        // Built-in labels are static; a custom group's label is its user-typed
+        // name from the state. An id neither knows still shows (as its raw id).
+        val labels = builtInGroupLabels + state?.customGroups.orEmpty().associate { it.id to it.name }
+        return state?.rules?.rules.orEmpty().map { rule ->
+            rule.toRow(activeSims, groupLabel = { id -> labels[id] ?: id })
         }
+    }
 
     /** SIMs the user can target: every registered SIM, active or not. */
     val simOptions: StateFlow<List<SimOptionUi>> =
@@ -139,8 +144,8 @@ class RulesViewModel(
             .flowOn(Dispatchers.Default)
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    /** The country groups the picker offers, labels resolved once. */
-    val groupOptions: List<CountryGroupOptionUi> = CountryGroups.allIds().map { id ->
+    /** The shipped groups, resolved once; custom groups are appended per state. */
+    private val builtInGroupOptions: List<CountryGroupOptionUi> = CountryGroups.allIds().map { id ->
         val label = application.getString(groupLabelRes(id))
         CountryGroupOptionUi(
             id = id,
@@ -151,7 +156,34 @@ class RulesViewModel(
         )
     }
 
-    private val groupLabelsById = groupOptions.associate { it.id to it.label }
+    private val builtInGroupLabels = builtInGroupOptions.associate { it.id to it.label }
+
+    /** The user's custom groups, live from persisted state. */
+    val customGroups: StateFlow<List<CustomGroup>> =
+        app.stateHolders()
+            .flatMapLatest { holder -> holder?.state ?: flowOf(null) }
+            .map { it?.customGroups.orEmpty() }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /** The groups the picker offers: the built-ins plus the user's custom groups. */
+    val groupOptions: StateFlow<List<CountryGroupOptionUi>> =
+        customGroups
+            .map { groups -> builtInGroupOptions + groups.map(::customGroupOption) }
+            .flowOn(Dispatchers.Default)
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), builtInGroupOptions)
+
+    private fun customGroupOption(group: CustomGroup): CountryGroupOptionUi {
+        val regions = group.regionCodes.map { it.uppercase() }
+        return CountryGroupOptionUi(
+            id = group.id,
+            label = group.name,
+            // The member countries read as the group's description; the name is
+            // the user's, so there's nothing else to say about it.
+            description = regions.joinToString { countryDisplayName(it) },
+            memberRegions = regions.toSet(),
+            searchTerms = countryGroupSearchTerms(group.id, group.name),
+        )
+    }
 
     /**
      * Installed app-to-app hand-off targets, so the editor offers only reachable
@@ -225,6 +257,43 @@ class RulesViewModel(
     fun deleteRegisteredSim(ref: SimRef) {
         viewModelScope.launch {
             app.stateHolders().filterNotNull().first().deleteRegisteredSim(ref)
+        }
+    }
+
+    /** Whether the Groups screen is open; mirrored into [SavedStateHandle]. */
+    private val _groupsOpen = MutableStateFlow(savedState.get<Boolean>(KEY_GROUPS_OPEN) ?: false)
+    val groupsOpen: StateFlow<Boolean> = _groupsOpen
+
+    fun openGroups() = setGroupsOpen(true)
+
+    fun closeGroups() = setGroupsOpen(false)
+
+    private fun setGroupsOpen(open: Boolean) {
+        _groupsOpen.value = open
+        savedState[KEY_GROUPS_OPEN] = open
+    }
+
+    /**
+     * Add a new custom group (when [id] is null) or edit the existing one.
+     * Membership is stored uppercased. A blank name or empty membership is the
+     * editor's to prevent; this trusts what it passes.
+     */
+    fun saveCustomGroup(id: String?, name: String, regionCodes: List<String>) {
+        viewModelScope.launch {
+            app.stateHolders().filterNotNull().first().updateCustomGroups { groups ->
+                // A new group gets a never-reused id; editing keeps the same one.
+                val groupId = id ?: CustomGroup.newId()
+                groups.withGroupSaved(
+                    CustomGroup(groupId, name.trim(), regionCodes.map { it.uppercase() }),
+                )
+            }
+        }
+    }
+
+    /** Delete a custom group; rules referencing it keep the id but match none of it. */
+    fun deleteCustomGroup(id: String) {
+        viewModelScope.launch {
+            app.stateHolders().filterNotNull().first().updateCustomGroups { it.withoutGroup(id) }
         }
     }
 
@@ -316,6 +385,7 @@ class RulesViewModel(
     private companion object {
         const val KEY_EDITOR_TARGET = "editor_target"
         const val KEY_REGISTRY_OPEN = "registry_open"
+        const val KEY_GROUPS_OPEN = "groups_open"
 
         /** How many contact-derived countries the "Suggested" bucket shows. */
         const val SUGGESTED_COUNTRY_LIMIT = 5
