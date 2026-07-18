@@ -50,10 +50,16 @@ copy directly below the original as the starting point for a variant. A rule pai
   A group is stored by id and resolved to members at decision time, so membership
   tracks app updates instead of freezing dozens of entries into the rule;
   countries a label excludes but a particular plan covers (UK, Switzerland, …)
-  are added beside the group as ordinary entries. Groups are chosen to be
-  label-faithful, stable sets — carrier-specific zone lists ("Tier 1" countries)
-  differ per carrier and belong to a future custom-groups feature, not shipped
-  data. The picker offers groups above the country list, found by their aliases
+  are added beside the group as ordinary entries. The **shipped** groups are chosen
+  to be label-faithful, stable sets; carrier-specific zone lists ("Tier 1" countries)
+  differ per carrier, so those are **custom groups** the user builds instead — a named
+  set of countries (e.g. "Vodafone Zone 1") created on the Country groups screen and
+  then selectable in a rule exactly like a built-in group. A custom group is stored
+  under a stable id (disjoint from the built-in ids), and its membership resolves on
+  the decision path from the same in-memory snapshot the built-ins resolve from — never
+  from I/O. Deleting a group leaves rules that referenced it matching none of its
+  members (their other countries still match), never an error. The picker offers groups
+  above the country list, found by their aliases
   ("EU", "EEA", "Europe", "European Union"; "USA", "America"; "North America",
   "NA"; "Caribbean", "West Indies") — and also whenever the search matches a
   member country, so typing "France" or "Jamaica" suggests the relevant group
