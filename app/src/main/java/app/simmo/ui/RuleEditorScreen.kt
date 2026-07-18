@@ -45,6 +45,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.simmo.R
 import app.simmo.domain.ContactCallApp
+import app.simmo.domain.DialHandoffApp
 import app.simmo.domain.Rule
 import app.simmo.domain.RuleAction
 import app.simmo.domain.RuleMatcher
@@ -95,6 +96,7 @@ fun RuleEditorScreen(
     val simOptions by viewModel.simOptions.collectAsStateWithLifecycle()
     val countryOptions by viewModel.countryOptions.collectAsStateWithLifecycle()
     val handOffApps by viewModel.handOffApps.collectAsStateWithLifecycle()
+    val dialHandoffApps by viewModel.dialHandoffApps.collectAsStateWithLifecycle()
     // App-to-app hand-off resolves the dialed number to a contact, which needs
     // READ_CONTACTS. Request it when the user picks such an action; a grant
     // refreshes the warm contact index so the rule can act.
@@ -107,6 +109,7 @@ fun RuleEditorScreen(
         countryOptions = countryOptions,
         groupOptions = viewModel.groupOptions,
         handOffApps = handOffApps,
+        dialHandoffApps = dialHandoffApps,
         onRequestContactsAccess = { contactsLauncher.launch(Manifest.permission.READ_CONTACTS) },
         onSave = { draft ->
             val rule = Rule(draft.matcher, draft.action)
@@ -138,6 +141,8 @@ internal fun RuleEditorContent(
     groupOptions: List<CountryGroupOptionUi> = emptyList(),
     /** Installed app-to-app hand-off targets; each is offered as an action. */
     handOffApps: Set<ContactCallApp> = emptySet(),
+    /** Installed dial-intent hand-off targets (Google Voice, Teams); each is an action. */
+    dialHandoffApps: Set<DialHandoffApp> = emptySet(),
     /** Invoked when a contact-app action is picked, to request READ_CONTACTS. */
     onRequestContactsAccess: () -> Unit = {},
 ) {
@@ -297,8 +302,6 @@ internal fun RuleEditorContent(
                             text = when (val a = keepAction) {
                                 is RuleAction.HandOff.ViaPhoneAccount ->
                                     stringResource(R.string.rule_action_hand_off, a.account.id)
-                                is RuleAction.HandOff.ViaDialIntent ->
-                                    stringResource(R.string.rule_action_hand_off, a.packageName)
                                 else -> ""
                             },
                             onSelect = { actionChoice = null },
@@ -340,6 +343,18 @@ internal fun RuleEditorContent(
                             },
                         )
                     }
+                }
+                // Dial-intent hand-off (cancel the carrier call, open the app at
+                // the number), offered only for installed apps. Skipped hands-free.
+                items(
+                    dialHandoffApps.toList(),
+                    key = { "dial|${it.packageName}" },
+                ) { dialApp ->
+                    ChoiceRow(
+                        selected = actionChoice == ActionChoice.ofDial(dialApp),
+                        text = stringResource(R.string.rule_action_hand_off, dialApp.label),
+                        onSelect = { actionChoice = ActionChoice.ofDial(dialApp) },
+                    )
                 }
                 item {
                     ChoiceRow(
@@ -550,6 +565,8 @@ internal enum class ActionChoice {
     USE_SIM,
     MATCHING_SIM,
     HANDOFF_WHATSAPP,
+    HANDOFF_GOOGLE_VOICE,
+    HANDOFF_TEAMS,
     ASK,
     SYSTEM_DEFAULT,
     ;
@@ -558,16 +575,23 @@ internal enum class ActionChoice {
         USE_SIM -> RuleAction.UseSim(simRef!!)
         MATCHING_SIM -> RuleAction.UseMatchingCountrySim
         HANDOFF_WHATSAPP -> RuleAction.HandOff.ViaContactApp(ContactCallApp.WHATSAPP)
+        HANDOFF_GOOGLE_VOICE -> RuleAction.HandOff.ViaDialIntent(DialHandoffApp.GOOGLE_VOICE)
+        HANDOFF_TEAMS -> RuleAction.HandOff.ViaDialIntent(DialHandoffApp.TEAMS)
         ASK -> RuleAction.Ask
         SYSTEM_DEFAULT -> RuleAction.SystemDefault
     }
 
     companion object {
+        /** The editor control for a dial-intent hand-off to [app]. */
+        fun ofDial(app: DialHandoffApp): ActionChoice = when (app) {
+            DialHandoffApp.GOOGLE_VOICE -> HANDOFF_GOOGLE_VOICE
+            DialHandoffApp.TEAMS -> HANDOFF_TEAMS
+        }
+
         /**
          * The editor control for [action], or null when the editor can't
-         * represent it (phone-account / dial-intent hand-off) and must preserve
-         * the original on save. A new rule (null [action]) defaults to the
-         * matching-country SIM.
+         * represent it (phone-account hand-off) and must preserve the original on
+         * save. A new rule (null [action]) defaults to the matching-country SIM.
          */
         fun of(action: RuleAction?): ActionChoice? = when (action) {
             is RuleAction.UseSim -> USE_SIM
@@ -577,6 +601,7 @@ internal enum class ActionChoice {
             null -> MATCHING_SIM
             is RuleAction.HandOff.ViaContactApp ->
                 if (action.app == ContactCallApp.WHATSAPP) HANDOFF_WHATSAPP else null
+            is RuleAction.HandOff.ViaDialIntent -> ofDial(action.app)
             is RuleAction.HandOff -> null
         }
     }

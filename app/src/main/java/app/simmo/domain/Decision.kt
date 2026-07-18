@@ -56,8 +56,13 @@ sealed interface Verdict {
     /** Redirect to a SIM's or a VoIP app's phone account. */
     data class RedirectToAccount(val account: PhoneAccountRef) : Verdict
 
-    /** Cancel the carrier call and forward the number to the app's dial intent. */
-    data class ForwardToApp(val packageName: String) : Verdict
+    /**
+     * Cancel the carrier call and forward the dialed number to a calling app by
+     * launching its number-carrying deep link [uri], scoped to [packageName]
+     * (e.g. Google Voice, Teams). Only produced when the number normalized to
+     * E.164 and the target app is installed.
+     */
+    data class ForwardToApp(val packageName: String, val uri: String) : Verdict
 
     /**
      * Cancel the carrier call and place it to a contact via an app's per-contact
@@ -149,8 +154,17 @@ class DecisionEngine(private val countryDetector: CountryDetector) {
                     }
 
                 is RuleAction.HandOff.ViaDialIntent ->
-                    if (call.interactive && action.packageName in snapshot.handOffApps) {
-                        return Verdict.ForwardToApp(action.packageName)
+                    // Cancel-and-forward to the app's deep link, but only in an
+                    // interactive context, only when the app is installed, and
+                    // only when the number normalizes to E.164 (its deep link
+                    // needs a full number). A short code / undetermined number
+                    // can't be forwarded, so skip to the next rule rather than
+                    // strand the call. E.164 comes from the same warm parse the
+                    // contact index uses — no fresh metadata load on the path.
+                    if (call.interactive && action.app.packageName in snapshot.handOffApps) {
+                        normalizeToE164(call.dialedNumber, snapshot.defaultRegion)?.let { e164 ->
+                            return Verdict.ForwardToApp(action.app.packageName, action.app.launchUri(e164))
+                        }
                     }
 
                 is RuleAction.HandOff.ViaContactApp ->

@@ -26,6 +26,8 @@
          are installed (to offer them in the editor) and launch their call. -->
     <queries>
         <package android:name="com.whatsapp" />
+        <package android:name="com.google.android.apps.googlevoice" />
+        <package android:name="com.microsoft.teams" />
     </queries>
 
     <application

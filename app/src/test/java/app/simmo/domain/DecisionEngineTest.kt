@@ -337,7 +337,8 @@ class DecisionEngineTest {
     fun `unreachable hand-off targets are skipped`() {
         val rules = listOf(
             country("US", RuleAction.HandOff.ViaPhoneAccount(PhoneAccountRef("acct-gone"))),
-            country("US", RuleAction.HandOff.ViaDialIntent("com.example.gone")),
+            // Not in handOffApps (not installed) → skipped.
+            country("US", RuleAction.HandOff.ViaDialIntent(DialHandoffApp.TEAMS)),
             any(RuleAction.SystemDefault),
         )
         assertEquals(
@@ -381,13 +382,13 @@ class DecisionEngineTest {
     fun `nothing applicable proceeds, never drops`() {
         val rules = listOf(
             any(RuleAction.Ask),
-            any(RuleAction.HandOff.ViaDialIntent("com.example.voip")),
+            any(RuleAction.HandOff.ViaDialIntent(DialHandoffApp.GOOGLE_VOICE)),
         )
         assertEquals(
             Verdict.Proceed(ProceedReason.NO_APPLICABLE_RULE),
             engine.decide(
                 call(auNumber, interactive = false),
-                snapshot(rules, handOffApps = setOf("com.example.voip")),
+                snapshot(rules, handOffApps = setOf(DialHandoffApp.GOOGLE_VOICE.packageName)),
                 now,
             ),
         )
@@ -447,11 +448,37 @@ class DecisionEngineTest {
     }
 
     @Test
-    fun `hand-off via dial intent forwards to the app when interactive`() {
-        val rules = listOf(country("US", RuleAction.HandOff.ViaDialIntent("com.example.voip")))
+    fun `hand-off via dial intent forwards to Google Voice with the E164 deep link`() {
+        val gv = DialHandoffApp.GOOGLE_VOICE
+        val rules = listOf(country("US", RuleAction.HandOff.ViaDialIntent(gv)))
         assertEquals(
-            Verdict.ForwardToApp("com.example.voip"),
-            engine.decide(call(usNumber), snapshot(rules, handOffApps = setOf("com.example.voip")), now),
+            Verdict.ForwardToApp(gv.packageName, gv.launchUri(normalizeToE164(usNumber, "AU")!!)),
+            engine.decide(call(usNumber), snapshot(rules, handOffApps = setOf(gv.packageName)), now),
+        )
+    }
+
+    @Test
+    fun `hand-off via dial intent forwards to Teams with the E164 deep link`() {
+        val teams = DialHandoffApp.TEAMS
+        val rules = listOf(country("US", RuleAction.HandOff.ViaDialIntent(teams)))
+        assertEquals(
+            Verdict.ForwardToApp(teams.packageName, teams.launchUri(normalizeToE164(usNumber, "AU")!!)),
+            engine.decide(call(usNumber), snapshot(rules, handOffApps = setOf(teams.packageName)), now),
+        )
+    }
+
+    @Test
+    fun `hand-off via dial intent skips a number that can't normalize to E164`() {
+        // A short code has no E.164 form; the rule can't forward it, so it skips
+        // to the next rather than stranding the call.
+        val gv = DialHandoffApp.GOOGLE_VOICE
+        val rules = listOf(
+            any(RuleAction.HandOff.ViaDialIntent(gv)),
+            any(RuleAction.SystemDefault),
+        )
+        assertEquals(
+            Verdict.Proceed(ProceedReason.SYSTEM_DEFAULT),
+            engine.decide(call("311"), snapshot(rules, handOffApps = setOf(gv.packageName)), now),
         )
     }
 

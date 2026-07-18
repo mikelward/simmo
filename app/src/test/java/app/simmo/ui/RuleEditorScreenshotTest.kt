@@ -7,6 +7,7 @@ import androidx.activity.ComponentActivity
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import app.simmo.domain.DialHandoffApp
 import app.simmo.domain.Rule as SimmoRule
 import app.simmo.domain.RuleAction
 import app.simmo.domain.RuleMatcher
@@ -142,6 +143,33 @@ class RuleEditorScreenshotTest {
         composeRule.onNodeWithText("+44 United Kingdom").assertExists()
         composeRule.onNodeWithText("Add a country or code").assertExists()
         captureSnapshot("rule_editor_group.png")
+    }
+
+    @Test
+    fun editor_offersDialHandoffApps() {
+        val telstra = SimRef(1, "Telstra", "Telstra AU")
+        composeRule.setContent {
+            MaterialTheme {
+                RuleEditorContent(
+                    target = EditorTarget.Existing(
+                        0,
+                        SimmoRule(RuleMatcher.Country("US"), RuleAction.UseMatchingCountrySim),
+                    ),
+                    simOptions = listOf(SimOptionUi(telstra, "Telstra AU", active = true)),
+                    countryOptions = listOf(CountryOptionUi("US", "+1 United States")),
+                    // Both dial-intent targets installed → both offered as actions.
+                    dialHandoffApps = DialHandoffApp.entries.toSet(),
+                    onSave = {},
+                    onDelete = {},
+                    onCancel = {},
+                )
+            }
+        }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithText("Google Voice").assertExists()
+        composeRule.onNodeWithText("Microsoft Teams").assertExists()
+        captureSnapshot("rule_editor_dial_handoff.png")
     }
 
     private fun captureSnapshot(name: String, widthPx: Int = 1080, heightPx: Int = 1920) {

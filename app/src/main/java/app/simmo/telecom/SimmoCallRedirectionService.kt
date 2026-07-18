@@ -84,13 +84,24 @@ class SimmoCallRedirectionService : CallRedirectionService() {
                     }
                 }
 
-                is Verdict.ForwardToApp -> respond {
-                    cancelCall()
-                    startActivity(
-                        Intent(Intent.ACTION_DIAL, handle)
-                            .setPackage(verdict.packageName)
-                            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
-                    )
+                is Verdict.ForwardToApp -> {
+                    // Cancel-and-forward to the app's deep link (e.g. Google
+                    // Voice, Teams). Resolve *before* latching a response — the
+                    // same deadline-safe pattern as ForwardToContactApp: while
+                    // unresolved the watchdog is still armed. If the app can't
+                    // take it (uninstalled since the snapshot), never strand the
+                    // call — place it unmodified.
+                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(verdict.uri))
+                        .setPackage(verdict.packageName)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    if (intent.resolveActivity(packageManager) != null) {
+                        respond {
+                            cancelCall()
+                            startActivity(intent)
+                        }
+                    } else {
+                        respond { placeCallUnmodified() }
+                    }
                 }
 
                 is Verdict.ForwardToContactApp -> {

@@ -148,6 +148,14 @@ class SnapshotAssembler(
     private var contacts: ContactNumberIndex = ContactNumberIndex.EMPTY
 
     /**
+     * Package names of installed dial-intent hand-off apps (Google Voice, Teams).
+     * The decision path reads it to skip a hand-off rule whose target isn't
+     * installed; populated off-path from [installedDialHandoffApps].
+     */
+    @Volatile
+    private var handOffApps: Set<String> = emptySet()
+
+    /**
      * Serializes contact refreshes. At startup two callers race to build the
      * index — the telephony refresh (before the persisted region override has
      * loaded) and the state-load launch (after it publishes the holder). Without
@@ -210,6 +218,11 @@ class SnapshotAssembler(
         }
     }
 
+    /** Caches installed dial-intent hand-off targets; called off the decision path. */
+    fun setHandOffApps(packages: Set<String>) {
+        handOffApps = packages
+    }
+
     fun activeSims() = simsFlow.value.activeSims
 
     /** For the UI: disabled-SIM greying must track live telephony changes. */
@@ -226,10 +239,10 @@ class SnapshotAssembler(
             activeSims = simsFlow.value.activeSims,
             defaultRegion = state.defaultRegionOverride ?: networkRegion,
             passTokens = tokens.currentTokens(nowMillis()),
-            // Phone-account / dial-intent hand-off target discovery lands later
-            // (TODO.md Phase 5); the contact index backs app-to-app hand-off.
+            // Phone-account hand-off target discovery lands later (TODO.md Phase 5);
+            // handOffApps backs dial-intent hand-off, the contact index the app-to-app one.
             handOffAccounts = emptySet(),
-            handOffApps = emptySet(),
+            handOffApps = handOffApps,
             contacts = contacts,
         )
     }

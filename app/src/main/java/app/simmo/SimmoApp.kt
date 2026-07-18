@@ -20,6 +20,7 @@ import app.simmo.store.InstallMarker
 import app.simmo.store.SimmoStateHolder
 import app.simmo.store.simmoStateStore
 import app.simmo.telecom.ContactsReader
+import app.simmo.telecom.installedDialHandoffApps
 import app.simmo.telecom.HeldCallStore
 import app.simmo.telecom.PassTokenStore
 import app.simmo.telecom.RedirectionCoordinator
@@ -191,6 +192,12 @@ class SimmoApp : Application() {
         appScope.launch {
             assembler.refresh()
             recordSims()
+            // Cache which dial-intent hand-off apps (Google Voice, Teams) are
+            // installed, so the decision path can skip a rule whose target is
+            // gone. A PackageManager query — fine here, off the decision path.
+            assembler.setHandOffApps(
+                installedDialHandoffApps(packageManager).mapTo(HashSet()) { it.packageName },
+            )
             // Rebuild the contact index after the region is set; it feeds
             // app-to-app hand-off and degrades to empty without READ_CONTACTS.
             assembler.refreshContacts()
