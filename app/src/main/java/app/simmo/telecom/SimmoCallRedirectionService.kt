@@ -53,32 +53,52 @@ class SimmoCallRedirectionService : CallRedirectionService() {
             }
         }
 
-        // Cancel-and-forward to a calling app. Resolve *before* responding (the
-        // PackageManager IPC must not run after the watchdog is removed) — an
-        // uninstalled target proceeds unmodified. Then launch the app and cancel
-        // the carrier call *only if the launch didn't throw*: a launch that throws
-        // (no handler, security failure) places the call unmodified instead of
-        // stranding it, and surfaces a "couldn't open <app>" notification.
+        // Cancel-and-forward to a calling app.
         //
-        // Caveat: a *silently blocked* background-activity launch returns without
-        // throwing (Android's BAL restriction only logs), so we can't detect it
-        // here — that case would still cancel and strand. Whether the redirection
-        // binding exempts us from BAL, or this must move to a full-screen-intent
-        // launch, is the device-QA question in docs/qa-matrix.md (TODO.md).
+        // We can't wait to confirm the launch before responding: the Telecom
+        // deadline is hard, and `startActivity` doesn't reliably report success
+        // anyway (a blocked background launch only logs). So the response is never
+        // gated on the launch.
+        //
+        // Resolve *before* responding (this PackageManager IPC must not run after
+        // the watchdog is removed): a target that can't take the hand-off — gone,
+        // or its deep link unhandled — places the call unmodified and posts a
+        // "couldn't open <app>" notification. This catches the common failure.
+        //
+        // Otherwise respond with `cancelCall()` *first*, then launch — so a slow
+        // launch can't miss the deadline, and cancelCall being the single latched
+        // response rules out opening the app on top of a still-proceeding call. A
+        // launch that then throws can't be un-cancelled, so surface it (Redial);
+        // a silently blocked launch (BAL) can't be detected — still the device-QA
+        // / full-screen-intent question in docs/qa-matrix.md (TODO.md).
         fun handOff(intent: Intent, appLabel: String, packageName: String) {
+            fun notifyFailed(placed: Boolean) = app.notifications.postHandOffFailed(
+                appLabel,
+                packageName,
+                handle.schemeSpecificPart.orEmpty(),
+                placed,
+            )
             if (intent.resolveActivity(packageManager) == null) {
                 respond { placeCallUnmodified() }
+                notifyFailed(placed = true)
                 return
             }
-            if (runCatching { startActivity(intent) }.isSuccess) {
-                respond { cancelCall() }
-            } else {
-                respond { placeCallUnmodified() }
-                app.notifications.postHandOffFailed(
-                    appLabel,
-                    packageName,
-                    handle.schemeSpecificPart.orEmpty(),
-                )
+            respond {
+                cancelCall()
+                if (runCatching { startActivity(intent) }.isFailure) {
+                    // The call is already cancelled and the app didn't open.
+                    // Notifications are optional, so surface it a second,
+                    // permission-free way too: drop the user in the dialer with
+                    // the number so they can retry even with notifications off.
+                    // (If the launch was blocked by BAL rather than a per-app
+                    // failure, this is likewise blocked — best effort.)
+                    notifyFailed(placed = false)
+                    runCatching {
+                        startActivity(
+                            Intent(Intent.ACTION_DIAL, handle).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                        )
+                    }
+                }
             }
         }
 
