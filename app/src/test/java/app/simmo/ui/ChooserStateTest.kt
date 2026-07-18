@@ -1,6 +1,7 @@
 package app.simmo.ui
 
 import app.simmo.domain.ActiveSim
+import app.simmo.domain.CallingAccount
 import app.simmo.domain.CorrectionCandidate
 import app.simmo.domain.CountryVerdict
 import app.simmo.domain.NumberCorrection
@@ -32,6 +33,26 @@ class ChooserStateTest {
                 ChooserTargetUi(SimRef(1, "Telstra", "Telstra AU"), PhoneAccountRef("a1"), "Telstra AU"),
                 // Display name blank: the carrier name is the label.
                 ChooserTargetUi(SimRef(2, "T-Mobile", ""), PhoneAccountRef("a2"), "T-Mobile"),
+            ),
+            state.targets,
+        )
+    }
+
+    @Test
+    fun `calling accounts are offered after the SIMs`() {
+        // A SIP provider (or another VoIP app with a Telecom account) is a
+        // full re-place target; its row carries no SIM ref.
+        val state = buildChooserUiState(
+            dialedNumber = "+61412345678",
+            country = CountryVerdict.Country("AU"),
+            activeSims = listOf(telstra),
+            skippedInactiveSims = emptyList(),
+            callingAccounts = listOf(CallingAccount(PhoneAccountRef("sip-1"), "SIP work")),
+        )
+        assertEquals(
+            listOf(
+                ChooserTargetUi(SimRef(1, "Telstra", "Telstra AU"), PhoneAccountRef("a1"), "Telstra AU"),
+                ChooserTargetUi(sim = null, PhoneAccountRef("sip-1"), "SIP work"),
             ),
             state.targets,
         )

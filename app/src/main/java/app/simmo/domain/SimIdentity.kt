@@ -10,6 +10,19 @@ import kotlinx.serialization.Serializable
 data class PhoneAccountRef(val id: String)
 
 /**
+ * A call-capable Telecom phone account that is not a SIM subscription — a SIP
+ * provider or another calling app whose account the user enabled in the
+ * system's calling-accounts settings (SPEC "Hand-off to another app").
+ * Snapshot-only: a rule stores the ref (plus its own copy of the label) inside
+ * [RuleAction.HandOff.ViaPhoneAccount]; [label] is the account's user-facing
+ * name, read off the decision path.
+ */
+data class CallingAccount(
+    val ref: PhoneAccountRef,
+    val label: String,
+)
+
+/**
  * The stable reference a rule stores to a SIM (SPEC "SIM identity"): the
  * subscription ID is the primary key; carrier + display name together are the
  * human-meaningful re-binding fallback. Never a slot index.

@@ -342,6 +342,10 @@ private fun RuleRow(
                     text = stringResource(R.string.rule_sim_ambiguous),
                     style = MaterialTheme.typography.labelMedium,
                 )
+                row.pause == RulePause.ACCOUNT_UNAVAILABLE -> Text(
+                    text = stringResource(R.string.rule_account_unavailable),
+                    style = MaterialTheme.typography.labelMedium,
+                )
             }
         }
         // The row's actions. The menu is not dimmed with the rule — it must

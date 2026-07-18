@@ -27,7 +27,7 @@ import app.simmo.domain.Rule
 import app.simmo.domain.RuleAction
 import app.simmo.domain.SimRef
 import app.simmo.domain.countryMatcher
-import app.simmo.telecom.replaceCall
+import app.simmo.telecom.replaceCallOrOpenDialer
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -86,6 +86,7 @@ class ChooserActivity : ComponentActivity() {
                         activeSims = sims.activeSims,
                         skippedInactiveSims = skippedSims,
                         numberCorrection = numberCorrection,
+                        callingAccounts = sims.callingAccounts,
                     )
                 }
                 // A tap made before CALL_PHONE is granted parks the choice,
@@ -169,19 +170,23 @@ class ChooserActivity : ComponentActivity() {
         // not re-offer it.
         app.heldCalls.clear()
         if (rememberRule && rememberRegion != null) {
+            // A SIM target remembers a use-SIM rule; a calling-account target
+            // remembers the same account redirect the chooser just used.
+            val action = target.sim?.let { RuleAction.UseSim(it) }
+                ?: RuleAction.HandOff.ViaPhoneAccount(target.account, target.label)
             // On appScope: the write must outlive this finishing activity.
             app.appScope.launch {
                 app.stateHolders().filterNotNull().first().updateRules {
-                    it.withRuleAdded(
-                        Rule(countryMatcher(listOf(rememberRegion)), RuleAction.UseSim(target.sim)),
-                    )
+                    it.withRuleAdded(Rule(countryMatcher(listOf(rememberRegion)), action))
                 }
             }
         }
-        // A failure (the SIM vanished between the chooser opening and the tap,
-        // or CALL_PHONE revoked concurrently) is logged by the helper; the
-        // original call is already canceled, so there is nothing to undo.
-        app.replaceCall(handle, target.account)
+        // A failure (the SIM or calling account vanished between the chooser
+        // opening and the tap, or CALL_PHONE revoked concurrently) can't be
+        // undone — the original call is already canceled — so it falls back to
+        // the dialer with the number, same as the delayed-call countdown
+        // (Codex on PR #39).
+        app.replaceCallOrOpenDialer(this, handle, target.account)
     }
 
     companion object {

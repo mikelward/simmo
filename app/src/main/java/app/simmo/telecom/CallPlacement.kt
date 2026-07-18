@@ -1,5 +1,7 @@
 package app.simmo.telecom
 
+import android.content.Context
+import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.telecom.TelecomManager
@@ -44,6 +46,27 @@ fun SimmoApp.replaceCall(handle: Uri, account: PhoneAccountRef): Boolean {
         Log.e(TAG, "Re-placing the call failed", e)
         false
     }
+}
+
+/**
+ * [replaceCall], with the shared last-resort recovery when it fails: the
+ * original call was already canceled, and the target (a SIM's or a calling
+ * account's handle) is gone or `CALL_PHONE` was revoked — so rather than
+ * stranding the call, drop the user in the dialer with the number, minting a
+ * wildcard pass token first so the redial proceeds on whatever the dialer
+ * picks instead of re-entering the still-failing rule (SPEC "Redirect-loop
+ * guard"). Used by the chooser and the delayed-call countdown.
+ */
+fun SimmoApp.replaceCallOrOpenDialer(activity: Context, handle: Uri, account: PhoneAccountRef) {
+    if (replaceCall(handle, account)) return
+    passTokens.add(
+        PassToken(
+            dialedNumber = handle.schemeSpecificPart.orEmpty(),
+            account = null,
+            expiresAtMillis = System.currentTimeMillis() + REPLACE_PASS_TOKEN_TTL_MILLIS,
+        ),
+    )
+    runCatching { activity.startActivity(Intent(Intent.ACTION_DIAL, handle)) }
 }
 
 private const val TAG = "SimmoCallPlacement"

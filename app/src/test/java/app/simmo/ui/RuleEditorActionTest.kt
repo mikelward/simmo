@@ -17,6 +17,7 @@ class RuleEditorActionTest {
 
     private val telstra = SimRef(1, "Telstra", "Telstra AU")
     private val telstraOption = SimOptionUi(telstra, "Telstra AU", active = true)
+    private val sipAccount = CallingAccountOptionUi(PhoneAccountRef("acct-sip"), "SIP work")
 
     @Test
     fun `supported actions map to their editor control`() {
@@ -32,16 +33,25 @@ class RuleEditorActionTest {
     }
 
     @Test
-    fun `actions the editor cannot represent have no control`() {
-        // Phone-account hand-off has no editor control yet; dial-intent does.
-        assertNull(ActionChoice.of(RuleAction.HandOff.ViaPhoneAccount(PhoneAccountRef("acct"))))
+    fun `calling-account hand-off maps to and from its control`() {
+        assertEquals(
+            ActionChoice.USE_ACCOUNT,
+            ActionChoice.of(RuleAction.HandOff.ViaPhoneAccount(PhoneAccountRef("acct-sip"), "SIP work")),
+        )
+        assertEquals(
+            RuleAction.HandOff.ViaPhoneAccount(sipAccount.ref, "SIP work"),
+            resolveEditorAction(ActionChoice.USE_ACCOUNT, simRef = null, account = sipAccount, keepAction = null),
+        )
     }
 
     @Test
     fun `WhatsApp hand-off maps to and from its control`() {
         val whatsApp = RuleAction.HandOff.ViaContactApp(ContactCallApp.WHATSAPP)
         assertEquals(ActionChoice.HANDOFF_WHATSAPP, ActionChoice.of(whatsApp))
-        assertEquals(whatsApp, resolveEditorAction(ActionChoice.HANDOFF_WHATSAPP, simRef = null, keepAction = null))
+        assertEquals(
+            whatsApp,
+            resolveEditorAction(ActionChoice.HANDOFF_WHATSAPP, simRef = null, account = null, keepAction = null),
+        )
     }
 
     @Test
@@ -50,7 +60,7 @@ class RuleEditorActionTest {
             val action = RuleAction.HandOff.ViaDialIntent(app)
             val choice = ActionChoice.ofDial(app)
             assertEquals(choice, ActionChoice.of(action))
-            assertEquals(action, resolveEditorAction(choice, simRef = null, keepAction = null))
+            assertEquals(action, resolveEditorAction(choice, simRef = null, account = null, keepAction = null))
         }
     }
 
@@ -61,23 +71,50 @@ class RuleEditorActionTest {
             resolveEditorAction(
                 ActionChoice.MATCHING_SIM,
                 simRef = null,
-                keepAction = RuleAction.HandOff.ViaPhoneAccount(PhoneAccountRef("acct-voip")),
+                account = null,
+                keepAction = RuleAction.HandOff.ViaContactApp(ContactCallApp.WHATSAPP),
             ),
         )
         assertEquals(
             RuleAction.UseSim(telstra),
-            resolveEditorAction(ActionChoice.USE_SIM, simRef = telstra, keepAction = null),
+            resolveEditorAction(ActionChoice.USE_SIM, simRef = telstra, account = null, keepAction = null),
         )
         assertEquals(
             RuleAction.Ask,
-            resolveEditorAction(ActionChoice.ASK, simRef = null, keepAction = null),
+            resolveEditorAction(ActionChoice.ASK, simRef = null, account = null, keepAction = null),
         )
     }
 
     @Test
     fun `saving without changing an unsupported action preserves it`() {
-        val handOff = RuleAction.HandOff.ViaPhoneAccount(PhoneAccountRef("acct-voip"))
-        assertEquals(handOff, resolveEditorAction(choice = null, simRef = null, keepAction = handOff))
+        val handOff = RuleAction.HandOff.ViaContactApp(ContactCallApp.WHATSAPP)
+        assertEquals(
+            handOff,
+            resolveEditorAction(choice = null, simRef = null, account = null, keepAction = handOff),
+        )
+    }
+
+    @Test
+    fun `a stored account that is no longer registered is offered as unavailable`() {
+        val live = listOf(sipAccount)
+        // Still registered: the live rows stand as-is (freshest labels).
+        assertEquals(live, accountOptions(live, sipAccount.copy(label = "old name")))
+        // Gone: appended, marked unavailable, so the rule can be kept.
+        val stored = CallingAccountOptionUi(PhoneAccountRef("acct-gone"), "Old SIP")
+        assertEquals(live + stored.copy(available = false), accountOptions(live, stored))
+        assertEquals(live, accountOptions(live, stored = null))
+    }
+
+    @Test
+    fun `the selected account prefers the live row's label`() {
+        val live = listOf(sipAccount.copy(label = "SIP renamed"))
+        val stored = sipAccount
+        // Re-saving writes the account's current name, not the stored one.
+        assertEquals("SIP renamed", resolveSelectedAccount(stored, live)?.label)
+        // No live row: the stored choice stands.
+        val gone = CallingAccountOptionUi(PhoneAccountRef("acct-gone"), "Old SIP")
+        assertEquals(gone, resolveSelectedAccount(gone, live))
+        assertNull(resolveSelectedAccount(stored = null, options = live))
     }
 
     @Test
@@ -89,6 +126,32 @@ class RuleEditorActionTest {
         val stale = SimRef(SimRef.INVALID_SUBSCRIPTION_ID, "Vodafone", "Old name")
         assertFalse(isValid(matchesAny = true, regions = emptyList(), groups = emptyList(), ActionChoice.USE_SIM, stale, options))
         assertFalse(isValid(matchesAny = true, regions = emptyList(), groups = emptyList(), ActionChoice.USE_SIM, simRef = null, options))
+    }
+
+    @Test
+    fun `a calling-account action needs an account picked`() {
+        val noSims = emptyList<SimOptionUi>()
+        assertTrue(
+            isValid(
+                matchesAny = true, regions = emptyList(), groups = emptyList(),
+                ActionChoice.USE_ACCOUNT, simRef = null, noSims, account = sipAccount,
+            ),
+        )
+        // An unavailable stored account still counts — the paused rule can be
+        // re-saved intact rather than forcing a re-link first.
+        assertTrue(
+            isValid(
+                matchesAny = true, regions = emptyList(), groups = emptyList(),
+                ActionChoice.USE_ACCOUNT, simRef = null, noSims,
+                account = sipAccount.copy(available = false),
+            ),
+        )
+        assertFalse(
+            isValid(
+                matchesAny = true, regions = emptyList(), groups = emptyList(),
+                ActionChoice.USE_ACCOUNT, simRef = null, noSims, account = null,
+            ),
+        )
     }
 
     @Test

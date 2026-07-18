@@ -42,6 +42,8 @@ class ChooserScreenshotTest {
                         targets = listOf(
                             ChooserTargetUi(SimRef(1, "Telstra", "Telstra AU"), PhoneAccountRef("a1"), "Telstra AU"),
                             ChooserTargetUi(SimRef(2, "T-Mobile", "T-Mobile US"), PhoneAccountRef("a2"), "T-Mobile US"),
+                            // A non-SIM calling account (SIP provider) target.
+                            ChooserTargetUi(sim = null, PhoneAccountRef("sip1"), "SIP work"),
                         ),
                         skippedSimNames = listOf("Voda AU"),
                     ),
@@ -56,6 +58,7 @@ class ChooserScreenshotTest {
         composeRule.onNodeWithText("+61 412 345 678").assertExists()
         composeRule.onNodeWithText("+61 Australia").assertExists()
         composeRule.onNodeWithText("Call with Telstra AU").assertExists()
+        composeRule.onNodeWithText("Call with SIP work").assertExists()
         composeRule.onNodeWithText("Your rule wanted Voda AU, but that SIM is disabled.").assertExists()
         composeRule.onNodeWithText("SIM settings").assertExists()
         composeRule.onNodeWithText("Remember for Australia").assertExists()

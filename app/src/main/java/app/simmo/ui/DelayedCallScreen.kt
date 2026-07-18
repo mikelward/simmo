@@ -25,8 +25,8 @@ import app.simmo.R
  * mid-call-attempt and must paint its first frame instantly).
  */
 data class DelayedCallUiState(
-    /** The rule-picked SIM's name, e.g. "Telstra AU". */
-    val simLabel: String,
+    /** The rule-picked target's name — a SIM ("Telstra AU") or a calling account ("SIP work"). */
+    val targetLabel: String,
     val dialedNumber: String,
     /** "+61 Australia" when the destination is determined; null otherwise. */
     val countryLabel: String?,
@@ -35,9 +35,10 @@ data class DelayedCallUiState(
 
 /**
  * The delay-before-calling countdown (SPEC "Call feedback and delay"): which
- * SIM the rule picked, the number and destination, and the seconds left before
- * the call goes out — with "Call now" to skip the wait and "Cancel call" to
- * abandon it (the carrier call was already canceled before this opened).
+ * SIM or calling account the rule picked, the number and destination, and the
+ * seconds left before the call goes out — with "Call now" to skip the wait and
+ * "Cancel call" to abandon it (the carrier call was already canceled before
+ * this opened).
  */
 @Composable
 internal fun DelayedCallContent(
@@ -59,7 +60,7 @@ internal fun DelayedCallContent(
                     .verticalScroll(rememberScrollState()),
             ) {
                 Text(
-                    text = stringResource(R.string.calling_using, state.simLabel),
+                    text = stringResource(R.string.calling_using, state.targetLabel),
                     style = MaterialTheme.typography.headlineMedium,
                 )
                 Text(

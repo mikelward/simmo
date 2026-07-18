@@ -33,7 +33,7 @@ class DelayedCallScreenshotTest {
             MaterialTheme {
                 DelayedCallContent(
                     state = DelayedCallUiState(
-                        simLabel = "Telstra AU",
+                        targetLabel = "Telstra AU",
                         dialedNumber = "+61 412 345 678",
                         countryLabel = "+61 Australia",
                         remainingSeconds = 3,

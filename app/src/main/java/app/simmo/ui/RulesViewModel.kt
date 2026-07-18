@@ -12,7 +12,9 @@ import app.simmo.domain.CustomGroup
 import app.simmo.domain.DialHandoffApp
 import app.simmo.domain.withGroupSaved
 import app.simmo.domain.withoutGroup
+import app.simmo.telecom.TelephonyReader
 import app.simmo.telecom.installedDialHandoffApps
+import app.simmo.domain.PhoneAccountRef
 import app.simmo.domain.RegisteredSim
 import app.simmo.domain.Rule
 import app.simmo.domain.RuleAction
@@ -54,6 +56,13 @@ enum class RulePause {
 
     /** The stored ref can't re-bind unambiguously; the rule needs re-linking. */
     SIM_AMBIGUOUS,
+
+    /**
+     * The rule's calling account (SIP provider, VoIP app) is no longer
+     * registered/enabled; re-enable it in the system's calling-accounts
+     * settings or reinstall the app.
+     */
+    ACCOUNT_UNAVAILABLE,
 }
 
 /** One row of the rules list, ready to render (SPEC "Rules"). */
@@ -96,17 +105,18 @@ class RulesViewModel(
         app.stateHolders()
             .flatMapLatest { holder -> holder?.state ?: flowOf(null) }
             .combine(app.assembler.simsAndAccounts()) { state, sims ->
-                buildRows(state, sims.activeSims)
+                buildRows(state, sims)
             }
             .flowOn(Dispatchers.Default)
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    private fun buildRows(state: SimmoState?, activeSims: List<ActiveSim>): List<RuleRowUi> {
+    private fun buildRows(state: SimmoState?, sims: TelephonyReader.SimsAndAccounts): List<RuleRowUi> {
         // Built-in labels are static; a custom group's label is its user-typed
         // name from the state. An id neither knows still shows (as its raw id).
         val labels = builtInGroupLabels + state?.customGroups.orEmpty().associate { it.id to it.name }
+        val availableAccounts = sims.callingAccounts.mapTo(HashSet()) { it.ref }
         return state?.rules?.rules.orEmpty().map { rule ->
-            rule.toRow(activeSims, groupLabel = { id -> labels[id] ?: id })
+            rule.toRow(sims.activeSims, groupLabel = { id -> labels[id] ?: id }, availableAccounts)
         }
     }
 
@@ -185,6 +195,17 @@ class RulesViewModel(
             searchTerms = countryGroupSearchTerms(group.id, group.name),
         )
     }
+
+    /**
+     * Non-SIM calling accounts (SIP providers, VoIP apps registered with
+     * Telecom) the editor can target, live from the telephony snapshot so an
+     * account enabled or removed in system settings shows up on refresh.
+     */
+    val callingAccounts: StateFlow<List<CallingAccountOptionUi>> =
+        app.assembler.simsAndAccounts()
+            .map { sims -> sims.callingAccounts.map { CallingAccountOptionUi(it.ref, it.label) } }
+            .flowOn(Dispatchers.Default)
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     /**
      * Installed app-to-app hand-off targets, so the editor offers only reachable
@@ -541,6 +562,22 @@ data class SimOptionUi(
     val active: Boolean,
 )
 
+/** A non-SIM calling account (SIP provider, VoIP app) the editor can target. */
+data class CallingAccountOptionUi(
+    val ref: PhoneAccountRef,
+    val label: String,
+    /** False when a rule's stored account is not currently registered/enabled. */
+    val available: Boolean = true,
+)
+
+/** The user-facing name of a hand-off action's target. */
+internal fun RuleAction.HandOff.displayLabel(): String = when (this) {
+    // Rules stored before the label existed fall back to the raw account id.
+    is RuleAction.HandOff.ViaPhoneAccount -> label.ifBlank { account.id }
+    is RuleAction.HandOff.ViaDialIntent -> app.label
+    is RuleAction.HandOff.ViaContactApp -> app.label
+}
+
 /** One pending "add rules for this new SIM?" nudge on the rules list. */
 data class NewSimPromptUi(
     val ref: SimRef,
@@ -663,6 +700,8 @@ internal fun countryDisplayName(regionCode: String): String {
 internal fun Rule.toRow(
     activeSims: List<ActiveSim>,
     groupLabel: (String) -> String = { it },
+    /** Refs of the currently registered non-SIM calling accounts. */
+    availableAccounts: Set<PhoneAccountRef> = emptySet(),
 ): RuleRowUi {
     // Groups lead ("EU/EEA, +44 United Kingdom"): the group is the rule's
     // headline and the hand-picked countries read as its additions.
@@ -683,8 +722,13 @@ internal fun Rule.toRow(
         RuleAction.UseMatchingCountrySim ->
             RuleRowUi(matcherLabel, ActionUi.MatchingCountrySim)
 
-        is RuleAction.HandOff.ViaPhoneAccount ->
-            RuleRowUi(matcherLabel, ActionUi.HandOffApp(a.account.id))
+        is RuleAction.HandOff.ViaPhoneAccount -> RuleRowUi(
+            matcherCountryLabel = matcherLabel,
+            action = ActionUi.HandOffApp(a.displayLabel()),
+            // Same greying as a disabled SIM: the engine skips the rule while
+            // its account is gone, and it re-applies when the account returns.
+            pause = if (a.account in availableAccounts) null else RulePause.ACCOUNT_UNAVAILABLE,
+        )
 
         is RuleAction.HandOff.ViaDialIntent ->
             RuleRowUi(matcherLabel, ActionUi.HandOffApp(a.app.label))

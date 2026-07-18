@@ -5,8 +5,11 @@
     <!-- Enumerate subscriptions and phone accounts for the snapshot. -->
     <uses-permission android:name="android.permission.READ_PHONE_STATE" />
 
-    <!-- Show each SIM's own number on the SIMs screen. Optional; requested
-         there (silently granted alongside READ_PHONE_STATE — same group). -->
+    <!-- Show each SIM's own number on the SIMs screen, and read other apps'
+         calling-account labels ("SIP – work" — TelecomManager.getPhoneAccount
+         needs it on Android 12+). Same Phone permission group as
+         READ_PHONE_STATE, so it's requested with it in one dialog; if denied,
+         account labels degrade to the providing app's name. -->
     <uses-permission android:name="android.permission.READ_PHONE_NUMBERS" />
 
     <!-- Simmo shows no ads: strip the advertising-ID and ad-attribution
@@ -47,6 +50,12 @@
         <package android:name="com.microsoft.teams" />
         <package android:name="com.viber.voip" />
         <package android:name="com.yollacalls" />
+        <!-- See the apps behind non-SIM calling accounts (SIP providers, VoIP
+             apps) — anyone with a ConnectionService — to label their accounts
+             by app name when the account's own label isn't readable. -->
+        <intent>
+            <action android:name="android.telecom.ConnectionService" />
+        </intent>
     </queries>
 
     <application

@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
+import android.telecom.PhoneAccount
 import android.telecom.PhoneAccountHandle
 import android.telecom.TelecomManager
 import android.telephony.SubscriptionInfo
@@ -11,6 +12,7 @@ import android.telephony.SubscriptionManager
 import android.telephony.TelephonyManager
 import androidx.core.content.ContextCompat
 import app.simmo.domain.ActiveSim
+import app.simmo.domain.CallingAccount
 import app.simmo.domain.ContactNumberIndex
 import app.simmo.domain.DecisionSnapshot
 import app.simmo.domain.PassToken
@@ -32,9 +34,11 @@ import kotlinx.coroutines.sync.withLock
 class TelephonyReader(private val context: Context) {
 
     data class SimsAndAccounts(
-        val activeSims: List<ActiveSim>,
+        val activeSims: List<ActiveSim> = emptyList(),
+        /** Call-capable non-SIM accounts (SIP providers, VoIP apps), with labels. */
+        val callingAccounts: List<CallingAccount> = emptyList(),
         /** Domain ref ↔ platform handle, for turning verdicts back into redirects. */
-        val handlesByRef: Map<PhoneAccountRef, PhoneAccountHandle>,
+        val handlesByRef: Map<PhoneAccountRef, PhoneAccountHandle> = emptyMap(),
     )
 
     fun hasPhonePermission(): Boolean =
@@ -47,42 +51,92 @@ class TelephonyReader(private val context: Context) {
      * check and the reads, and a background refresh must degrade, not crash.
      */
     fun readSimsAndAccounts(): SimsAndAccounts {
-        if (!hasPhonePermission()) return SimsAndAccounts(emptyList(), emptyMap())
+        if (!hasPhonePermission()) return SimsAndAccounts()
         return try {
-            // System services can be absent on no-radio devices, which the
-            // manifest deliberately supports (telephony required=false).
+            // Only Telecom is required. The telephony services can be absent on
+            // no-radio devices, which the manifest deliberately supports
+            // (telephony required=false) — there they just mean "no SIM
+            // subscriptions", and a SIP/VoIP calling account enabled on such a
+            // device must still be enumerated (Codex on PR #39).
             val telecom = context.getSystemService(TelecomManager::class.java)
-                ?: return SimsAndAccounts(emptyList(), emptyMap())
+                ?: return SimsAndAccounts()
             val telephony = context.getSystemService(TelephonyManager::class.java)
-                ?: return SimsAndAccounts(emptyList(), emptyMap())
             val subscriptionManager = context.getSystemService(SubscriptionManager::class.java)
-                ?: return SimsAndAccounts(emptyList(), emptyMap())
-            val subscriptions = subscriptionManager.activeSubscriptionInfoList.orEmpty()
-                .associateBy { it.subscriptionId }
+            // The manager can exist while the read still throws
+            // UnsupportedOperationException (no FEATURE_TELEPHONY_SUBSCRIPTION,
+            // per its docs) — that too just means "no SIM subscriptions", and
+            // the Telecom accounts below must still be enumerated. A
+            // SecurityException keeps propagating to the outer catch.
+            val subscriptions = try {
+                subscriptionManager?.activeSubscriptionInfoList.orEmpty()
+            } catch (_: UnsupportedOperationException) {
+                emptyList()
+            }.associateBy { it.subscriptionId }
 
             val sims = mutableListOf<ActiveSim>()
+            val accounts = mutableListOf<CallingAccount>()
             val handles = mutableMapOf<PhoneAccountRef, PhoneAccountHandle>()
             for (handle in telecom.callCapablePhoneAccounts) {
                 // API 30+: the platform's own mapping from phone account to
-                // subscription — the reason minSdk is 30.
-                val subId = telephony.getSubscriptionId(handle)
-                val info = subscriptions[subId] ?: continue
+                // subscription — the reason minSdk is 30. Absent or
+                // feature-less telephony can't map any handle, and on such a
+                // device no handle is a SIM's — invalid is the true answer.
+                // (SecurityException still propagates to the outer catch: a
+                // revoked permission must empty the snapshot, not relabel
+                // SIM accounts as generic calling accounts.)
+                val subId = try {
+                    telephony?.getSubscriptionId(handle)
+                        ?: SubscriptionManager.INVALID_SUBSCRIPTION_ID
+                } catch (_: UnsupportedOperationException) {
+                    SubscriptionManager.INVALID_SUBSCRIPTION_ID
+                }
+                val info = subscriptions[subId]
                 val ref = handle.toRef()
-                handles[ref] = handle
-                sims += ActiveSim(
-                    subscriptionId = info.subscriptionId,
-                    carrierName = info.carrierName?.toString().orEmpty(),
-                    displayName = info.displayName?.toString().orEmpty(),
-                    phoneAccount = ref,
-                    countryIso = info.countryIso.orEmpty(),
-                    phoneNumber = readPhoneNumber(subscriptionManager, info),
-                )
+                when {
+                    info != null -> {
+                        handles[ref] = handle
+                        sims += ActiveSim(
+                            subscriptionId = info.subscriptionId,
+                            carrierName = info.carrierName?.toString().orEmpty(),
+                            displayName = info.displayName?.toString().orEmpty(),
+                            phoneAccount = ref,
+                            countryIso = info.countryIso.orEmpty(),
+                            // info came from subscriptionManager, so it is
+                            // non-null here; the ?.let just avoids !!.
+                            phoneNumber = subscriptionManager
+                                ?.let { readPhoneNumber(it, info) }.orEmpty(),
+                        )
+                    }
+
+                    subId == SubscriptionManager.INVALID_SUBSCRIPTION_ID -> {
+                        // Not a SIM: a SIP provider or another calling app whose
+                        // enabled call-capable account Telecom offers as a call
+                        // target (SPEC "Hand-off to another app"). Redirects use
+                        // the same handle mechanism as a SIM account — and keep
+                        // the original tel: handle, so only offer accounts that
+                        // can place tel: calls; a sip:-only account would fail
+                        // the redirected call (Codex on PR #39). An unreadable
+                        // account (READ_PHONE_NUMBERS denied) is offered best
+                        // effort: call-provider accounts near-universally take
+                        // tel:, and withholding all of them would gut the
+                        // feature for that grant state.
+                        val account = runCatching { telecom.getPhoneAccount(handle) }.getOrNull()
+                        if (account == null || account.supportsUriScheme(PhoneAccount.SCHEME_TEL)) {
+                            handles[ref] = handle
+                            accounts += CallingAccount(ref, callingAccountLabel(account, handle))
+                        }
+                    }
+
+                    // A SIM-bound account whose subscription isn't readable
+                    // right now: offering it as a generic calling account would
+                    // mislabel a SIM, so it stays dropped (as before).
+                }
             }
-            SimsAndAccounts(sims, handles)
+            SimsAndAccounts(sims, accounts, handles)
         } catch (_: SecurityException) {
-            SimsAndAccounts(emptyList(), emptyMap())
+            SimsAndAccounts()
         } catch (_: UnsupportedOperationException) {
-            SimsAndAccounts(emptyList(), emptyMap())
+            SimsAndAccounts()
         }
     }
 
@@ -105,6 +159,27 @@ class TelephonyReader(private val context: Context) {
         } catch (_: IllegalStateException) {
             ""
         }
+
+    /**
+     * A non-SIM account's user-facing name. The account's own label is best
+     * (one app can register several accounts — "SIP work" vs "SIP personal") but
+     * `getPhoneAccount` needs READ_PHONE_NUMBERS on targetSdk 31+, which is
+     * requested with READ_PHONE_STATE yet can be individually denied — so
+     * [account] may be null; degrade to the registering app's name (visible via
+     * the ConnectionService `<queries>` entry), then to its package name. Never
+     * empty, so the editor and chooser always have something to show.
+     */
+    private fun callingAccountLabel(account: PhoneAccount?, handle: PhoneAccountHandle): String {
+        account?.label?.toString()?.takeIf { it.isNotBlank() }?.let { return it }
+        val packageName = handle.componentName.packageName
+        runCatching {
+            context.packageManager
+                .getApplicationLabel(context.packageManager.getApplicationInfo(packageName, 0))
+                .toString()
+        }
+            .getOrNull()?.takeIf { it.isNotBlank() }?.let { return it }
+        return packageName
+    }
 
     /**
      * The region national-format numbers resolve against, absent an override.
@@ -162,8 +237,7 @@ class SnapshotAssembler(
     private val tokens: PassTokenStore,
     private val nowMillis: () -> Long,
 ) {
-    private val simsFlow =
-        MutableStateFlow(TelephonyReader.SimsAndAccounts(emptyList(), emptyMap()))
+    private val simsFlow = MutableStateFlow(TelephonyReader.SimsAndAccounts())
 
     @Volatile
     private var networkRegion: String = ""
@@ -276,9 +350,11 @@ class SnapshotAssembler(
             customGroups = state.customGroups.associate { group ->
                 group.id to group.regionCodes.map { it.uppercase() }
             },
-            // Phone-account hand-off target discovery lands later (TODO.md Phase 5);
-            // handOffApps backs dial-intent hand-off, the contact index the app-to-app one.
-            handOffAccounts = emptySet(),
+            // Non-SIM calling accounts (SIP providers, VoIP apps) from the same
+            // cached telephony read as the SIMs — in memory, refreshed off-path.
+            // Labels ride along for the "Calling using" toast and the delay
+            // countdown.
+            handOffAccounts = simsFlow.value.callingAccounts.associate { it.ref to it.label },
             handOffApps = handOffApps,
             contacts = contactsFlow.value,
             announceCalls = state.showCallToast,

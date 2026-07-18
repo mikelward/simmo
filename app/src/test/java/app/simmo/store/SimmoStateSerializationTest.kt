@@ -24,7 +24,11 @@ class SimmoStateSerializationTest {
         rules = RuleBook(
             rules = listOf(
                 Rule(RuleMatcher.Country("AU"), RuleAction.UseSim(SimRef(1, "Telstra", "Telstra personal"))),
-                Rule(RuleMatcher.Country("US"), RuleAction.HandOff.ViaPhoneAccount(PhoneAccountRef("acct-gv"))),
+                Rule(
+                    RuleMatcher.Country("US"),
+                    // Non-default label so the round trip proves it is written.
+                    RuleAction.HandOff.ViaPhoneAccount(PhoneAccountRef("acct-sip"), "SIP work"),
+                ),
                 Rule(RuleMatcher.Country("GB"), RuleAction.HandOff.ViaDialIntent(DialHandoffApp.GOOGLE_VOICE)),
                 Rule(RuleMatcher.Country("NZ"), RuleAction.Ask),
                 Rule(RuleMatcher.Countries(listOf("FR", "DE")), RuleAction.Ask),
@@ -109,6 +113,23 @@ class SimmoStateSerializationTest {
         assertEquals(
             listOf(Rule(RuleMatcher.Countries(listOf("FR", "DE")), RuleAction.SystemDefault)),
             read.rules.rules,
+        )
+    }
+
+    @Test
+    fun `a phone-account rule written before labels decodes with a blank one`() = runTest {
+        // Bytes as written before ViaPhoneAccount carried a label: the rule
+        // must decode (blank label, id shown as fallback), not corrupt state.
+        val json = """
+            {"rules":{"rules":[
+              {"matcher":{"type":"country","regionCode":"US"},
+               "action":{"type":"handOffAccount","account":{"id":"acct-sip"}}}
+            ]},"simRegistry":[],"defaultRegionOverride":null,"installId":null}
+        """.trimIndent()
+        val read = SimmoStateSerializer.readFrom(ByteArrayInputStream(json.encodeToByteArray()))
+        assertEquals(
+            RuleAction.HandOff.ViaPhoneAccount(PhoneAccountRef("acct-sip")),
+            read.rules.rules.single().action,
         )
     }
 

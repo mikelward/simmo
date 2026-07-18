@@ -91,8 +91,8 @@ pairs a
      identity" below), e.g. "Telstra", never by physical slot.
   2. **Call with the SIM whose home country matches the destination** — applies only
      when exactly one active SIM's home country equals the destination country.
-  3. **Hand off to another calling app** — e.g. Google Voice (see "Hand-off to
-     another app").
+  3. **Hand off to another calling app or account** — e.g. Google Voice, or a
+     SIP provider's calling account (see "Hand-off to another app").
   4. **Ask** — show Simmo's chooser for this call.
   5. **No change** — the call proceeds exactly as the system would have placed it
      (the user's default calling app / default voice SIM); Simmo doesn't intervene.
@@ -163,8 +163,12 @@ The dialed number is parsed offline with libphonenumber:
 
 When the winning rule says Ask, Simmo cancels the in-flight call and shows a
 full-screen chooser: the dialed number, its detected country/flag, and the available
-targets — each active SIM, each configured hand-off app, plus "remember this choice for
-<country>" to create a rule inline. Confirming re-places the call on the chosen target.
+targets — each active SIM, each other enabled calling account (e.g. a SIP provider),
+each configured hand-off app, plus "remember this choice for
+<country>" to create a rule inline. Confirming re-places the call on the chosen target;
+a re-place that fails (the target vanished since the chooser opened, `CALL_PHONE`
+revoked) drops the user in the dialer with the number — the same recovery as the
+delayed call — instead of stranding the already-canceled call.
 Canceling abandons the call. When evaluation skipped disabled-SIM rules on the way to
 Ask, the chooser also surfaces them and offers the enable flow ("Disabled-SIM assist").
 
@@ -181,23 +185,25 @@ Global options on the Settings screen (reached from the rules list; also home of
 SIM registry), all off by default:
 
 - **Show which SIM or app is used**: when a rule routes a call, a brief toast names
-  where it went — "Calling using Telstra" for a SIM (on a redirect and when the call
-  was already on that SIM), "Calling using Google Voice" for an app hand-off (shown
+  where it went — "Calling using Telstra" for a SIM or another calling account (on a
+  redirect and when the call was already on that target; a calling account is named
+  by its live account label), "Calling using Google Voice" for an app hand-off (shown
   once the app launch has been sent; a failed hand-off shows its failure notice
   instead, never both). Calls the user routed by hand in the chooser don't toast —
   they just tapped the target by name. The toast is posted after the service has
   answered Telecom, so it can never delay the decision.
-- **Delay before calling** (1–10 s): when a rule redirects a call to a SIM in an
-  interactive context, Simmo cancels the call and shows a countdown screen instead —
-  the SIM's name, the number and destination, Cancel, and Call now — then re-places
-  the call on that SIM when the countdown ends (the chooser's cancel-and-re-place
-  mechanism, pass token included). It exists to give the user a beat to abort a call
-  about to go out on an unexpected SIM — e.g. an accidental international call. The
-  response to Telecom is never delayed (the deadline invariant stands); non-interactive
-  calls (Bluetooth, Android Auto) and calls already on the rule's SIM skip the delay;
-  a re-place that fails (SIM vanished, `CALL_PHONE` revoked mid-countdown) drops the
-  user in the dialer with the number rather than stranding the call, with a wildcard
-  pass token so the redial doesn't re-enter the rule.
+- **Delay before calling** (1–10 s): when a rule redirects a call to a SIM or another
+  calling account in an interactive context, Simmo cancels the call and shows a
+  countdown screen instead — the target's name, the number and destination, Cancel,
+  and Call now — then re-places the call on that target when the countdown ends (the
+  chooser's cancel-and-re-place mechanism, pass token included). It exists to give the
+  user a beat to abort a call about to go out on an unexpected target — an accidental
+  international call, or a SIP account with no credit. The response to Telecom is
+  never delayed (the deadline invariant stands); non-interactive calls (Bluetooth,
+  Android Auto) and calls already on the rule's target skip the delay; a re-place
+  that fails (the target vanished, `CALL_PHONE` revoked mid-countdown) drops the user
+  in the dialer with the number rather than stranding the call, with a wildcard pass
+  token so the redial doesn't re-enter the rule.
 
 ### Disabled-SIM assist
 
@@ -335,7 +341,23 @@ supports:
 1. **Phone-account redirect** (preferred): if the target app registers a call-capable
    phone account the user has enabled (VoIP apps that integrate with Telecom do), Simmo
    redirects the call to that account — same mechanism as a SIM redirect, works even in
-   non-interactive contexts.
+   non-interactive contexts. Every enabled call-capable account that isn't a SIM
+   subscription — SIP providers and other calling apps registered in the system's
+   calling-accounts settings — is read into the snapshot and offered directly: as a
+   rule action beside the SIMs in the editor, and as a chooser target. Only accounts
+   that can place `tel:` calls are offered (redirects keep the original
+   telephone-number handle, which a `sip:`-only account can't take); an account whose
+   scheme support isn't readable is offered best-effort. The account list refreshes
+   with the rest of the telephony snapshot — on subscription changes and whenever the
+   app returns to the foreground, since enabling or disabling a calling account in
+   system settings fires no event a non-dialer app can hear. A rule stores
+   the account's id (component + account id, stable across reboots) plus a copy of its
+   display label so the rule stays readable while the account is gone; a rule whose
+   account disappears (app uninstalled, account disabled) is paused — greyed in the
+   list, skipped in evaluation — and applies again when the account returns. Account
+   labels are read via `TelecomManager.getPhoneAccount` (needs `READ_PHONE_NUMBERS`,
+   requested together with `READ_PHONE_STATE` — same permission group, one dialog),
+   degrading to the providing app's name when that grant is missing.
 2. **Cancel-and-forward**: otherwise, Simmo cancels the carrier call and launches the
    target app at the dialed number via the app's number-carrying deep link (the MVP
    targets are **Google Voice**, **Microsoft Teams**, **Viber**, and **Yolla**). The number is normalized to
@@ -383,10 +405,12 @@ UI is forbidden).
 
 - `ROLE_CALL_REDIRECTION` (role, not permission) — the interception hook.
 - `READ_PHONE_STATE` — enumerate subscriptions and phone accounts.
-- `READ_PHONE_NUMBERS` (optional) — each SIM's own line number for the SIMs screen.
-  Requested there, only when the phone grant is already held: the two share Android's
-  Phone permission group, so the request is granted silently, without a dialog. A
-  denial just leaves the number off the row.
+- `READ_PHONE_NUMBERS` (optional) — each SIM's own line number for the SIMs screen,
+  and other apps' calling-account labels ("SIP – work") for the editor and chooser.
+  Requested with `READ_PHONE_STATE` in onboarding (the two share Android's Phone
+  permission group, so it's one dialog), and again from the SIMs screen when only
+  the phone grant is held (granted silently, same group). A denial just leaves the
+  number off the row and degrades account labels to app names.
 - `CALL_PHONE` — re-place calls after Ask / enable flows.
 - `READ_CONTACTS` (optional, requested when a feature needs it — app-to-app hand-off, or
   same-contact number correction — and offered as an onboarding row) — the
