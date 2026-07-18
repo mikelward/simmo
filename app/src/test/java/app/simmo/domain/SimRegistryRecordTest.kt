@@ -72,6 +72,53 @@ class SimRegistryRecordTest {
     }
 
     @Test
+    fun `capture records the sim's country and own number`() {
+        val active = telstraActive.copy(countryIso = "au", phoneNumber = "+61412345678")
+        assertEquals(
+            listOf(
+                RegisteredSim(
+                    1, "Telstra", "Telstra personal", 500L,
+                    countryIso = "au", phoneNumber = "+61412345678", needsRulePrompt = true,
+                ),
+            ),
+            emptyList<RegisteredSim>().recordSeen(listOf(active), nowMillis = 500L),
+        )
+    }
+
+    @Test
+    fun `blank country and number reads keep the last-known values`() {
+        // The platform reports these intermittently (and the number needs its
+        // own permission, revocable any time); a blank read must not erase
+        // what an earlier sighting learned.
+        val known = RegisteredSim(
+            1, "Telstra", "Telstra personal", 100L,
+            countryIso = "au", phoneNumber = "+61412345678",
+        )
+        assertEquals(
+            listOf(known.copy(lastSeenEpochMillis = 900L)),
+            listOf(known).recordSeen(listOf(telstraActive), nowMillis = 900L),
+        )
+    }
+
+    @Test
+    fun `re-binding a re-downloaded profile refreshes country and number`() {
+        val stale = RegisteredSim(5, "Telstra", "Telstra personal", 100L, countryIso = "au")
+        val redownloaded = ActiveSim(
+            9, "Telstra", "Telstra personal", PhoneAccountRef("a9"),
+            countryIso = "us", phoneNumber = "+12025550123",
+        )
+        assertEquals(
+            listOf(
+                RegisteredSim(
+                    9, "Telstra", "Telstra personal", 900L,
+                    countryIso = "us", phoneNumber = "+12025550123",
+                ),
+            ),
+            listOf(stale).recordSeen(listOf(redownloaded), nowMillis = 900L),
+        )
+    }
+
+    @Test
     fun `sims not currently active are kept for disabled-sim rules`() {
         val disabled = RegisteredSim(7, "Vodafone", "Voda AU", 100L)
         assertEquals(

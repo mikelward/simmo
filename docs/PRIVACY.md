@@ -31,8 +31,10 @@ app's own privacy policy.
 ## What Simmo stores on your device
 
 Your rules, your settings, and a registry of the SIMs your device has used (their
-names and carriers, so rules can refer to them). Simmo itself never transmits this
-data anywhere — without internet access, it has no way to.
+names and carriers, so rules can refer to them, plus each SIM's home country and
+its own phone number — when your device reports them — so you can tell your SIMs
+apart on the SIMs screen). Simmo itself never transmits this data anywhere —
+without internet access, it has no way to.
 
 Like most Android apps, this app data is included in Android's standard backup and
 device-to-device transfer, so if you have device backup turned on, Android copies
@@ -71,6 +73,10 @@ Skipping an optional permission only disables the feature that uses it.
   confirm a choice in Simmo's chooser or tap Redial on an error notice. Without
   it, Simmo opens your dialer with the number filled in and you place the call
   yourself.
+- **Read phone numbers (`READ_PHONE_NUMBERS`)** — used to show each SIM's own
+  phone number on the SIMs screen, so you can tell similar SIMs apart. The
+  number is read and stored on your device only. Without it, the SIMs screen
+  simply doesn't show numbers.
 
 ## Emergency calls
 

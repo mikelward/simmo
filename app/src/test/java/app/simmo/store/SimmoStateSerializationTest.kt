@@ -37,7 +37,8 @@ class SimmoStateSerializationTest {
             ),
         ),
         simRegistry = listOf(
-            RegisteredSim(1, "Telstra", "Telstra personal", 1_000L),
+            // Non-default country + number so the round trip proves they're written.
+            RegisteredSim(1, "Telstra", "Telstra personal", 1_000L, countryIso = "au", phoneNumber = "+61412345678"),
             RegisteredSim(2, "T-Mobile", "T-Mobile US", 2_000L),
         ),
         customGroups = listOf(
@@ -141,6 +142,23 @@ class SimmoStateSerializationTest {
         """.trimIndent()
         val read = SimmoStateSerializer.readFrom(ByteArrayInputStream(json.encodeToByteArray()))
         assertEquals(emptyList<CustomGroup>(), read.customGroups)
+    }
+
+    @Test
+    fun `registry entries written before country and number decode with neither`() = runTest {
+        // Bytes as written before RegisteredSim carried countryIso/phoneNumber:
+        // existing registries must decode with the empty defaults, not fail.
+        val json = """
+            {"rules":{"rules":[]},"simRegistry":[
+              {"subscriptionId":1,"carrierName":"Telstra","displayName":"Telstra personal",
+               "lastSeenEpochMillis":1000}
+            ],"defaultRegionOverride":null,"installId":null}
+        """.trimIndent()
+        val read = SimmoStateSerializer.readFrom(ByteArrayInputStream(json.encodeToByteArray()))
+        assertEquals(
+            RegisteredSim(1, "Telstra", "Telstra personal", 1_000L),
+            read.simRegistry.single(),
+        )
     }
 
     @Test

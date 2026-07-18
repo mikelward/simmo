@@ -23,11 +23,48 @@ class SimRegistryRowsTest {
         )
         assertEquals(
             listOf(
-                RegistrySimRowUi(SimRef(1, "Telstra", "Telstra personal"), "Telstra personal", "Telstra", active = true, lastSeenLabel = "day 900"),
-                RegistrySimRowUi(SimRef(8, "Optus", "Optus travel"), "Optus travel", "Optus", active = false, lastSeenLabel = "day 500"),
-                RegistrySimRowUi(SimRef(7, "Vodafone", "Voda AU"), "Voda AU", "Vodafone", active = false, lastSeenLabel = "day 100"),
+                RegistrySimRowUi(SimRef(1, "Telstra", "Telstra personal"), "Telstra personal", "Telstra", detail = null, active = true, lastSeenLabel = "day 900"),
+                RegistrySimRowUi(SimRef(8, "Optus", "Optus travel"), "Optus travel", "Optus", detail = null, active = false, lastSeenLabel = "day 500"),
+                RegistrySimRowUi(SimRef(7, "Vodafone", "Voda AU"), "Voda AU", "Vodafone", detail = null, active = false, lastSeenLabel = "day 100"),
             ),
             rows(registry, listOf(telstraActive)),
+        )
+    }
+
+    @Test
+    fun `detail line shows the sim's number and country`() {
+        val registry = listOf(
+            RegisteredSim(1, "Telstra", "Telstra personal", 100L, countryIso = "au", phoneNumber = "+61412345678"),
+        )
+        assertEquals("+61 412 345 678 · Australia", rows(registry, emptyList()).single().detail)
+    }
+
+    @Test
+    fun `detail line degrades to whichever half is known`() {
+        assertEquals(
+            "Australia",
+            registryDetailLabel(phoneNumber = "", countryIso = "AU"),
+        )
+        assertEquals(
+            "+61 412 345 678",
+            registryDetailLabel(phoneNumber = "+61412345678", countryIso = ""),
+        )
+        assertEquals(null, registryDetailLabel(phoneNumber = "", countryIso = ""))
+    }
+
+    @Test
+    fun `unparseable numbers show verbatim rather than hiding`() {
+        assertEquals(
+            "12 · Australia",
+            registryDetailLabel(phoneNumber = "12", countryIso = "AU"),
+        )
+    }
+
+    @Test
+    fun `national-format numbers resolve against the sim's own country`() {
+        assertEquals(
+            "+61 412 345 678 · Australia",
+            registryDetailLabel(phoneNumber = "0412345678", countryIso = "AU"),
         )
     }
 
