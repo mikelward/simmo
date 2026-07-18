@@ -35,6 +35,13 @@ class TelemetryGateTest {
     }
 
     @Test
+    fun `set applies right away, without waiting for a flow emission`() {
+        val applied = mutableListOf<Boolean>()
+        TelemetryGate { applied += it }.set(false)
+        assertEquals(listOf(false), applied)
+    }
+
+    @Test
     fun `no gate without an initialized Firebase app`() {
         val context = ApplicationProvider.getApplicationContext<Context>()
         // A machine with a local google-services.json (SETUP.md) builds a test
