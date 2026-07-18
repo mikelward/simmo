@@ -15,6 +15,7 @@ import app.simmo.domain.ContactNumberIndex
 import app.simmo.domain.DecisionSnapshot
 import app.simmo.domain.PassToken
 import app.simmo.domain.PhoneAccountRef
+import app.simmo.store.SimmoState
 import app.simmo.store.SimmoStateHolder
 import java.util.concurrent.CopyOnWriteArrayList
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -281,6 +282,9 @@ class SnapshotAssembler(
             handOffApps = handOffApps,
             contacts = contactsFlow.value,
             announceCalls = state.showCallToast,
+            // Clamped here so restored or hand-edited state can't make the
+            // countdown absurd; the store's own setter clamps writes too.
+            callDelaySeconds = state.callDelaySeconds.coerceIn(0, SimmoState.MAX_CALL_DELAY_SECONDS),
         )
     }
 }

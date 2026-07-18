@@ -14,6 +14,7 @@ import app.simmo.domain.PassToken
 import app.simmo.domain.PlacedCall
 import app.simmo.domain.Verdict
 import app.simmo.ui.ChooserActivity
+import app.simmo.ui.DelayedCallActivity
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.launch
 
@@ -150,6 +151,20 @@ class SimmoCallRedirectionService : CallRedirectionService() {
                         // never gamble with the user's call.
                         respond { placeCallUnmodified() }
                     }
+                }
+
+                // Delay before calling: cancel and show the countdown screen,
+                // which re-places on the SIM (or recovers via the dialer if
+                // the SIM's handle vanished meanwhile). The response is never
+                // delayed — only the re-place is. Same BAL caveat as the
+                // chooser's startActivity below.
+                is Verdict.DelayedRedirect -> respond {
+                    cancelCall()
+                    startActivity(
+                        DelayedCallActivity
+                            .launchIntent(this@SimmoCallRedirectionService, handle, verdict)
+                            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                    )
                 }
 
                 is Verdict.ForwardToApp -> handOff(

@@ -54,6 +54,12 @@ data class DecisionSnapshot(
      * "Calling using <SIM>" toast (SPEC "Call feedback and delay").
      */
     val announceCalls: Boolean = false,
+    /**
+     * Settings "Delay before calling": seconds of cancelable countdown before
+     * a rule-picked SIM redirect is placed; 0 disables it (SPEC "Call
+     * feedback and delay").
+     */
+    val callDelaySeconds: Int = 0,
 )
 
 /** The one answer per call; total, and never a silent drop (SPEC invariants). */
@@ -80,6 +86,20 @@ sealed interface Verdict {
     data class RedirectToAccount(
         val account: PhoneAccountRef,
         val announceSim: String? = null,
+    ) : Verdict
+
+    /**
+     * Cancel the carrier call and show the delayed-call countdown instead of
+     * redirecting silently (settings "Delay before calling"): the user gets
+     * [delaySeconds] to cancel — or confirm — before the call is re-placed on
+     * [account], a rule-picked SIM named [simLabel]. Only produced in
+     * interactive contexts and only for SIM targets; the response to Telecom
+     * itself is never delayed (the deadline invariant stands).
+     */
+    data class DelayedRedirect(
+        val account: PhoneAccountRef,
+        val simLabel: String,
+        val delaySeconds: Int,
     ) : Verdict
 
     /**
@@ -271,11 +291,19 @@ class DecisionEngine(private val countryDetector: CountryDetector) {
             .firstOrNull { it.phoneAccount == target }
             ?.let { it.displayName.ifBlank { it.carrierName } }
         val announce = if (snapshot.announceCalls) simName else null
-        return if (call.currentAccount == target) {
-            Verdict.Proceed(ProceedReason.ALREADY_ON_TARGET, announceSim = announce)
-        } else {
-            Verdict.RedirectToAccount(target, announceSim = announce)
+        if (call.currentAccount == target) {
+            // Nothing is being changed, so there is nothing to give the user
+            // a chance to cancel — no delay, just the optional toast.
+            return Verdict.Proceed(ProceedReason.ALREADY_ON_TARGET, announceSim = announce)
         }
+        // The delay needs UI (its countdown screen), so non-interactive calls
+        // (Bluetooth, Android Auto) redirect immediately rather than stranding
+        // behind a screen that can't be shown; hand-off phone accounts
+        // (simName == null) keep their own flow.
+        if (simName != null && snapshot.callDelaySeconds > 0 && call.interactive) {
+            return Verdict.DelayedRedirect(target, simName, snapshot.callDelaySeconds)
+        }
+        return Verdict.RedirectToAccount(target, announceSim = announce)
     }
 
     private fun PassToken.matches(call: PlacedCall, nowMillis: Long): Boolean =

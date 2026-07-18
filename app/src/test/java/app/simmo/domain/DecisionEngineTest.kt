@@ -664,4 +664,81 @@ class DecisionEngineTest {
             ),
         )
     }
+
+    // --- Delay before calling (settings) ---
+
+    @Test
+    fun `delays a rule-picked SIM redirect in an interactive context`() {
+        val rules = listOf(country("AU", RuleAction.UseSim(telstra.ref())))
+        assertEquals(
+            Verdict.DelayedRedirect(telstra.phoneAccount, "Telstra AU", delaySeconds = 3),
+            engine.decide(call(auNumber), snapshot(rules).copy(callDelaySeconds = 3), now),
+        )
+    }
+
+    @Test
+    fun `delays a matching-country SIM pick too`() {
+        val rules = listOf(any(RuleAction.UseMatchingCountrySim))
+        assertEquals(
+            Verdict.DelayedRedirect(telstra.phoneAccount, "Telstra AU", delaySeconds = 5),
+            engine.decide(call(auNumber), snapshot(rules).copy(callDelaySeconds = 5), now),
+        )
+    }
+
+    @Test
+    fun `does not delay in a non-interactive context`() {
+        // The countdown needs UI; a Bluetooth or Android Auto call redirects
+        // immediately rather than stranding behind a screen that can't show.
+        val rules = listOf(country("AU", RuleAction.UseSim(telstra.ref())))
+        assertEquals(
+            Verdict.RedirectToAccount(telstra.phoneAccount),
+            engine.decide(
+                call(auNumber, interactive = false),
+                snapshot(rules).copy(callDelaySeconds = 3),
+                now,
+            ),
+        )
+    }
+
+    @Test
+    fun `does not delay a call already on the rule's SIM`() {
+        // Nothing is being changed, so there is nothing to offer canceling.
+        val rules = listOf(country("AU", RuleAction.UseSim(telstra.ref())))
+        assertEquals(
+            Verdict.Proceed(ProceedReason.ALREADY_ON_TARGET),
+            engine.decide(
+                call(auNumber, currentAccount = telstra.phoneAccount),
+                snapshot(rules).copy(callDelaySeconds = 3),
+                now,
+            ),
+        )
+    }
+
+    @Test
+    fun `does not delay a hand-off phone account redirect`() {
+        val gv = PhoneAccountRef("acct-gv")
+        val rules = listOf(country("US", RuleAction.HandOff.ViaPhoneAccount(gv)))
+        assertEquals(
+            Verdict.RedirectToAccount(gv),
+            engine.decide(
+                call(usNumber),
+                snapshot(rules, handOffAccounts = setOf(gv)).copy(callDelaySeconds = 3),
+                now,
+            ),
+        )
+    }
+
+    @Test
+    fun `a re-placed delayed call passes through on its token without a second countdown`() {
+        val token = PassToken(auNumber, telstra.phoneAccount, expiresAtMillis = now + 5_000)
+        val rules = listOf(country("AU", RuleAction.UseSim(telstra.ref())))
+        assertEquals(
+            Verdict.Proceed(ProceedReason.PASS_TOKEN, consumedToken = token),
+            engine.decide(
+                call(auNumber, currentAccount = telstra.phoneAccount),
+                snapshot(rules, passTokens = listOf(token)).copy(callDelaySeconds = 3),
+                now,
+            ),
+        )
+    }
 }

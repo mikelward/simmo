@@ -181,6 +181,17 @@ SIM registry), all off by default:
   just tapped the SIM by name), and neither do hand-offs to apps (the app opening is
   its own feedback). The toast is posted after the service has answered Telecom, so
   it can never delay the decision.
+- **Delay before calling** (1–10 s): when a rule redirects a call to a SIM in an
+  interactive context, Simmo cancels the call and shows a countdown screen instead —
+  the SIM's name, the number and destination, Cancel, and Call now — then re-places
+  the call on that SIM when the countdown ends (the chooser's cancel-and-re-place
+  mechanism, pass token included). It exists to give the user a beat to abort a call
+  about to go out on an unexpected SIM — e.g. an accidental international call. The
+  response to Telecom is never delayed (the deadline invariant stands); non-interactive
+  calls (Bluetooth, Android Auto) and calls already on the rule's SIM skip the delay;
+  a re-place that fails (SIM vanished, `CALL_PHONE` revoked mid-countdown) drops the
+  user in the dialer with the number rather than stranding the call, with a wildcard
+  pass token so the redial doesn't re-enter the rule.
 
 ### Disabled-SIM assist
 

@@ -135,6 +135,14 @@ class SimmoStateHolder(
         }
     }
 
+    /** The settings "Delay before calling" value, in seconds (0 = off). */
+    suspend fun setCallDelaySeconds(seconds: Int) {
+        store.updateData {
+            val valid = it.withInstallValidated(installId)
+            valid.copy(callDelaySeconds = seconds.coerceIn(0, SimmoState.MAX_CALL_DELAY_SECONDS))
+        }
+    }
+
     /** The "new SIM" notification for [refs] was posted (or suppressed). */
     suspend fun markNewSimsNotified(refs: List<SimRef>) {
         store.updateData {
