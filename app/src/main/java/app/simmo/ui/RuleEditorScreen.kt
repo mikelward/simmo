@@ -1102,7 +1102,7 @@ private fun canRequestNotifications(context: Context): Boolean =
         PackageManager.PERMISSION_GRANTED
 
 /** Persists the rule's chosen countries across recreation. */
-private val RegionsSaver: Saver<List<String>, Any> = listSaver(
+internal val RegionsSaver: Saver<List<String>, Any> = listSaver(
     save = { it },
     restore = { it },
 )
@@ -1140,7 +1140,7 @@ private val AccountSaver: Saver<CallingAccountOptionUi?, List<String>> = Saver(
 )
 
 /** Persists the selected SIM across recreation as its three identity fields. */
-private val SimRefSaver: Saver<SimRef?, List<String>> = Saver(
+internal val SimRefSaver: Saver<SimRef?, List<String>> = Saver(
     save = { it?.let { r -> listOf(r.subscriptionId.toString(), r.carrierName, r.displayName) } ?: emptyList() },
     restore = { parts ->
         parts.takeIf { it.size == 3 }?.let { SimRef(it[0].toInt(), it[1], it[2]) }

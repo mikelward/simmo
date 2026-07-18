@@ -2,6 +2,9 @@ package app.simmo.store
 
 import androidx.datastore.core.DataStore
 import app.simmo.domain.ActiveSim
+import app.simmo.domain.CustomGroup
+import app.simmo.domain.DataExpectation
+import app.simmo.domain.DataRule
 import app.simmo.domain.PhoneAccountRef
 import app.simmo.domain.RegisteredSim
 import app.simmo.domain.Rule
@@ -65,6 +68,26 @@ class SimmoStateHolderTest {
         assertEquals(true, holder.clearDataWatchMark("roaming:2:NZ"))
         assertEquals(null, store.data.first().dataWatchMark)
         assertEquals(true, holder.claimDataWatchMark("roaming:2:AU"))
+    }
+
+    @Test
+    fun `data-rule edits write through, picker groups in the same transaction`() = runTest {
+        val store = FakeDataStore(SimmoState(installId = "install-1"))
+        val holder = SimmoStateHolder(store, backgroundScope, installId = "install-1")
+        val rule = DataRule(RuleMatcher.Country("AU"), DataExpectation.AlwaysWarn)
+        holder.updateDataRules { it.withRuleAdded(rule) }
+        assertEquals(rule, store.data.first().dataRules.rules.first())
+        // A group built in the picker commits with the rule that references
+        // it — one transaction, so the state never holds a dangling group id.
+        val group = CustomGroup("g1", "Trip", listOf("AU", "NZ"))
+        val grouped = DataRule(
+            RuleMatcher.Countries(groupIds = listOf("g1")),
+            DataExpectation.AlwaysWarn,
+        )
+        holder.updateGroupsAndDataRules(listOf(group)) { it.withRuleAdded(grouped) }
+        val state = store.data.first()
+        assertEquals(grouped, state.dataRules.rules.first())
+        assertEquals(listOf(group), state.customGroups)
     }
 
     @Test

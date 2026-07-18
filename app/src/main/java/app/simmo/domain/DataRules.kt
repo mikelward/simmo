@@ -96,6 +96,35 @@ sealed interface DataSimScope {
 data class DataRuleBook(
     val rules: List<DataRule> = defaultDataRules(),
 ) {
+    // The same editing surface as [RuleBook]: list + editor share the code
+    // paths (SPEC "Data rules"), so the book edits mirror the calling ones.
+
+    fun withRuleAdded(rule: DataRule): DataRuleBook =
+        // New rules land above the preseeded default's natural home: the top.
+        copy(rules = listOf(rule) + rules)
+
+    /** Insert at [index] (clamped), for placements other than the top. */
+    fun withRuleInserted(index: Int, rule: DataRule): DataRuleBook {
+        val at = index.coerceIn(0, rules.size)
+        return copy(rules = rules.take(at) + rule + rules.drop(at))
+    }
+
+    fun withRuleReplaced(index: Int, rule: DataRule): DataRuleBook =
+        copy(rules = rules.mapIndexed { i, existing -> if (i == index) rule else existing })
+
+    fun withRuleRemoved(index: Int): DataRuleBook =
+        copy(rules = rules.filterIndexed { i, _ -> i != index })
+
+    /** Reorder for drag-and-drop; out-of-range indices are a no-op. */
+    fun withRuleMoved(fromIndex: Int, toIndex: Int): DataRuleBook {
+        if (fromIndex == toIndex) return this
+        if (fromIndex !in rules.indices || toIndex !in rules.indices) return this
+        val reordered = rules.toMutableList()
+        val rule = reordered.removeAt(fromIndex)
+        reordered.add(toIndex, rule)
+        return copy(rules = reordered)
+    }
+
     companion object {
         /**
          * The preseeded default (maintainer, 2026-07): *when in EU/EEA →

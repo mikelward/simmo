@@ -63,6 +63,54 @@ class RulesScreenScreenshotTest {
     }
 
     @Test
+    fun dataRulesTab_showsExpectationsWithPlainCountryNames() {
+        composeRule.setContent {
+            MaterialTheme {
+                RulesScreenContent(
+                    rows = emptyList(),
+                    dataRows = listOf(
+                        // The preseeded default leads (SPEC "Data rules").
+                        DataRuleRowUi("EU/EEA", DataExpectationUi.RoamingOkHomedInMatched),
+                        DataRuleRowUi(
+                            "Australia",
+                            DataExpectationUi.UseSimForData("Telstra"),
+                            pause = RulePause.SIM_DISABLED,
+                        ),
+                        DataRuleRowUi("United States", DataExpectationUi.RoamingOkSims("T-Mobile")),
+                        DataRuleRowUi("France", DataExpectationUi.RoamingOkAnySim, enabled = false),
+                        DataRuleRowUi(null, DataExpectationUi.AlwaysWarn),
+                    ),
+                    tab = RulesTab.DATA,
+                )
+            }
+        }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithText("Data rules").assertExists()
+        composeRule.onNodeWithText("Roaming OK on SIMs homed in these countries").assertExists()
+        composeRule.onNodeWithText("Use Telstra for data").assertExists()
+        composeRule.onNodeWithText("SIM disabled — rule paused").assertExists()
+        composeRule.onNodeWithText("Anywhere").assertExists()
+        captureSnapshot("data_rules_list.png")
+    }
+
+    @Test
+    fun switchingTabs_invokesTheCallback() {
+        var selected: RulesTab? = null
+        composeRule.setContent {
+            MaterialTheme {
+                RulesScreenContent(
+                    rows = emptyList(),
+                    onSelectTab = { selected = it },
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("Data").performClick()
+        composeRule.runOnIdle { assertEquals(RulesTab.DATA, selected) }
+    }
+
+    @Test
     fun overflowMenu_duplicateAndDisableInvokeCallbacks() {
         var duplicated = -1
         var toggled: Pair<Int, Boolean>? = null

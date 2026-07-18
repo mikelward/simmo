@@ -4,6 +4,7 @@ import android.util.Log
 import androidx.datastore.core.DataStore
 import app.simmo.domain.ActiveSim
 import app.simmo.domain.CustomGroup
+import app.simmo.domain.DataRuleBook
 import app.simmo.domain.RegisteredSim
 import app.simmo.domain.withGroupSaved
 import app.simmo.domain.RuleBook
@@ -76,6 +77,29 @@ class SimmoStateHolder(
         store.updateData {
             val valid = it.withInstallValidated(installId)
             valid.copy(rules = transform(valid.rules))
+        }
+    }
+
+    suspend fun updateDataRules(transform: (DataRuleBook) -> DataRuleBook) {
+        store.updateData {
+            val valid = it.withInstallValidated(installId)
+            valid.copy(dataRules = transform(valid.dataRules))
+        }
+    }
+
+    /**
+     * Like [updateGroupsAndRules] for the data list: groups built in the
+     * picker while making this data rule commit in the same transaction, so
+     * the state never holds a rule pointing at an unsaved group.
+     */
+    suspend fun updateGroupsAndDataRules(
+        pendingGroups: List<CustomGroup>,
+        transform: (DataRuleBook) -> DataRuleBook,
+    ) {
+        store.updateData {
+            val valid = it.withInstallValidated(installId)
+            val merged = pendingGroups.fold(valid.customGroups) { acc, group -> acc.withGroupSaved(group) }
+            valid.copy(customGroups = merged, dataRules = transform(valid.dataRules))
         }
     }
 

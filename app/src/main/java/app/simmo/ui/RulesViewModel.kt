@@ -14,6 +14,10 @@ import app.simmo.domain.withGroupSaved
 import app.simmo.domain.withoutGroup
 import app.simmo.telecom.TelephonyReader
 import app.simmo.telecom.installedDialHandoffApps
+import app.simmo.domain.DataExpectation
+import app.simmo.domain.DataRule
+import app.simmo.domain.DataRuleBook
+import app.simmo.domain.DataSimScope
 import app.simmo.domain.PhoneAccountRef
 import app.simmo.domain.RegisteredSim
 import app.simmo.domain.Rule
@@ -87,6 +91,33 @@ sealed interface ActionUi {
     data object SystemDefault : ActionUi
 }
 
+/** Which list the rules home shows (SPEC "Product behavior" terminology). */
+enum class RulesTab { CALLING, DATA }
+
+/** One row of the data rules list, ready to render (SPEC "Data rules"). */
+data class DataRuleRowUi(
+    /**
+     * e.g. "EU/EEA" or "Australia" — where the user is, so no dialing codes;
+     * null means the rule applies anywhere.
+     */
+    val matcherCountryLabel: String?,
+    val expectation: DataExpectationUi,
+    /** Non-null when the rule is auto-skipped (disabled SIM, ambiguous) — shown greyed. */
+    val pause: RulePause? = null,
+    /** False when the user turned the rule off; shown greyed and skipped. */
+    val enabled: Boolean = true,
+)
+
+sealed interface DataExpectationUi {
+    data class UseSimForData(val simName: String) : DataExpectationUi
+    data object RoamingOkAnySim : DataExpectationUi
+    data object RoamingOkHomedInMatched : DataExpectationUi
+
+    /** Specific-SIM scope; [simNames] is the comma-joined display list. */
+    data class RoamingOkSims(val simNames: String) : DataExpectationUi
+    data object AlwaysWarn : DataExpectationUi
+}
+
 @OptIn(ExperimentalCoroutinesApi::class)
 class RulesViewModel(
     application: Application,
@@ -120,12 +151,66 @@ class RulesViewModel(
         }
     }
 
+    /**
+     * The data list's rows; rebuilt like [rows] whenever rules or SIMs
+     * change. Resolution runs against ALL active subscriptions — a rule
+     * targeting an active data-only eSIM must not grey as "SIM disabled"
+     * when the watch can act on it (Codex on PR #57), so the data-only rows
+     * the call-capable list can't see are merged in, as [dataSimOptions]
+     * does.
+     */
+    val dataRows: StateFlow<List<DataRuleRowUi>> =
+        app.stateHolders()
+            .flatMapLatest { holder -> holder?.state ?: flowOf(null) }
+            .combine(app.assembler.simsAndAccounts()) { state, sims -> state to sims }
+            .combine(app.assembler.dataStates()) { (state, sims), dataState ->
+                buildDataRows(state, allActiveSims(sims, dataState))
+            }
+            .flowOn(Dispatchers.Default)
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    private fun buildDataRows(state: SimmoState?, activeSims: List<ActiveSim>): List<DataRuleRowUi> {
+        val labels = builtInGroupLabels + state?.customGroups.orEmpty().associate { it.id to it.name }
+        return state?.dataRules?.rules.orEmpty().map { rule ->
+            rule.toRow(activeSims, groupLabel = { id -> labels[id] ?: id })
+        }
+    }
+
+    /** Call-capable actives plus the data-only subscriptions they can't see. */
+    private fun allActiveSims(
+        sims: TelephonyReader.SimsAndAccounts,
+        dataState: TelephonyReader.DataState,
+    ): List<ActiveSim> {
+        val callIds = sims.activeSims.mapTo(HashSet()) { it.subscriptionId }
+        return sims.activeSims + dataState.subscriptions.filterNot { it.subscriptionId in callIds }
+    }
+
     /** SIMs the user can target: every registered SIM, active or not. */
     val simOptions: StateFlow<List<SimOptionUi>> =
         app.stateHolders()
             .flatMapLatest { holder -> holder?.state ?: flowOf(null) }
             .combine(app.assembler.simsAndAccounts()) { state, sims ->
                 buildSimOptions(state?.simRegistry.orEmpty(), sims.activeSims)
+            }
+            .flowOn(Dispatchers.Default)
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /**
+     * SIMs the *data* editor can target: unlike [simOptions], data-only rows
+     * (travel eSIMs with no call-capable account) are offered too — carrying
+     * data is exactly what they're for — and the active set includes the
+     * data-only subscriptions the call-capable list can't see.
+     */
+    val dataSimOptions: StateFlow<List<SimOptionUi>> =
+        app.stateHolders()
+            .flatMapLatest { holder -> holder?.state ?: flowOf(null) }
+            .combine(app.assembler.simsAndAccounts()) { state, sims -> state to sims }
+            .combine(app.assembler.dataStates()) { (state, sims), dataState ->
+                buildSimOptions(
+                    state?.simRegistry.orEmpty(),
+                    allActiveSims(sims, dataState),
+                    callCapableOnly = false,
+                )
             }
             .flowOn(Dispatchers.Default)
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
@@ -288,6 +373,9 @@ class RulesViewModel(
      */
     fun openSimRegistryFromShortcut() {
         setEditorTarget(null)
+        // The data editor's route outranks the registry too — leaving it set
+        // would keep covering the registry the same way (Codex on PR #57).
+        setDataEditorTarget(null)
         setRegistryOpen(true)
     }
 
@@ -516,6 +604,95 @@ class RulesViewModel(
         }
     }
 
+    /** Which list the rules home shows; survives recreation like the routes. */
+    private val _rulesTab = MutableStateFlow(
+        savedState.get<String>(KEY_RULES_TAB)
+            ?.let { stored -> RulesTab.entries.firstOrNull { it.name == stored } }
+            ?: RulesTab.CALLING,
+    )
+    val rulesTab: StateFlow<RulesTab> = _rulesTab
+
+    fun selectRulesTab(tab: RulesTab) {
+        _rulesTab.value = tab
+        savedState[KEY_RULES_TAB] = tab.name
+    }
+
+    /**
+     * The data-watch notification's Rules action (and body tap): land on the
+     * data list itself, so anything covering the rules home closes — the
+     * warning is about now, not about wherever the user last left the app.
+     */
+    fun openDataRules() {
+        selectRulesTab(RulesTab.DATA)
+        setEditorTarget(null)
+        setDataEditorTarget(null)
+        setRegistryOpen(false)
+        setGroupsOpen(false)
+        setSettingsOpen(false)
+    }
+
+    /** The data editor's route, held like [editorTarget] for the same reasons. */
+    private val _dataEditorTarget = MutableStateFlow(restoreDataEditorTarget())
+    val dataEditorTarget: StateFlow<DataEditorTarget?> = _dataEditorTarget
+
+    fun openNewDataRule() = setDataEditorTarget(DataEditorTarget.New)
+
+    fun openEditDataRule(index: Int) {
+        currentDataRules().getOrNull(index)?.let {
+            setDataEditorTarget(DataEditorTarget.Existing(index, it))
+        }
+    }
+
+    fun closeDataEditor() = setDataEditorTarget(null)
+
+    private fun setDataEditorTarget(target: DataEditorTarget?) {
+        _dataEditorTarget.value = target
+        savedState[KEY_DATA_EDITOR_TARGET] = target?.let { editorJson.encodeToString(it) }
+    }
+
+    private fun restoreDataEditorTarget(): DataEditorTarget? =
+        savedState.get<String?>(KEY_DATA_EDITOR_TARGET)?.let { encoded ->
+            runCatching { editorJson.decodeFromString<DataEditorTarget>(encoded) }.getOrNull()
+        }
+
+    /** The current data rules, as domain objects, for the editor to read and edit. */
+    fun currentDataRules(): List<DataRule> = app.stateHolder()?.current?.dataRules?.rules.orEmpty()
+
+    // The data list's edits mirror the calling ones; pendingGroups commit in
+    // the same transaction for the same no-orphan reason (see [addRule]).
+    fun addDataRule(rule: DataRule, pendingGroups: List<CustomGroup> = emptyList()) =
+        commitData(pendingGroups) { it.withRuleAdded(rule) }
+    fun replaceDataRule(index: Int, rule: DataRule, pendingGroups: List<CustomGroup> = emptyList()) =
+        commitData(pendingGroups) { it.withRuleReplaced(index, rule) }
+    fun removeDataRule(index: Int) = editData { it.withRuleRemoved(index) }
+    fun moveDataRule(from: Int, to: Int) = editData { it.withRuleMoved(from, to) }
+
+    /** Insert a copy of the data rule at [index] directly below it. */
+    fun duplicateDataRule(index: Int) = editData { book ->
+        book.rules.getOrNull(index)?.let { book.withRuleInserted(index + 1, it) } ?: book
+    }
+
+    /** Turn the data rule at [index] on or off (kept in place either way). */
+    fun setDataRuleEnabled(index: Int, enabled: Boolean) = editData { book ->
+        book.rules.getOrNull(index)?.let { book.withRuleReplaced(index, it.copy(enabled = enabled)) } ?: book
+    }
+
+    private fun editData(transform: (DataRuleBook) -> DataRuleBook) {
+        // Wait for the holder rather than dropping the edit, like [edit].
+        viewModelScope.launch {
+            app.stateHolders().filterNotNull().first().updateDataRules(transform)
+        }
+    }
+
+    private fun commitData(
+        pendingGroups: List<CustomGroup>,
+        transform: (DataRuleBook) -> DataRuleBook,
+    ) {
+        viewModelScope.launch {
+            app.stateHolders().filterNotNull().first().updateGroupsAndDataRules(pendingGroups, transform)
+        }
+    }
+
     private fun edit(transform: (app.simmo.domain.RuleBook) -> app.simmo.domain.RuleBook) {
         // Wait for the holder rather than dropping the edit: on a fast cold
         // start the rules screen can be interactive before SimmoApp finishes
@@ -537,6 +714,8 @@ class RulesViewModel(
 
     private companion object {
         const val KEY_EDITOR_TARGET = "editor_target"
+        const val KEY_DATA_EDITOR_TARGET = "data_editor_target"
+        const val KEY_RULES_TAB = "rules_tab"
         const val KEY_REGISTRY_OPEN = "registry_open"
         const val KEY_GROUPS_OPEN = "groups_open"
         const val KEY_SETTINGS_OPEN = "settings_open"
@@ -680,6 +859,8 @@ data class CountryGroupOptionUi(
 internal fun buildSimOptions(
     registry: List<RegisteredSim>,
     activeSims: List<ActiveSim>,
+    /** False for the data editor: data-only travel eSIMs are valid targets there. */
+    callCapableOnly: Boolean = true,
 ): List<SimOptionUi> {
     val activeById = activeSims.associateBy { it.subscriptionId }
     // Registry union active, so a SIM seen this session but not yet persisted
@@ -688,9 +869,9 @@ internal fun buildSimOptions(
     // is invalidated to the same sentinel, so keying by id alone would collapse
     // distinct disabled SIMs into one option. Data-only rows (no call-capable
     // account — travel eSIMs) are registered for the roaming watch but can't
-    // place calls, so they are never offered as rule targets.
+    // place calls, so calling rules never offer them as targets.
     val fromActive = activeSims.map { RegisteredSim(it.subscriptionId, it.carrierName, it.displayName, 0L) }
-    val merged = (registry.filter { it.callCapable } + fromActive)
+    val merged = (registry.filter { !callCapableOnly || it.callCapable } + fromActive)
         .associateBy { sim ->
             if (sim.subscriptionId == SimRef.INVALID_SUBSCRIPTION_ID) {
                 "name:${sim.carrierName.trim().lowercase()}|${sim.displayName.trim().lowercase()}"
@@ -790,6 +971,61 @@ internal fun Rule.toRow(
         RuleAction.Ask -> RuleRowUi(matcherLabel, ActionUi.Ask)
 
         RuleAction.SystemDefault -> RuleRowUi(matcherLabel, ActionUi.SystemDefault)
+    }
+    return base.copy(enabled = enabled)
+}
+
+internal fun DataRule.toRow(
+    activeSims: List<ActiveSim>,
+    groupLabel: (String) -> String = { it },
+): DataRuleRowUi {
+    // Groups lead, like calling rows — but plain country names: the matcher is
+    // where the user *is*, so dialing codes would just be noise.
+    val parts = matcher.groupIds().map(groupLabel) +
+        matcher.regionCodes().map { countryDisplayName(it) }
+    val matcherLabel = parts.takeIf { it.isNotEmpty() }?.joinToString()
+    val base = when (val e = expectation) {
+        is DataExpectation.UseSimForData -> DataRuleRowUi(
+            matcherCountryLabel = matcherLabel,
+            expectation = DataExpectationUi.UseSimForData(
+                e.sim.displayName.ifBlank { e.sim.carrierName },
+            ),
+            // Same greying as calling rows: the watch skips the rule while its
+            // SIM can't act (SPEC "Data rules").
+            pause = when (resolveSim(e.sim, activeSims)) {
+                is SimResolution.Active -> null
+                SimResolution.Inactive -> RulePause.SIM_DISABLED
+                is SimResolution.Ambiguous -> RulePause.SIM_AMBIGUOUS
+            },
+        )
+
+        is DataExpectation.RoamingOk -> when (val scope = e.scope) {
+            DataSimScope.AnySim ->
+                DataRuleRowUi(matcherLabel, DataExpectationUi.RoamingOkAnySim)
+            DataSimScope.HomedInMatchedCountries ->
+                DataRuleRowUi(matcherLabel, DataExpectationUi.RoamingOkHomedInMatched)
+            is DataSimScope.Sims -> {
+                // A SIM-scoped rule whose SIMs all fail to resolve can never
+                // cover the data SIM — evaluation skips it — so it greys like
+                // an unresolvable use-for-data rule instead of masquerading
+                // as active (Codex on PR #57). One resolvable SIM is enough:
+                // the scope can still silence for that SIM.
+                val resolutions = scope.sims.map { resolveSim(it, activeSims) }
+                DataRuleRowUi(
+                    matcherCountryLabel = matcherLabel,
+                    expectation = DataExpectationUi.RoamingOkSims(
+                        scope.sims.joinToString { it.displayName.ifBlank { it.carrierName } },
+                    ),
+                    pause = when {
+                        resolutions.any { it is SimResolution.Active } -> null
+                        resolutions.any { it is SimResolution.Ambiguous } -> RulePause.SIM_AMBIGUOUS
+                        else -> RulePause.SIM_DISABLED
+                    },
+                )
+            }
+        }
+
+        DataExpectation.AlwaysWarn -> DataRuleRowUi(matcherLabel, DataExpectationUi.AlwaysWarn)
     }
     return base.copy(enabled = enabled)
 }

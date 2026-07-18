@@ -227,7 +227,13 @@ class SimNotifications(private val context: Context) {
         }
         val rules = activityPending(
             "$TAG_DATA_WATCH:rules",
-            Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+            // Straight to the data rules list (SPEC "Data rules"): the warning
+            // is answered by recording a rule, so both the action and the body
+            // tap land there. SINGLE_TOP so a foregrounded app routes through
+            // onNewIntent instead of stacking a second instance.
+            Intent(context, MainActivity::class.java)
+                .setAction(MainActivity.ACTION_DATA_RULES)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP),
         )
         val notification = NotificationCompat.Builder(context, DATA_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_launcher_monochrome)

@@ -286,7 +286,12 @@ country group, the same picker and groups as calling rules, but matched against
    rule the same way "Caribbean +1 → Ask" sits above a US calling rule.
 
 Data rules are an ordered list, first match wins, with the same editing surface as
-calling rules (drag to reorder, tap to edit, per-rule menu). When no rule matches,
+calling rules (drag to reorder, tap to edit, per-rule menu). The two lists live as
+**Calling / Data tabs on the rules home** (decided at build time, 2026-07): one
+screen, one set of affordances, the tab naming the list — matching the
+Calling rules / Data rules / System settings terminology split. Data rows and the
+data editor's matcher show plain country names, no dialing codes: the matcher is
+where the user *is*, not who they're calling. When no rule matches,
 the default is to **warn when the active data SIM is roaming** — once per
 SIM-and-country arrival, never a repeat nag for the same trip; a SIM on its home
 network never warns. The warning is about *state*, not current traffic (maintainer,
