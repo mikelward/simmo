@@ -105,6 +105,30 @@ class SimmoStateSerializationTest {
     }
 
     @Test
+    fun `a disabled rule survives a round trip`() = runTest {
+        val state = SimmoState(
+            rules = RuleBook(
+                listOf(Rule(RuleMatcher.Country("AU"), RuleAction.SystemDefault, enabled = false)),
+            ),
+        )
+        assertEquals(state, roundTrip(state))
+        assertEquals(false, roundTrip(state).rules.rules.single().enabled)
+    }
+
+    @Test
+    fun `a rule written before the enabled flag decodes as enabled`() = runTest {
+        // Existing users' rules (no enabled field) must come up on, not off.
+        val json = """
+            {"rules":{"rules":[
+              {"matcher":{"type":"country","regionCode":"AU"},
+               "action":{"type":"systemDefault"}}
+            ]},"simRegistry":[],"defaultRegionOverride":null,"installId":null}
+        """.trimIndent()
+        val read = SimmoStateSerializer.readFrom(ByteArrayInputStream(json.encodeToByteArray()))
+        assertEquals(true, read.rules.rules.single().enabled)
+    }
+
+    @Test
     fun `state written before the analytics preference decodes as opted in`() = runTest {
         // Bytes as written before analyticsOptIn existed: existing users must
         // come up opted in, matching the default a fresh install gets.

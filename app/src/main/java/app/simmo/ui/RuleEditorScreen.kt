@@ -144,7 +144,7 @@ fun RuleEditorScreen(
         dialHandoffApps = dialHandoffApps,
         onRequestContactsAccess = { contactsLauncher.launch(Manifest.permission.READ_CONTACTS) },
         onSave = { draft ->
-            val rule = Rule(draft.matcher, draft.action)
+            val rule = ruleFromDraft(draft, target)
             when (target) {
                 is EditorTarget.New -> {
                     val presetSim = target.presetSim
@@ -715,6 +715,20 @@ internal enum class ActionChoice {
         }
     }
 }
+
+/**
+ * The rule the editor's Save produces from [draft]. Editing an existing rule
+ * carries its [Rule.enabled] state through — the editor only changes the matcher
+ * and action, so a disabled rule must stay disabled rather than silently turning
+ * back on (enable/disable is a separate control, the row menu). A new rule starts
+ * enabled.
+ */
+internal fun ruleFromDraft(draft: EditorDraft, target: EditorTarget): Rule =
+    Rule(
+        draft.matcher,
+        draft.action,
+        enabled = (target as? EditorTarget.Existing)?.rule?.enabled ?: true,
+    )
 
 /**
  * The action to save: the user's [choice] if they picked one, otherwise the

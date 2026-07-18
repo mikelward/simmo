@@ -132,6 +132,14 @@ sealed interface RuleAction {
 data class Rule(
     val matcher: RuleMatcher,
     val action: RuleAction,
+    /**
+     * User toggle: a disabled rule is kept in place (order, target, everything)
+     * but skipped during evaluation, so it can be turned back on without being
+     * rebuilt. Distinct from the *automatic* skips (disabled SIM, ambiguous
+     * re-bind, …), which the rule can't control. Defaults true so state written
+     * by older versions (no field) reads back as enabled.
+     */
+    val enabled: Boolean = true,
 )
 
 /**

@@ -60,8 +60,10 @@ data class RuleRowUi(
      */
     val matcherCountryLabel: String?,
     val action: ActionUi,
-    /** Non-null when the rule is skipped during evaluation — shown greyed. */
+    /** Non-null when the rule is auto-skipped (disabled SIM, ambiguous) — shown greyed. */
     val pause: RulePause? = null,
+    /** False when the user turned the rule off; shown greyed and skipped. */
+    val enabled: Boolean = true,
 )
 
 sealed interface ActionUi {
@@ -271,6 +273,16 @@ class RulesViewModel(
     fun removeRule(index: Int) = edit { it.withRuleRemoved(index) }
     fun moveRule(from: Int, to: Int) = edit { it.withRuleMoved(from, to) }
 
+    /** Insert a copy of the rule at [index] directly below it. */
+    fun duplicateRule(index: Int) = edit { book ->
+        book.rules.getOrNull(index)?.let { book.withRuleInserted(index + 1, it) } ?: book
+    }
+
+    /** Turn the rule at [index] on or off (kept in place either way). */
+    fun setRuleEnabled(index: Int, enabled: Boolean) = edit { book ->
+        book.rules.getOrNull(index)?.let { book.withRuleReplaced(index, it.copy(enabled = enabled)) } ?: book
+    }
+
     /**
      * Save from the new-SIM prompt's editor: the rule is suggested above the
      * first paused rule (SPEC "On SIM change") rather than at the very top,
@@ -477,7 +489,7 @@ internal fun Rule.toRow(
     val parts = matcher.groupIds().map(groupLabel) +
         matcher.regionCodes().map { countryLabel(it) }
     val matcherLabel = parts.takeIf { it.isNotEmpty() }?.joinToString()
-    return when (val a = action) {
+    val base = when (val a = action) {
         is RuleAction.UseSim -> RuleRowUi(
             matcherCountryLabel = matcherLabel,
             action = ActionUi.UseSim(a.sim.displayName.ifBlank { a.sim.carrierName }),
@@ -504,6 +516,7 @@ internal fun Rule.toRow(
 
         RuleAction.SystemDefault -> RuleRowUi(matcherLabel, ActionUi.SystemDefault)
     }
+    return base.copy(enabled = enabled)
 }
 
 /**

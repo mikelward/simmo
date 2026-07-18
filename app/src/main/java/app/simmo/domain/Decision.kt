@@ -138,6 +138,8 @@ class DecisionEngine(private val countryDetector: CountryDetector) {
         val skippedInactiveSims = mutableListOf<SimRef>()
 
         for (rule in snapshot.rules.rules) {
+            // A user-disabled rule is kept in the list but never acts.
+            if (!rule.enabled) continue
             if (!rule.matcher.matches(destination)) continue
             when (val action = rule.action) {
                 is RuleAction.UseSim -> when (val resolved = resolveSim(action.sim, snapshot.activeSims)) {

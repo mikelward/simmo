@@ -3,7 +3,9 @@ package app.simmo.ui
 import app.simmo.domain.ContactCallApp
 import app.simmo.domain.DialHandoffApp
 import app.simmo.domain.PhoneAccountRef
+import app.simmo.domain.Rule
 import app.simmo.domain.RuleAction
+import app.simmo.domain.RuleMatcher
 import app.simmo.domain.SimRef
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -96,6 +98,22 @@ class RuleEditorActionTest {
         assertTrue(isValid(matchesAny = true, regions = emptyList(), groups = emptyList(), ActionChoice.SYSTEM_DEFAULT, simRef = null, noSims))
         // A preserved unsupported action (null choice) is valid too.
         assertTrue(isValid(matchesAny = true, regions = emptyList(), groups = emptyList(), action = null, simRef = null, noSims))
+    }
+
+    @Test
+    fun `editing a disabled rule keeps it disabled`() {
+        // The editor only changes matcher/action; the on/off state (the row
+        // menu's job) must survive a Save, not silently flip back on.
+        val draft = EditorDraft(RuleMatcher.Country("AU"), RuleAction.SystemDefault)
+        val disabled = EditorTarget.Existing(
+            0,
+            Rule(RuleMatcher.Country("US"), RuleAction.Ask, enabled = false),
+        )
+        assertFalse(ruleFromDraft(draft, disabled).enabled)
+        // An enabled existing rule stays enabled; a new rule starts enabled.
+        val enabled = EditorTarget.Existing(0, Rule(RuleMatcher.Country("US"), RuleAction.Ask))
+        assertTrue(ruleFromDraft(draft, enabled).enabled)
+        assertTrue(ruleFromDraft(draft, EditorTarget.New()).enabled)
     }
 
     @Test
