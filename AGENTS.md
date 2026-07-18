@@ -68,13 +68,20 @@ fixing it in the same commit.
 
 - Always start work from the latest `origin/main`: `git fetch origin main` and rebase
   the working branch onto it before the first commit, even when the branch already
-  exists. Resolve conflicts rather than abandoning the rebase.
+  exists. Resolve conflicts rather than abandoning the rebase, and never push commits
+  on an out-of-date base when a fast-forward rebase onto `origin/main` was possible.
+- **Structure the branch as a sequence of logical commits, rebasing and squashing as
+  needed.** Each commit is one coherent change (a feature step, a fix, a refactor) that
+  stands on its own — buildable and green by itself. The repo rebase-merges, so every
+  commit lands on `main` individually with its own subject, blame lines, and bisect
+  step. Squash fixups into the commit they amend, split unrelated changes into separate
+  commits, and reorder so the history reads as steps toward the change, not the order
+  the work happened to occur in.
 - Clean up the unmerged commit history before requesting review and again before merge
-  (`git rebase -i origin/main`): every commit on a PR should be a meaningful step, not
-  `fix CI` / `wip` churn. The repo rebase-merges, so every commit lands on `main`
-  individually with its own subject, blame lines, and bisect step. After rewriting,
-  force-push with `git push --force-with-lease` (never bare `--force`). Ask before
-  rewriting commits that have been individually reviewed.
+  (`git rebase -i origin/main`): iteration leaves `fix CI` / `address review` / `wip`
+  churn, and nothing squashes it for you — a messy branch ships a messy `main`. After
+  rewriting, force-push with `git push --force-with-lease` (never bare `--force`). Ask
+  before rewriting commits that have been individually reviewed.
 
 ## Commit messages
 
@@ -82,6 +89,9 @@ fixing it in the same commit.
   names, ≤ ~70 characters; engineering detail goes in the body. This repo will adopt
   Type Launcher's release pipeline (commit subjects become the Play "What's new" list),
   so the discipline applies from day one.
+- Because the repo rebase-merges, the PR title never lands on `main` — each commit's
+  own subject does. Title **every** commit on the branch by these rules, not just the
+  PR.
 - Keep non-user-facing commits out of release notes with a subject prefix, used
   precisely (the prefix is a promise the commit has **no user-visible effect**):
   - `ci:` — CI / workflow plumbing.
@@ -106,11 +116,20 @@ fixing it in the same commit.
   or invite review.
 - Refresh the PR title and body on every push so they describe the full, latest state
   of the branch — re-read `git diff origin/main...HEAD` and patch whatever drifted.
+- Keep watching merged PRs for late review comments — bots and humans routinely comment
+  after merge. Handle each per the reply-or-resolve rule; stop once every post-merge
+  comment is handled or after ~24h of silence, not the moment the merge lands.
+- Skip echo events silently. Replies posted via `mcp__github__*` come back moments
+  later as webhook events authored by the same identity; if the body matches a comment
+  you just posted, it's your own echo — continue without comment. Anything you didn't
+  just author still gets the usual reply-or-resolve handling.
 - On CI failure: check for the failing-tests PR comment first; no comment means the
-  failure is earlier than tests (compile, lint, resource merge). The PR `build` job
-  builds `refs/pull/<N>/merge` — your branch *merged with main* — so reproduce with
-  `git merge origin/main --no-commit` before bisecting your own commits. Check whether
-  the failure is pre-existing on the base commit before debugging.
+  failure is earlier than tests (compile, lint, resource merge) — the `*-test-reports`
+  artifacts also only contain JUnit XMLs when tests actually ran, so an empty one is
+  the same signal. The PR `build` job builds `refs/pull/<N>/merge` — your branch
+  *merged with main* — so reproduce with `git merge origin/main --no-commit` before
+  bisecting your own commits. Check whether the failure is pre-existing on the base
+  commit before debugging.
 
 ## Asking questions
 
@@ -170,9 +189,14 @@ both. Escape apostrophes (`\'`) in any locale's string resources.
 
 - Code changes must include or update unit tests; product logic belongs in the pure
   domain layer where it is testable without Android.
-- UI changes must include or update Robolectric + Roborazzi screenshot tests once that
-  infrastructure lands (Phase 3 in `TODO.md`), wired into
-  `.github/workflows/android-ci.yml` with an explicit `--tests` step per screenshot
-  class, following Type Launcher's screenshot job.
+- UI changes must include or update Robolectric + Roborazzi screenshot tests, wired
+  into `.github/workflows/android-ci.yml`. The screenshot job records against an
+  explicit `--tests` allow-list (one step per screenshot class), so a new
+  `*ScreenshotTest` class that isn't added there never records in CI even when it
+  passes locally — add a `Run … screenshot tests` step alongside the test class.
+- The screenshot job auto-commits recording drift back to same-repo PR branches
+  (`ci: refresh recorded screenshots`) and auto-posts a before/after diff comment on
+  the PR. After CI runs on a UI-touching push, `git pull` before pushing again, and
+  expect the refresh commit rather than hand-committing recorded PNGs.
 - Run `./gradlew test` and `./gradlew lint` before pushing when the environment can;
   otherwise say clearly what was verified by inspection only.
