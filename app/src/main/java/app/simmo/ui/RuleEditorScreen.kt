@@ -62,6 +62,7 @@ import app.simmo.R
 import app.simmo.domain.ContactCallApp
 import app.simmo.domain.CustomGroup
 import app.simmo.domain.DialHandoffApp
+import app.simmo.domain.PhoneAccountRef
 import app.simmo.domain.Rule
 import app.simmo.domain.RuleAction
 import app.simmo.domain.RuleMatcher
@@ -116,6 +117,7 @@ fun RuleEditorScreen(
     val groupOptions by viewModel.groupOptions.collectAsStateWithLifecycle()
     val handOffApps by viewModel.handOffApps.collectAsStateWithLifecycle()
     val dialHandoffApps by viewModel.dialHandoffApps.collectAsStateWithLifecycle()
+    val callingAccounts by viewModel.callingAccounts.collectAsStateWithLifecycle()
     // Contacts (READ_CONTACTS) back two things here: the app-to-app hand-off's
     // reverse lookup, and the country picker's "Suggested" bucket. Both read the
     // same warm index, so one grant serves both. Request it when the user picks a
@@ -183,6 +185,7 @@ fun RuleEditorScreen(
         groupOptions = groupOptions,
         handOffApps = handOffApps,
         dialHandoffApps = dialHandoffApps,
+        callingAccounts = callingAccounts,
         onRequestContactsAccess = { contactsLauncher.launch(Manifest.permission.READ_CONTACTS) },
         notificationsEnabled = notificationsEnabled,
         onRequestNotifications = ::requestNotifications,
@@ -241,6 +244,8 @@ internal fun RuleEditorContent(
     handOffApps: Set<ContactCallApp> = emptySet(),
     /** Reachable dial-intent hand-off targets (Google Voice, Teams); each is an action. */
     dialHandoffApps: Set<DialHandoffApp> = emptySet(),
+    /** Enabled non-SIM calling accounts (SIP providers); each is an action. */
+    callingAccounts: List<CallingAccountOptionUi> = emptyList(),
     /** Invoked from the country picker's suggest affordance, to request READ_CONTACTS. */
     onRequestContactsAccess: () -> Unit = {},
     /** False while notifications are off; a selected hand-off action then shows the enable hint. */
@@ -286,9 +291,9 @@ internal fun RuleEditorContent(
     }
     // Delete asks first; saveable so the confirm survives a rotation.
     var confirmDelete by rememberSaveable { mutableStateOf(false) }
-    // An existing rule whose action the editor can't yet represent (hand-off,
-    // which lands with Phase 5): kept verbatim so saving an edit to its
-    // country never silently rewrites the action. Null for new rules and
+    // An existing rule whose action the editor can't represent (a hand-off
+    // target this version doesn't know): kept verbatim so saving an edit to
+    // its country never silently rewrites the action. Null for new rules and
     // editor-representable ones.
     val keepAction = initial?.action?.takeIf { it is RuleAction.HandOff && ActionChoice.of(it) == null }
     // Null means "keep the unsupported original action" (only reachable when
@@ -305,6 +310,19 @@ internal fun RuleEditorContent(
         mutableStateOf(presetSim ?: (initial?.action as? RuleAction.UseSim)?.sim)
     }
     val selectedSimRef = resolveSelectedSim(simRef, simOptions)
+    // The rule's calling account (SIP provider, VoIP app), same shape as the
+    // SIM selection: the stored/tapped choice is resolved against the live
+    // accounts, and a stored account that is no longer registered still shows
+    // (marked unavailable) so re-saving the rule doesn't drop it.
+    var accountChoice by rememberSaveable(stateSaver = AccountSaver) {
+        mutableStateOf(
+            (initial?.action as? RuleAction.HandOff.ViaPhoneAccount)?.let {
+                CallingAccountOptionUi(it.account, it.displayLabel())
+            },
+        )
+    }
+    val accountRows = accountOptions(callingAccounts, accountChoice)
+    val selectedAccount = resolveSelectedAccount(accountChoice, accountRows)
 
     // The country picker is a full-screen sub-step of the editor rather than a
     // separate navigation route, so the editor's draft above stays composed
@@ -440,18 +458,17 @@ internal fun RuleEditorContent(
                     Text(stringResource(R.string.editor_do_label), style = MaterialTheme.typography.titleMedium)
                 }
                 if (keepAction != null) {
-                    // The rule's current action can't be edited here yet
-                    // (hand-off lands in a later phase). Show it as a
+                    // The rule's current action can't be edited here (a
+                    // hand-off target this version doesn't know). Show it as a
                     // preselected row so the user can see and keep it; the
                     // action is only rewritten if they pick a control below.
                     item {
                         ChoiceRow(
                             selected = actionChoice == null,
-                            text = when (val a = keepAction) {
-                                is RuleAction.HandOff.ViaPhoneAccount ->
-                                    stringResource(R.string.rule_action_hand_off, a.account.id)
-                                else -> ""
-                            },
+                            text = stringResource(
+                                R.string.rule_action_hand_off,
+                                (keepAction as RuleAction.HandOff).displayLabel(),
+                            ),
                             onSelect = { actionChoice = null },
                         )
                     }
@@ -475,6 +492,23 @@ internal fun RuleEditorContent(
                         selected = actionChoice == ActionChoice.MATCHING_SIM,
                         text = stringResource(R.string.rule_action_matching_sim),
                         onSelect = { actionChoice = ActionChoice.MATCHING_SIM },
+                    )
+                }
+                // Non-SIM calling accounts (SIP providers, VoIP apps registered
+                // with Telecom) sit with the SIMs: they place the call the same
+                // way (an account redirect), unlike the hand-off apps below. A
+                // stored account that is gone still shows, marked unavailable,
+                // so the rule can be kept (it just stays paused).
+                items(accountRows, key = { "account|${it.ref.id}" }) { option ->
+                    ChoiceRow(
+                        selected = actionChoice == ActionChoice.USE_ACCOUNT &&
+                            option.ref == selectedAccount?.ref,
+                        text = if (option.available) option.label
+                        else stringResource(R.string.editor_account_unavailable_suffix, option.label),
+                        onSelect = {
+                            actionChoice = ActionChoice.USE_ACCOUNT
+                            accountChoice = option
+                        },
                     )
                 }
                 // App-to-app hand-off, offered only for installed apps. Applies
@@ -566,10 +600,16 @@ internal fun RuleEditorContent(
                             else pendingGroups.filter { it.id in groups }
                         onSave(
                             committedGroups,
-                            EditorDraft(matcher, resolveEditorAction(actionChoice, selectedSimRef, keepAction)),
+                            EditorDraft(
+                                matcher,
+                                resolveEditorAction(actionChoice, selectedSimRef, selectedAccount, keepAction),
+                            ),
                         )
                     },
-                    enabled = isValid(matchesAny, regions, groups, actionChoice, selectedSimRef, simOptions),
+                    enabled = isValid(
+                        matchesAny, regions, groups, actionChoice, selectedSimRef, simOptions,
+                        account = selectedAccount,
+                    ),
                 ) {
                     Text(stringResource(R.string.editor_save))
                 }
@@ -883,6 +923,8 @@ private fun GroupRow(
 
 internal enum class ActionChoice {
     USE_SIM,
+    /** A non-SIM calling account (SIP provider); pairs with the account selection. */
+    USE_ACCOUNT,
     MATCHING_SIM,
     HANDOFF_WHATSAPP,
     HANDOFF_GOOGLE_VOICE,
@@ -893,8 +935,9 @@ internal enum class ActionChoice {
     SYSTEM_DEFAULT,
     ;
 
-    fun toAction(simRef: SimRef?): RuleAction = when (this) {
+    fun toAction(simRef: SimRef?, account: CallingAccountOptionUi? = null): RuleAction = when (this) {
         USE_SIM -> RuleAction.UseSim(simRef!!)
+        USE_ACCOUNT -> RuleAction.HandOff.ViaPhoneAccount(account!!.ref, account.label)
         MATCHING_SIM -> RuleAction.UseMatchingCountrySim
         HANDOFF_WHATSAPP -> RuleAction.HandOff.ViaContactApp(ContactCallApp.WHATSAPP)
         HANDOFF_GOOGLE_VOICE -> RuleAction.HandOff.ViaDialIntent(DialHandoffApp.GOOGLE_VOICE)
@@ -916,8 +959,9 @@ internal enum class ActionChoice {
 
         /**
          * The editor control for [action], or null when the editor can't
-         * represent it (phone-account hand-off) and must preserve the original on
-         * save. A new rule (null [action]) defaults to the matching-country SIM.
+         * represent it (a hand-off target this version doesn't know) and must
+         * preserve the original on save. A new rule (null [action]) defaults
+         * to the matching-country SIM.
          */
         fun of(action: RuleAction?): ActionChoice? = when (action) {
             is RuleAction.UseSim -> USE_SIM
@@ -925,10 +969,10 @@ internal enum class ActionChoice {
             RuleAction.Ask -> ASK
             RuleAction.SystemDefault -> SYSTEM_DEFAULT
             null -> MATCHING_SIM
+            is RuleAction.HandOff.ViaPhoneAccount -> USE_ACCOUNT
             is RuleAction.HandOff.ViaContactApp ->
                 if (action.app == ContactCallApp.WHATSAPP) HANDOFF_WHATSAPP else null
             is RuleAction.HandOff.ViaDialIntent -> ofDial(action.app)
-            is RuleAction.HandOff -> null
         }
     }
 }
@@ -949,16 +993,40 @@ internal fun ruleFromDraft(draft: EditorDraft, target: EditorTarget): Rule =
 
 /**
  * The action to save: the user's [choice] if they picked one, otherwise the
- * preserved [keepAction] for a rule whose action the editor can't yet edit.
+ * preserved [keepAction] for a rule whose action the editor can't edit.
  */
 internal fun resolveEditorAction(
     choice: ActionChoice?,
     simRef: SimRef?,
+    account: CallingAccountOptionUi?,
     keepAction: RuleAction?,
 ): RuleAction =
-    choice?.toAction(simRef)
+    choice?.toAction(simRef, account)
         ?: keepAction
         ?: error("Rule editor produced no action")
+
+/**
+ * The account rows the editor offers: the live non-SIM calling accounts, plus
+ * the rule's [stored] account when it isn't currently registered — shown
+ * marked unavailable so the rule can be kept (it just stays paused) instead
+ * of forcing a re-link before any other edit can save.
+ */
+internal fun accountOptions(
+    live: List<CallingAccountOptionUi>,
+    stored: CallingAccountOptionUi?,
+): List<CallingAccountOptionUi> =
+    if (stored == null || live.any { it.ref == stored.ref }) live
+    else live + stored.copy(available = false)
+
+/**
+ * The account option [stored] points at, preferring the live row (freshest
+ * label) so a re-save writes the account's current name, not a stale one.
+ */
+internal fun resolveSelectedAccount(
+    stored: CallingAccountOptionUi?,
+    options: List<CallingAccountOptionUi>,
+): CallingAccountOptionUi? =
+    stored?.let { s -> options.firstOrNull { it.ref == s.ref } ?: s }
 
 /**
  * The SIM option that [ref] points at, resolved with the same identity ladder
@@ -989,6 +1057,7 @@ internal fun isValid(
     action: ActionChoice?,
     simRef: SimRef?,
     simOptions: List<SimOptionUi>,
+    account: CallingAccountOptionUi? = null,
 ): Boolean {
     if (!matchesAny && regions.isEmpty() && groups.isEmpty()) return false
     // A specific-SIM action must point at a SIM actually offered here. When the
@@ -996,6 +1065,10 @@ internal fun isValid(
     // restore, so nothing is selected), require re-linking to a real SIM rather
     // than silently re-saving the paused rule.
     if (action == ActionChoice.USE_SIM && simOptions.none { it.ref == simRef }) return false
+    // A calling-account action needs an account picked. (An unavailable stored
+    // account still counts — it is offered as a row — so a paused rule can be
+    // re-saved intact.)
+    if (action == ActionChoice.USE_ACCOUNT && account == null) return false
     return true
 }
 
@@ -1055,6 +1128,14 @@ internal val PendingGroupsSaver: Saver<List<CustomGroup>, Any> = listSaver(
                 i += 3 + count
             }
         }
+    },
+)
+
+/** Persists the selected calling account across recreation as id + label. */
+private val AccountSaver: Saver<CallingAccountOptionUi?, List<String>> = Saver(
+    save = { it?.let { a -> listOf(a.ref.id, a.label) } ?: emptyList() },
+    restore = { parts ->
+        parts.takeIf { it.size == 2 }?.let { CallingAccountOptionUi(PhoneAccountRef(it[0]), it[1]) }
     },
 )
 

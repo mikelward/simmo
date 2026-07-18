@@ -149,7 +149,7 @@ class SimmoCallRedirectionService : CallRedirectionService() {
                     // Toast only after responding (it must never delay the
                     // answer) and only if this response actually landed.
                     if (respond { placeCallUnmodified() }) {
-                        verdict.announceSim?.let(app.notifications::toastCallingUsing)
+                        verdict.announceTarget?.let(app.notifications::toastCallingUsing)
                     }
                 }
 
@@ -162,7 +162,7 @@ class SimmoCallRedirectionService : CallRedirectionService() {
                             ?.let { Uri.fromParts("tel", it, null) }
                             ?: handle
                         if (respond { redirectCall(newHandle, target, /* confirmFirst = */ false) }) {
-                            verdict.announceSim?.let(app.notifications::toastCallingUsing)
+                            verdict.announceTarget?.let(app.notifications::toastCallingUsing)
                         }
                     } else {
                         // The account vanished between snapshot refreshes;

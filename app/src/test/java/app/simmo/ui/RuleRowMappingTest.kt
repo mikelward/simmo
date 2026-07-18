@@ -60,6 +60,37 @@ class RuleRowMappingTest {
     }
 
     @Test
+    fun `rule with a registered calling account shows its label and runs`() {
+        val sip = PhoneAccountRef("sip-1")
+        val row = Rule(
+            RuleMatcher.Country("AU"),
+            RuleAction.HandOff.ViaPhoneAccount(sip, "SIP work"),
+        ).toRow(emptyList(), availableAccounts = setOf(sip))
+        assertNull(row.pause)
+        assertEquals(ActionUi.HandOffApp("SIP work"), row.action)
+    }
+
+    @Test
+    fun `rule whose calling account is gone is paused`() {
+        val row = Rule(
+            RuleMatcher.Country("AU"),
+            RuleAction.HandOff.ViaPhoneAccount(PhoneAccountRef("sip-1"), "SIP work"),
+        ).toRow(emptyList())
+        assertEquals(RulePause.ACCOUNT_UNAVAILABLE, row.pause)
+        // The stored label still names the target while it's gone.
+        assertEquals(ActionUi.HandOffApp("SIP work"), row.action)
+    }
+
+    @Test
+    fun `account rule stored before labels falls back to the account id`() {
+        val row = Rule(
+            RuleMatcher.Country("AU"),
+            RuleAction.HandOff.ViaPhoneAccount(PhoneAccountRef("acct-gv")),
+        ).toRow(emptyList())
+        assertEquals(ActionUi.HandOffApp("acct-gv"), row.action)
+    }
+
+    @Test
     fun `multi-country matcher joins its country labels`() {
         val row = Rule(
             RuleMatcher.Countries(listOf("AU", "NZ")),

@@ -90,10 +90,20 @@ sealed interface RuleAction {
     /** Hand the call off to another calling app (SPEC "Hand-off to another app"). */
     @Serializable
     sealed interface HandOff : RuleAction {
-        /** The app registered a call-capable phone account; works non-interactively. */
+        /**
+         * Redirect to another call-capable phone account the user enabled — a
+         * SIP provider or another calling app registered with Telecom. Same
+         * redirect mechanism as a SIM, so it works non-interactively too.
+         * [label] is the account's display name captured when the rule was
+         * created (the rule must render even while the account is gone);
+         * blank for rules stored before the field existed.
+         */
         @Serializable
         @SerialName("handOffAccount")
-        data class ViaPhoneAccount(val account: PhoneAccountRef) : HandOff
+        data class ViaPhoneAccount(
+            val account: PhoneAccountRef,
+            val label: String = "",
+        ) : HandOff
 
         /**
          * Cancel the carrier call and forward the dialed number to a calling

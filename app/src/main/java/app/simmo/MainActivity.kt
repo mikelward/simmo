@@ -102,11 +102,16 @@ class MainActivity : ComponentActivity() {
                     // permission dialogs themselves trigger resumes, and
                     // auto-advancing would yank the optional rows away.
                     ready = ready && isRedirectionRoleHeld() && nowGranted
-                    // Any transition invalidates the cached SIM snapshot: a
-                    // grant must populate it, a revocation must clear it (the
-                    // refresh reads back empty without the permission) so the
-                    // redirection service never routes on stale handles.
-                    if (nowGranted != phoneGranted) {
+                    // Refresh the telephony cache on every granted resume, not
+                    // just permission transitions: calling accounts (SIP
+                    // providers, VoIP apps) can be enabled or disabled in system
+                    // settings with no subscription-change event — their
+                    // register/unregister broadcast goes only to the default
+                    // dialer — so returning to Simmo is the reliable moment to
+                    // pick the change up (Codex on PR #39). A revocation must
+                    // refresh too: the read comes back empty, clearing the
+                    // snapshot so the service never routes on stale handles.
+                    if (nowGranted || nowGranted != phoneGranted) {
                         (application as SimmoApp).refreshTelephony()
                     }
                     phoneGranted = nowGranted
@@ -356,9 +361,14 @@ internal fun OnboardingScreen(
     ) {
         roleHeld = isRoleHeld()
     }
+    // READ_PHONE_NUMBERS rides along with READ_PHONE_STATE (same Phone
+    // permission group — one system dialog): it unlocks other apps' calling-
+    // account labels ("SIP – work"). Readiness keys off READ_PHONE_STATE
+    // alone; without the extra grant, account labels degrade to app names.
     val permissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission(),
-    ) { granted ->
+        ActivityResultContracts.RequestMultiplePermissions(),
+    ) { grants ->
+        val granted = grants[Manifest.permission.READ_PHONE_STATE] == true
         phoneGranted = granted
         if (granted) onPhonePermissionGranted()
     }
@@ -404,7 +414,14 @@ internal fun OnboardingScreen(
                 granted = phoneGranted,
                 label = stringResource(R.string.onboarding_phone_permission_label),
                 buttonText = stringResource(R.string.onboarding_phone_permission_button),
-                onRequest = { permissionLauncher.launch(Manifest.permission.READ_PHONE_STATE) },
+                onRequest = {
+                    permissionLauncher.launch(
+                        arrayOf(
+                            Manifest.permission.READ_PHONE_STATE,
+                            Manifest.permission.READ_PHONE_NUMBERS,
+                        ),
+                    )
+                },
             )
             GrantRow(
                 granted = roleHeld,

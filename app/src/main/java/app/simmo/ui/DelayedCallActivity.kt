@@ -21,20 +21,19 @@ import androidx.compose.runtime.setValue
 import androidx.core.content.ContextCompat
 import app.simmo.SimmoApp
 import app.simmo.domain.CountryVerdict
-import app.simmo.domain.PassToken
 import app.simmo.domain.PhoneAccountRef
 import app.simmo.domain.Verdict
 import app.simmo.store.SimmoState
-import app.simmo.telecom.REPLACE_PASS_TOKEN_TTL_MILLIS
-import app.simmo.telecom.replaceCall
+import app.simmo.telecom.replaceCallOrOpenDialer
 import kotlinx.coroutines.delay
 
 /**
  * The delay-before-calling countdown (SPEC "Call feedback and delay"). The
  * redirection service canceled the carrier call and launched this instead of
  * redirecting silently; when the countdown ends (or on "Call now") the call
- * is re-placed on the rule-picked SIM — the chooser's cancel-and-re-place
- * mechanism, pass token included — and Cancel (or back) abandons it.
+ * is re-placed on the rule-picked SIM or calling account — the chooser's
+ * cancel-and-re-place mechanism, pass token included — and Cancel (or back)
+ * abandons it.
  * Everything shown comes from the launch intent and the warm snapshot: no
  * I/O before the first frame.
  */
@@ -53,7 +52,7 @@ class DelayedCallActivity : ComponentActivity() {
             finish()
             return
         }
-        val simLabel = intent.getStringExtra(EXTRA_SIM_LABEL).orEmpty()
+        val targetLabel = intent.getStringExtra(EXTRA_TARGET_LABEL).orEmpty()
         val delaySeconds = intent.getIntExtra(EXTRA_DELAY_SECONDS, 1)
             .coerceIn(1, SimmoState.MAX_CALL_DELAY_SECONDS)
         val dialedNumber = handle.schemeSpecificPart.orEmpty()
@@ -101,7 +100,7 @@ class DelayedCallActivity : ComponentActivity() {
                 }
                 DelayedCallContent(
                     state = DelayedCallUiState(
-                        simLabel = simLabel,
+                        targetLabel = targetLabel,
                         dialedNumber = dialedNumber,
                         countryLabel = (country as? CountryVerdict.Country)
                             ?.regionCode?.let { countryLabel(it) },
@@ -129,28 +128,16 @@ class DelayedCallActivity : ComponentActivity() {
         // Placing any call retires a parked held-call offer, same as the
         // chooser — its stale tel: URI must not be re-offered later.
         app.heldCalls.clear()
-        if (!app.replaceCall(handle, account)) {
-            // The carrier call is already canceled and the SIM's account is
-            // gone (or CALL_PHONE was revoked mid-countdown). Don't strand
-            // the call: drop the user in the dialer with the number — the
-            // same permission-free recovery as a failed hand-off — with a
-            // wildcard token so the redial proceeds on whatever the dialer
-            // picks instead of re-entering the rule and counting down again.
-            app.passTokens.add(
-                PassToken(
-                    dialedNumber = handle.schemeSpecificPart.orEmpty(),
-                    account = null,
-                    expiresAtMillis = System.currentTimeMillis() + REPLACE_PASS_TOKEN_TTL_MILLIS,
-                ),
-            )
-            runCatching { startActivity(Intent(Intent.ACTION_DIAL, handle)) }
-        }
+        // On failure (the target's account gone, or CALL_PHONE revoked
+        // mid-countdown) the shared recovery drops the user in the dialer
+        // with the number rather than stranding the canceled call.
+        app.replaceCallOrOpenDialer(this, handle, account)
         finish()
     }
 
     companion object {
         private const val EXTRA_ACCOUNT = "app.simmo.extra.DELAYED_ACCOUNT"
-        private const val EXTRA_SIM_LABEL = "app.simmo.extra.DELAYED_SIM_LABEL"
+        private const val EXTRA_TARGET_LABEL = "app.simmo.extra.DELAYED_TARGET_LABEL"
         private const val EXTRA_DELAY_SECONDS = "app.simmo.extra.DELAYED_SECONDS"
 
         /** Launch intent for [verdict] on [handle]; from the service, add NEW_TASK. */
@@ -158,7 +145,7 @@ class DelayedCallActivity : ComponentActivity() {
             Intent(context, DelayedCallActivity::class.java)
                 .setData(handle)
                 .putExtra(EXTRA_ACCOUNT, verdict.account.id)
-                .putExtra(EXTRA_SIM_LABEL, verdict.simLabel)
+                .putExtra(EXTRA_TARGET_LABEL, verdict.targetLabel)
                 .putExtra(EXTRA_DELAY_SECONDS, verdict.delaySeconds)
     }
 }

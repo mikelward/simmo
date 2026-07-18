@@ -42,6 +42,8 @@
     <!-- TODO: translate -->
     <string name="rule_sim_ambiguous" tools:ignore="MissingTranslation">SIM changed — rule needs re-linking</string>
     <!-- TODO: translate -->
+    <string name="rule_account_unavailable" tools:ignore="MissingTranslation">Calling account unavailable — rule paused</string>
+    <!-- TODO: translate -->
     <string name="editor_title_new" tools:ignore="MissingTranslation">New rule</string>
     <!-- TODO: translate -->
     <string name="editor_title_edit" tools:ignore="MissingTranslation">Edit rule</string>
@@ -61,6 +63,8 @@
     <string name="editor_do_label" tools:ignore="MissingTranslation">Use</string>
     <!-- TODO: translate -->
     <string name="editor_sim_disabled_suffix" tools:ignore="MissingTranslation">%1$s (disabled)</string>
+    <!-- TODO: translate -->
+    <string name="editor_account_unavailable_suffix" tools:ignore="MissingTranslation">%1$s (unavailable)</string>
     <!-- TODO: translate -->
     <string name="editor_save" tools:ignore="MissingTranslation">Save</string>
     <!-- TODO: translate -->

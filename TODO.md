@@ -289,8 +289,22 @@ can't dial an arbitrary number and are out of scope.
         notification (the sanctioned background-launch path) — see docs/qa-matrix.md.
 - [ ] Reachable-app discovery beyond "installed": resolve each candidate intent + detect
       readiness (linked number / calling plan) where possible, off the decision path.
-- [ ] Phone-account redirect: keep for any VoIP app that does register a Telecom account,
-      but no MVP target needs it.
+- [x] Phone-account redirect for system calling accounts (SIP providers, VoIP apps
+      that register call-capable Telecom accounts): non-SIM call-capable accounts are
+      read into the snapshot with labels (`getPhoneAccount` needs
+      `READ_PHONE_NUMBERS`, requested with `READ_PHONE_STATE` — same group, one
+      dialog — with an app-name fallback), offered as rule actions beside the SIMs
+      and as chooser targets, and redirected via the same account mechanism as SIMs
+      (works non-interactively). `ViaPhoneAccount` stores the account id + a copy of
+      its display label; a rule whose account disappears pauses (greyed, skipped)
+      and applies again when the account returns.
+  - [ ] **Device QA owed**: verify with a real SIP/VoIP calling account — the label
+        read with/without `READ_PHONE_NUMBERS`, that the redirect actually connects
+        on the account, what an unprovisioned account does with the call, and what
+        Telecom does when a redirect targets an account disabled since the last
+        snapshot refresh (accounts refresh on subscription changes and app resume;
+        the register/unregister broadcasts go only to the default dialer, so a
+        background-change window remains).
 - [ ] Google Voice verified end-to-end as the reference target.
 
 ## Phase 6 — Hands-free and Android Auto safeguards

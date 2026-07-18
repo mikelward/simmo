@@ -32,6 +32,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import app.simmo.R
 import app.simmo.domain.ActiveSim
+import app.simmo.domain.CallingAccount
 import app.simmo.domain.CountryVerdict
 import app.simmo.domain.NumberCorrection
 import app.simmo.domain.PhoneAccountRef
@@ -64,9 +65,13 @@ data class ChooserUiState(
     val numberChoices: List<NumberChoiceUi> = emptyList(),
 )
 
-/** One tappable target: an active SIM the call can be re-placed on. */
+/**
+ * One tappable target the call can be re-placed on: an active SIM, or another
+ * enabled calling account (SIP provider, VoIP app).
+ */
 data class ChooserTargetUi(
-    val sim: SimRef,
+    /** Set for SIM targets; null for non-SIM calling accounts. */
+    val sim: SimRef?,
     val account: PhoneAccountRef,
     val label: String,
 )
@@ -84,6 +89,7 @@ internal fun buildChooserUiState(
     activeSims: List<ActiveSim>,
     skippedInactiveSims: List<SimRef>,
     numberCorrection: NumberCorrection? = null,
+    callingAccounts: List<CallingAccount> = emptyList(),
 ): ChooserUiState {
     val region = (country as? CountryVerdict.Country)?.regionCode
     // A correction confirmation must not teach a country rule: the user is
@@ -97,12 +103,15 @@ internal fun buildChooserUiState(
         countryLabel = region?.let { countryLabel(it) },
         rememberRegion = rememberRegion,
         rememberCountryName = rememberRegion?.let { countryDisplayName(it) },
+        // SIMs first — the common case — then the other calling accounts.
         targets = activeSims.map { sim ->
             ChooserTargetUi(
                 sim = SimRef(sim.subscriptionId, sim.carrierName, sim.displayName),
                 account = sim.phoneAccount,
                 label = sim.displayName.ifBlank { sim.carrierName },
             )
+        } + callingAccounts.map { account ->
+            ChooserTargetUi(sim = null, account = account.ref, label = account.label)
         },
         // Re-resolved against the *current* SIMs, not the ones at verdict
         // time: the user can jump to SIM settings from here, enable the SIM,

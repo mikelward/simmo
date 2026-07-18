@@ -27,7 +27,7 @@ class DecisionEngineTest {
         activeSims: List<ActiveSim> = listOf(telstra, tmobile),
         passTokens: List<PassToken> = emptyList(),
         customGroups: Map<String, List<String>> = emptyMap(),
-        handOffAccounts: Set<PhoneAccountRef> = emptySet(),
+        handOffAccounts: Map<PhoneAccountRef, String> = emptyMap(),
         handOffApps: Set<String> = emptySet(),
         contacts: ContactNumberIndex = ContactNumberIndex.EMPTY,
     ) = DecisionSnapshot(
@@ -422,6 +422,28 @@ class DecisionEngineTest {
     }
 
     @Test
+    fun `ask still applies when a calling account is the only target`() {
+        // No SIMs, but a SIP provider's account is enabled: the chooser has a
+        // real target to offer, so Ask must not skip.
+        val rules = listOf(
+            any(RuleAction.Ask),
+            any(RuleAction.SystemDefault),
+        )
+        assertEquals(
+            Verdict.OpenChooser(),
+            engine.decide(
+                call(auNumber, currentAccount = null),
+                snapshot(
+                    rules,
+                    activeSims = emptyList(),
+                    handOffAccounts = mapOf(PhoneAccountRef("acct-sip") to "SIP work"),
+                ),
+                now,
+            ),
+        )
+    }
+
+    @Test
     fun `nothing applicable proceeds, never drops`() {
         val rules = listOf(
             any(RuleAction.Ask),
@@ -484,7 +506,22 @@ class DecisionEngineTest {
             Verdict.RedirectToAccount(voip),
             engine.decide(
                 call(usNumber, interactive = false),
-                snapshot(rules, handOffAccounts = setOf(voip)),
+                snapshot(rules, handOffAccounts = mapOf(voip to "Google Voice")),
+                now,
+            ),
+        )
+    }
+
+    @Test
+    fun `a call already on the rule's calling account passes through`() {
+        // No redirect churn when the user dialed from the SIP app itself.
+        val sip = PhoneAccountRef("acct-sip")
+        val rules = listOf(country("US", RuleAction.HandOff.ViaPhoneAccount(sip, "SIP work")))
+        assertEquals(
+            Verdict.Proceed(ProceedReason.ALREADY_ON_TARGET),
+            engine.decide(
+                call(usNumber, currentAccount = sip),
+                snapshot(rules, handOffAccounts = mapOf(sip to "SIP work")),
                 now,
             ),
         )
@@ -598,7 +635,7 @@ class DecisionEngineTest {
     fun `announces the rule-picked SIM when the toast setting is on`() {
         val rules = listOf(country("AU", RuleAction.UseSim(telstra.ref())))
         assertEquals(
-            Verdict.RedirectToAccount(telstra.phoneAccount, announceSim = "Telstra AU"),
+            Verdict.RedirectToAccount(telstra.phoneAccount, announceTarget = "Telstra AU"),
             engine.decide(call(auNumber), snapshot(rules).copy(announceCalls = true), now),
         )
     }
@@ -607,7 +644,7 @@ class DecisionEngineTest {
     fun `announces a rule-picked SIM the call is already on`() {
         val rules = listOf(country("AU", RuleAction.UseSim(telstra.ref())))
         assertEquals(
-            Verdict.Proceed(ProceedReason.ALREADY_ON_TARGET, announceSim = "Telstra AU"),
+            Verdict.Proceed(ProceedReason.ALREADY_ON_TARGET, announceTarget = "Telstra AU"),
             engine.decide(
                 call(auNumber, currentAccount = telstra.phoneAccount),
                 snapshot(rules).copy(announceCalls = true),
@@ -620,7 +657,7 @@ class DecisionEngineTest {
     fun `announces a matching-country SIM pick too`() {
         val rules = listOf(any(RuleAction.UseMatchingCountrySim))
         assertEquals(
-            Verdict.RedirectToAccount(telstra.phoneAccount, announceSim = "Telstra AU"),
+            Verdict.RedirectToAccount(telstra.phoneAccount, announceTarget = "Telstra AU"),
             engine.decide(call(auNumber), snapshot(rules).copy(announceCalls = true), now),
         )
     }
@@ -629,7 +666,7 @@ class DecisionEngineTest {
     fun `announces nothing while the toast setting is off`() {
         val rules = listOf(country("AU", RuleAction.UseSim(telstra.ref())))
         assertEquals(
-            Verdict.RedirectToAccount(telstra.phoneAccount, announceSim = null),
+            Verdict.RedirectToAccount(telstra.phoneAccount, announceTarget = null),
             engine.decide(call(auNumber), snapshot(rules), now),
         )
     }
@@ -640,7 +677,7 @@ class DecisionEngineTest {
         val token = PassToken(auNumber, telstra.phoneAccount, expiresAtMillis = now + 5_000)
         val rules = listOf(country("AU", RuleAction.UseSim(tmobile.ref())))
         assertEquals(
-            Verdict.Proceed(ProceedReason.PASS_TOKEN, consumedToken = token, announceSim = null),
+            Verdict.Proceed(ProceedReason.PASS_TOKEN, consumedToken = token, announceTarget = null),
             engine.decide(
                 call(auNumber, currentAccount = telstra.phoneAccount),
                 snapshot(rules, passTokens = listOf(token)).copy(announceCalls = true),
@@ -687,17 +724,16 @@ class DecisionEngineTest {
     }
 
     @Test
-    fun `a hand-off phone account is not announced`() {
-        // Unlike the dial-intent and contact-app hand-offs, a bare phone
-        // account carries no app label the snapshot could name (and no MVP
-        // target registers one — TODO.md Phase 5).
-        val gv = PhoneAccountRef("acct-gv")
-        val rules = listOf(country("US", RuleAction.HandOff.ViaPhoneAccount(gv)))
+    fun `announces a calling-account redirect by the account's label`() {
+        // The snapshot carries each calling account's label, so a SIP-account
+        // redirect toasts just like a SIM redirect does.
+        val sip = PhoneAccountRef("acct-sip")
+        val rules = listOf(country("US", RuleAction.HandOff.ViaPhoneAccount(sip, "SIP work")))
         assertEquals(
-            Verdict.RedirectToAccount(gv, announceSim = null),
+            Verdict.RedirectToAccount(sip, announceTarget = "SIP work"),
             engine.decide(
                 call(usNumber),
-                snapshot(rules, handOffAccounts = setOf(gv)).copy(announceCalls = true),
+                snapshot(rules, handOffAccounts = mapOf(sip to "SIP work")).copy(announceCalls = true),
                 now,
             ),
         )
@@ -753,14 +789,33 @@ class DecisionEngineTest {
     }
 
     @Test
-    fun `does not delay a hand-off phone account redirect`() {
-        val gv = PhoneAccountRef("acct-gv")
-        val rules = listOf(country("US", RuleAction.HandOff.ViaPhoneAccount(gv)))
+    fun `delays a calling-account redirect in an interactive context`() {
+        // An unexpected SIP-account call costs money just like an unexpected
+        // SIM would, so the countdown covers both. The label comes from the
+        // snapshot's live account list, not the rule.
+        val sip = PhoneAccountRef("acct-sip")
+        val rules = listOf(country("US", RuleAction.HandOff.ViaPhoneAccount(sip, "SIP work")))
         assertEquals(
-            Verdict.RedirectToAccount(gv),
+            Verdict.DelayedRedirect(sip, "SIP work", delaySeconds = 3),
             engine.decide(
                 call(usNumber),
-                snapshot(rules, handOffAccounts = setOf(gv)).copy(callDelaySeconds = 3),
+                snapshot(rules, handOffAccounts = mapOf(sip to "SIP work")).copy(callDelaySeconds = 3),
+                now,
+            ),
+        )
+    }
+
+    @Test
+    fun `does not delay a calling-account redirect in a non-interactive context`() {
+        // Same UI constraint as a SIM: the countdown can't show hands-free,
+        // and a phone-account redirect works there, so redirect immediately.
+        val sip = PhoneAccountRef("acct-sip")
+        val rules = listOf(country("US", RuleAction.HandOff.ViaPhoneAccount(sip, "SIP work")))
+        assertEquals(
+            Verdict.RedirectToAccount(sip),
+            engine.decide(
+                call(usNumber, interactive = false),
+                snapshot(rules, handOffAccounts = mapOf(sip to "SIP work")).copy(callDelaySeconds = 3),
                 now,
             ),
         )
@@ -860,6 +915,29 @@ class DecisionEngineTest {
                 numberCorrection = NumberCorrection(listOf(CorrectionCandidate("Mum", mumLocal))),
             ),
             engine.decide(call(gbNumber), correctionSnapshot(rules, mumContact(mumLocal)), now),
+        )
+    }
+
+    @Test
+    fun `an interactive correction still confirms when only a calling account can place it`() {
+        // Same target gate as Ask: a SIP/VoIP calling account is a real
+        // chooser target, so an account-only setup gets the confirmation
+        // instead of a silent rewrite via the later rules.
+        val rules = listOf(any(RuleAction.SystemDefault))
+        assertEquals(
+            Verdict.OpenChooser(
+                numberCorrection = NumberCorrection(listOf(CorrectionCandidate("Mum", mumLocal))),
+            ),
+            engine.decide(
+                call(gbNumber, currentAccount = null),
+                snapshot(
+                    rules,
+                    activeSims = emptyList(),
+                    handOffAccounts = mapOf(PhoneAccountRef("acct-sip") to "SIP work"),
+                    contacts = mumContact(mumLocal),
+                ).copy(correctContactNumbers = true),
+                now,
+            ),
         )
     }
 

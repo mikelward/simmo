@@ -8,6 +8,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import app.simmo.domain.DialHandoffApp
+import app.simmo.domain.PhoneAccountRef
 import app.simmo.domain.Rule as SimmoRule
 import app.simmo.domain.RuleAction
 import app.simmo.domain.RuleMatcher
@@ -172,6 +173,74 @@ class RuleEditorScreenshotTest {
         composeRule.onNodeWithText("Viber").assertExists()
         composeRule.onNodeWithText("Yolla").assertExists()
         captureSnapshot("rule_editor_dial_handoff.png")
+    }
+
+    @Test
+    fun editor_offersCallingAccounts() {
+        val telstra = SimRef(1, "Telstra", "Telstra AU")
+        val sip = PhoneAccountRef("com.sip.app/.SipService/work")
+        composeRule.setContent {
+            MaterialTheme {
+                RuleEditorContent(
+                    target = EditorTarget.Existing(
+                        0,
+                        // A SIP-account rule whose account is still registered:
+                        // its row shows selected among the SIM actions.
+                        SimmoRule(
+                            RuleMatcher.Country("US"),
+                            RuleAction.HandOff.ViaPhoneAccount(sip, "SIP work"),
+                        ),
+                    ),
+                    simOptions = listOf(SimOptionUi(telstra, "Telstra AU", active = true)),
+                    countryOptions = listOf(CountryOptionUi("US", "+1 United States")),
+                    callingAccounts = listOf(
+                        CallingAccountOptionUi(sip, "SIP work"),
+                        CallingAccountOptionUi(PhoneAccountRef("com.sip.app/.SipService/home"), "SIP home"),
+                    ),
+                    onSave = { _, _ -> },
+                    onDelete = {},
+                    onCancel = {},
+                )
+            }
+        }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithText("SIP work").assertExists()
+        composeRule.onNodeWithText("SIP home").assertExists()
+        captureSnapshot("rule_editor_calling_accounts.png")
+    }
+
+    @Test
+    fun editor_callingAccountUnavailable() {
+        val telstra = SimRef(1, "Telstra", "Telstra AU")
+        composeRule.setContent {
+            MaterialTheme {
+                RuleEditorContent(
+                    target = EditorTarget.Existing(
+                        0,
+                        // The stored account is no longer registered: it still
+                        // shows (marked unavailable) so the rule can be kept.
+                        SimmoRule(
+                            RuleMatcher.Country("US"),
+                            RuleAction.HandOff.ViaPhoneAccount(
+                                PhoneAccountRef("com.sip.app/.SipService/work"),
+                                "SIP work",
+                            ),
+                        ),
+                    ),
+                    simOptions = listOf(SimOptionUi(telstra, "Telstra AU", active = true)),
+                    countryOptions = listOf(CountryOptionUi("US", "+1 United States")),
+                    callingAccounts = emptyList(),
+                    onSave = { _, _ -> },
+                    onDelete = {},
+                    onCancel = {},
+                )
+            }
+        }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithText("SIP work (unavailable)").assertExists()
+        captureSnapshot("rule_editor_calling_account_unavailable.png")
     }
 
     @Test

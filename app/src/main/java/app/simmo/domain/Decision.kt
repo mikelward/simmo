@@ -40,8 +40,14 @@ data class DecisionSnapshot(
     val passTokens: List<PassToken> = emptyList(),
     /** User-defined group id → member regions (uppercased); built off-path. */
     val customGroups: Map<String, List<String>> = emptyMap(),
-    /** Enabled call-capable phone accounts of third-party (hand-off) apps. */
-    val handOffAccounts: Set<PhoneAccountRef> = emptySet(),
+    /**
+     * Enabled call-capable phone accounts that aren't SIM subscriptions — SIP
+     * providers and other calling apps registered with Telecom — keyed by ref
+     * with their display labels. The keys are the targets a
+     * [RuleAction.HandOff.ViaPhoneAccount] rule may redirect to; the labels
+     * name them for the "Calling using" toast and the delay countdown.
+     */
+    val handOffAccounts: Map<PhoneAccountRef, String> = emptyMap(),
     /** Installed apps that can receive a dial-intent hand-off. */
     val handOffApps: Set<String> = emptySet(),
     /**
@@ -77,25 +83,26 @@ sealed interface Verdict {
         /** Set when [reason] is [ProceedReason.PASS_TOKEN]; the platform layer removes it. */
         val consumedToken: PassToken? = null,
         /**
-         * The SIM to name in a "Calling using <SIM>" toast — set only for
-         * [ProceedReason.ALREADY_ON_TARGET] (a rule picked the SIM the call
-         * was already on) while [DecisionSnapshot.announceCalls] is on. A
-         * pass token never announces: the user just chose that SIM by hand.
+         * The target to name in a "Calling using <target>" toast — set only
+         * for [ProceedReason.ALREADY_ON_TARGET] (a rule picked the SIM or
+         * calling account the call was already on) while
+         * [DecisionSnapshot.announceCalls] is on. A pass token never
+         * announces: the user just chose that target by hand.
          */
-        val announceSim: String? = null,
+        val announceTarget: String? = null,
     ) : Verdict
 
     /**
-     * Redirect to a SIM's or a VoIP app's phone account. [announceSim] names
-     * the SIM for the "Calling using <SIM>" toast when
-     * [DecisionSnapshot.announceCalls] is on and the target is an active SIM
-     * (a hand-off phone account is announced by the app opening, not a toast).
-     * [newNumber] is set (E.164) when same-contact number correction also
-     * rewrote the number — the redirect carries both changes at once.
+     * Redirect to a SIM's or another calling account's phone account.
+     * [announceTarget] names the target — the SIM, or the calling account's
+     * label — for the "Calling using <target>" toast when
+     * [DecisionSnapshot.announceCalls] is on. [newNumber] is set (E.164) when
+     * same-contact number correction also rewrote the number — the redirect
+     * carries both changes at once.
      */
     data class RedirectToAccount(
         val account: PhoneAccountRef,
-        val announceSim: String? = null,
+        val announceTarget: String? = null,
         val newNumber: String? = null,
     ) : Verdict
 
@@ -112,13 +119,13 @@ sealed interface Verdict {
      * Cancel the carrier call and show the delayed-call countdown instead of
      * redirecting silently (settings "Delay before calling"): the user gets
      * [delaySeconds] to cancel — or confirm — before the call is re-placed on
-     * [account], a rule-picked SIM named [simLabel]. Only produced in
-     * interactive contexts and only for SIM targets; the response to Telecom
-     * itself is never delayed (the deadline invariant stands).
+     * [account], the rule-picked SIM or calling account named [targetLabel].
+     * Only produced in interactive contexts; the response to Telecom itself
+     * is never delayed (the deadline invariant stands).
      */
     data class DelayedRedirect(
         val account: PhoneAccountRef,
-        val simLabel: String,
+        val targetLabel: String,
         val delaySeconds: Int,
     ) : Verdict
 
@@ -222,7 +229,13 @@ class DecisionEngine(private val countryDetector: CountryDetector) {
             val correction =
                 snapshot.contacts.localCorrectionFor(call.dialedNumber, snapshot.defaultRegion)
             if (correction != null) {
-                if (call.interactive && snapshot.activeSims.isNotEmpty()) {
+                // Same target-availability gate as Ask: an enabled calling
+                // account (SIP provider) is a real chooser target too, so an
+                // account-only setup still gets the interactive confirmation
+                // instead of a silent rewrite (Codex on PR #39).
+                val chooserHasTargets =
+                    snapshot.activeSims.isNotEmpty() || snapshot.handOffAccounts.isNotEmpty()
+                if (call.interactive && chooserHasTargets) {
                     // Never rewrite a number silently where UI can ask: the
                     // chooser confirms, offering the local number(s) beside
                     // the number as dialed (TODO Phase 6) — including for a
@@ -312,11 +325,14 @@ class DecisionEngine(private val countryDetector: CountryDetector) {
 
                 RuleAction.Ask ->
                     // Applicable only when the chooser has at least one target
-                    // to offer. With no active SIMs (READ_PHONE_STATE revoked,
+                    // to offer — an active SIM or another enabled calling
+                    // account. With neither (READ_PHONE_STATE revoked,
                     // degraded telephony read), canceling would strand the
                     // call behind a chooser that can only cancel — skip
                     // instead, degrading toward "proceed unmodified".
-                    if (call.interactive && snapshot.activeSims.isNotEmpty()) {
+                    if (call.interactive &&
+                        (snapshot.activeSims.isNotEmpty() || snapshot.handOffAccounts.isNotEmpty())
+                    ) {
                         return Verdict.OpenChooser(skippedInactiveSims.toList())
                     }
 
@@ -352,9 +368,11 @@ class DecisionEngine(private val countryDetector: CountryDetector) {
 
     /**
      * A rule resolved [target]; redirect there (or pass through when the call
-     * is on it already), naming the SIM for the optional "Calling using" toast.
-     * Only an active SIM gets a name — a hand-off phone account announces
-     * itself by the app opening.
+     * is on it already), naming the target — an active SIM, or a calling
+     * account's label from the snapshot — for the optional "Calling using"
+     * toast and the delay countdown. Both apply to SIMs and calling accounts
+     * alike: an unexpected SIP-account call costs money just like an
+     * unexpected SIM would.
      */
     private fun routeToAccount(
         call: PlacedCall,
@@ -362,27 +380,27 @@ class DecisionEngine(private val countryDetector: CountryDetector) {
         snapshot: DecisionSnapshot,
         correctedNumber: String? = null,
     ): Verdict {
-        val simName = snapshot.activeSims
+        val targetLabel = snapshot.activeSims
             .firstOrNull { it.phoneAccount == target }
             ?.let { it.displayName.ifBlank { it.carrierName } }
-        val announce = if (snapshot.announceCalls) simName else null
+            ?: snapshot.handOffAccounts[target]
+        val announce = if (snapshot.announceCalls) targetLabel else null
         if (correctedNumber == null && call.currentAccount == target) {
             // Nothing is being changed, so there is nothing to give the user
             // a chance to cancel — no delay, just the optional toast. (A
             // corrected number IS a change, so it never passes through here.)
-            return Verdict.Proceed(ProceedReason.ALREADY_ON_TARGET, announceSim = announce)
+            return Verdict.Proceed(ProceedReason.ALREADY_ON_TARGET, announceTarget = announce)
         }
         // The delay needs UI (its countdown screen), so non-interactive calls
         // (Bluetooth, Android Auto) redirect immediately rather than stranding
-        // behind a screen that can't be shown; hand-off phone accounts
-        // (simName == null) keep their own flow. Corrected calls never delay:
+        // behind a screen that can't be shown. Corrected calls never delay:
         // interactive corrections already went through the chooser.
-        if (correctedNumber == null && simName != null &&
+        if (correctedNumber == null && targetLabel != null &&
             snapshot.callDelaySeconds > 0 && call.interactive
         ) {
-            return Verdict.DelayedRedirect(target, simName, snapshot.callDelaySeconds)
+            return Verdict.DelayedRedirect(target, targetLabel, snapshot.callDelaySeconds)
         }
-        return Verdict.RedirectToAccount(target, announceSim = announce, newNumber = correctedNumber)
+        return Verdict.RedirectToAccount(target, announceTarget = announce, newNumber = correctedNumber)
     }
 
     private fun PassToken.matches(call: PlacedCall, nowMillis: Long): Boolean =
