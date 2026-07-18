@@ -779,4 +779,189 @@ class DecisionEngineTest {
             ),
         )
     }
+
+    // --- Same-contact number correction (settings) ---
+
+    private val mumLocal = "+61412345678"
+
+    /** Mum has the dialed overseas number plus the given local ones. */
+    private fun mumContact(vararg locals: String) = buildContactNumberIndex(
+        numbers = (listOf(gbNumber) + locals).map { RawContactNumber("mum", "Mum", it) },
+        callActions = emptyList(),
+        defaultRegion = "AU",
+    )
+
+    private fun correctionSnapshot(
+        rules: List<Rule>,
+        contacts: ContactNumberIndex,
+        activeSims: List<ActiveSim> = listOf(telstra, tmobile),
+    ) = snapshot(rules, activeSims = activeSims, contacts = contacts)
+        .copy(correctContactNumbers = true)
+
+    @Test
+    fun `corrects an overseas contact number silently where no UI can confirm`() {
+        val rules = listOf(any(RuleAction.SystemDefault))
+        assertEquals(
+            Verdict.RedirectNumber(mumLocal),
+            engine.decide(
+                call(gbNumber, interactive = false),
+                correctionSnapshot(rules, mumContact(mumLocal)),
+                now,
+            ),
+        )
+    }
+
+    @Test
+    fun `a corrected call is routed by the rules for the local number`() {
+        // GB → Mum's AU number; the AU rule (not a GB rule) now applies, and
+        // the one redirect carries both the SIM and the number.
+        val rules = listOf(country("AU", RuleAction.UseSim(telstra.ref())))
+        assertEquals(
+            Verdict.RedirectToAccount(telstra.phoneAccount, newNumber = mumLocal),
+            engine.decide(
+                call(gbNumber, interactive = false),
+                correctionSnapshot(rules, mumContact(mumLocal)),
+                now,
+            ),
+        )
+    }
+
+    @Test
+    fun `a corrected call already on the right SIM still redirects the number`() {
+        val rules = listOf(country("AU", RuleAction.UseSim(telstra.ref())))
+        assertEquals(
+            Verdict.RedirectToAccount(telstra.phoneAccount, newNumber = mumLocal),
+            engine.decide(
+                call(gbNumber, currentAccount = telstra.phoneAccount, interactive = false),
+                correctionSnapshot(rules, mumContact(mumLocal)),
+                now,
+            ),
+        )
+    }
+
+    @Test
+    fun `an ambiguous correction is skipped where no UI can confirm`() {
+        val rules = listOf(any(RuleAction.SystemDefault))
+        assertEquals(
+            Verdict.Proceed(ProceedReason.SYSTEM_DEFAULT),
+            engine.decide(
+                call(gbNumber, interactive = false),
+                correctionSnapshot(rules, mumContact(mumLocal, "+61390001234")),
+                now,
+            ),
+        )
+    }
+
+    @Test
+    fun `an interactive correction is confirmed via the chooser`() {
+        val rules = listOf(country("AU", RuleAction.UseSim(telstra.ref())))
+        assertEquals(
+            Verdict.OpenChooser(
+                numberCorrection = NumberCorrection(listOf(CorrectionCandidate("Mum", mumLocal))),
+            ),
+            engine.decide(call(gbNumber), correctionSnapshot(rules, mumContact(mumLocal)), now),
+        )
+    }
+
+    /** The GB line is on both Mum and Aunt Vi; only Mum has a local number. */
+    private fun sharedLineContacts() = buildContactNumberIndex(
+        numbers = listOf(
+            RawContactNumber("mum", "Mum", gbNumber),
+            RawContactNumber("mum", "Mum", mumLocal),
+            RawContactNumber("aunt", "Aunt Vi", gbNumber),
+        ),
+        callActions = emptyList(),
+        defaultRegion = "AU",
+    )
+
+    @Test
+    fun `a shared line is never corrected silently`() {
+        // Whose local number to call is the user's guess to make; hands-free
+        // the call proceeds as dialed (maintainer: shared lines confirm-only).
+        val rules = listOf(any(RuleAction.SystemDefault))
+        assertEquals(
+            Verdict.Proceed(ProceedReason.SYSTEM_DEFAULT),
+            engine.decide(
+                call(gbNumber, interactive = false),
+                correctionSnapshot(rules, sharedLineContacts()),
+                now,
+            ),
+        )
+    }
+
+    @Test
+    fun `a shared line is offered for confirmation interactively`() {
+        assertEquals(
+            Verdict.OpenChooser(
+                numberCorrection = NumberCorrection(
+                    listOf(CorrectionCandidate("Mum", mumLocal)),
+                    sharedLine = true,
+                ),
+            ),
+            engine.decide(call(gbNumber), correctionSnapshot(emptyList(), sharedLineContacts()), now),
+        )
+    }
+
+    @Test
+    fun `an interactive correction with no SIMs to offer falls back to the silent rule`() {
+        // No chooser target to confirm with (READ_PHONE_STATE revoked):
+        // degrade to the unambiguous-only silent correction, never a chooser
+        // that could only cancel.
+        assertEquals(
+            Verdict.RedirectNumber(mumLocal),
+            engine.decide(
+                call(gbNumber),
+                correctionSnapshot(emptyList(), mumContact(mumLocal), activeSims = emptyList()),
+                now,
+            ),
+        )
+    }
+
+    @Test
+    fun `no correction while the setting is off`() {
+        assertEquals(
+            Verdict.Proceed(ProceedReason.NO_APPLICABLE_RULE),
+            engine.decide(
+                call(gbNumber),
+                snapshot(emptyList(), contacts = mumContact(mumLocal)),
+                now,
+            ),
+        )
+    }
+
+    @Test
+    fun `a local-destination call is never corrected`() {
+        val contacts = buildContactNumberIndex(
+            numbers = listOf(
+                RawContactNumber("mum", "Mum", auNumber),
+                RawContactNumber("mum", "Mum", "+61390001234"),
+            ),
+            callActions = emptyList(),
+            defaultRegion = "AU",
+        )
+        assertEquals(
+            Verdict.Proceed(ProceedReason.SYSTEM_DEFAULT),
+            engine.decide(
+                call(auNumber),
+                correctionSnapshot(listOf(any(RuleAction.SystemDefault)), contacts),
+                now,
+            ),
+        )
+    }
+
+    @Test
+    fun `a chooser-confirmed as-dialed call passes on its token without re-correcting`() {
+        // The user kept the number as dialed in the confirmation chooser; the
+        // re-placed call must not loop back into another correction chooser.
+        val token = PassToken(gbNumber, telstra.phoneAccount, expiresAtMillis = now + 5_000)
+        assertEquals(
+            Verdict.Proceed(ProceedReason.PASS_TOKEN, consumedToken = token),
+            engine.decide(
+                call(gbNumber, currentAccount = telstra.phoneAccount),
+                correctionSnapshot(emptyList(), mumContact(mumLocal))
+                    .copy(passTokens = listOf(token)),
+                now,
+            ),
+        )
+    }
 }

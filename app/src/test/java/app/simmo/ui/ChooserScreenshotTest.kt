@@ -45,7 +45,7 @@ class ChooserScreenshotTest {
                         ),
                         skippedSimNames = listOf("Voda AU"),
                     ),
-                    onPlace = { _, _ -> },
+                    onPlace = { _, _, _ -> },
                     onOpenSimSettings = {},
                     onCancel = {},
                 )
@@ -61,6 +61,45 @@ class ChooserScreenshotTest {
         composeRule.onNodeWithText("Remember for Australia").assertExists()
         composeRule.onNodeWithText("Cancel call").assertExists()
         captureSnapshot("chooser.png")
+    }
+
+    @Test
+    fun chooser_numberCorrection() {
+        // The same-contact correction confirmation (SPEC "Hands-free and
+        // Android Auto safeguards"): the contact's local number preselected,
+        // "as dialed" one tap away.
+        composeRule.setContent {
+            MaterialTheme {
+                ChooserContent(
+                    state = ChooserUiState(
+                        dialedNumber = "+44 20 7123 4567",
+                        countryLabel = "+44 United Kingdom",
+                        // Correction confirmations never offer the remember
+                        // rule, matching buildChooserUiState.
+                        rememberRegion = null,
+                        rememberCountryName = null,
+                        targets = listOf(
+                            ChooserTargetUi(SimRef(1, "Telstra", "Telstra AU"), PhoneAccountRef("a1"), "Telstra AU"),
+                        ),
+                        skippedSimNames = emptyList(),
+                        numberChoices = listOf(
+                            NumberChoiceUi("+61412345678", contactName = "Mum"),
+                            NumberChoiceUi("+44 20 7123 4567", contactName = null),
+                        ),
+                    ),
+                    onPlace = { _, _, _ -> },
+                    onOpenSimSettings = {},
+                    onCancel = {},
+                )
+            }
+        }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithText("+61412345678").assertExists()
+        composeRule.onNodeWithText("Mum's local number").assertExists()
+        composeRule.onNodeWithText("As dialed").assertExists()
+        composeRule.onNodeWithText("Call with Telstra AU").assertExists()
+        captureSnapshot("chooser_local_number.png")
     }
 
     private fun captureSnapshot(name: String, widthPx: Int = 1080, heightPx: Int = 1920) {

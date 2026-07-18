@@ -164,6 +164,9 @@ class SimmoStateHolderTest {
         assertEquals(SimmoState.MAX_CALL_DELAY_SECONDS, store.data.first().callDelaySeconds)
         holder.setCallDelaySeconds(-1)
         assertEquals(0, store.data.first().callDelaySeconds)
+
+        holder.setCorrectContactNumbers(true)
+        assertEquals(true, store.data.first().correctContactNumbers)
     }
 
     @Test

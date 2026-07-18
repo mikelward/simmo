@@ -266,6 +266,7 @@ class RulesViewModel(
                 CallSettingsUi(
                     showCallToast = state?.showCallToast ?: false,
                     callDelaySeconds = state?.callDelaySeconds ?: 0,
+                    correctContactNumbers = state?.correctContactNumbers ?: false,
                 )
             }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), CallSettingsUi())
@@ -282,6 +283,13 @@ class RulesViewModel(
     fun setCallDelaySeconds(seconds: Int) {
         viewModelScope.launch {
             app.stateHolders().filterNotNull().first().setCallDelaySeconds(seconds)
+        }
+    }
+
+    /** The settings "Use contacts' local numbers" toggle. */
+    fun setCorrectContactNumbers(enabled: Boolean) {
+        viewModelScope.launch {
+            app.stateHolders().filterNotNull().first().setCorrectContactNumbers(enabled)
         }
     }
 

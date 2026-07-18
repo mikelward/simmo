@@ -25,6 +25,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.simmo.SimmoApp
 import app.simmo.domain.HeldCall
+import app.simmo.domain.NumberCorrection
 import app.simmo.domain.Rule
 import app.simmo.domain.RuleAction
 import app.simmo.domain.SimRef
@@ -34,6 +35,8 @@ import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
 /**
@@ -58,6 +61,7 @@ class ChooserActivity : ComponentActivity() {
         val dialedNumber = handle.schemeSpecificPart.orEmpty()
         val country = app.detectCountry(dialedNumber)
         val skippedSims = decodeSkippedSims(intent.getStringExtra(EXTRA_SKIPPED_SIMS))
+        val numberCorrection = decodeNumberCorrection(intent.getStringExtra(EXTRA_NUMBER_CORRECTION))
         if (skippedSims.isNotEmpty()) {
             // A rule wanted a disabled SIM: park the call so that if the user
             // wanders off to enable it, the "SIM is now active — place the
@@ -84,6 +88,7 @@ class ChooserActivity : ComponentActivity() {
                         country = country,
                         activeSims = sims.activeSims,
                         skippedInactiveSims = skippedSims,
+                        numberCorrection = numberCorrection,
                     )
                 }
                 // A tap made before CALL_PHONE is granted parks the choice,
@@ -98,7 +103,7 @@ class ChooserActivity : ComponentActivity() {
                     val choice = pending
                     pending = null
                     if (granted && choice != null) {
-                        placeCall(handle, choice.target, choice.rememberRule, state.rememberRegion)
+                        placeCall(choice.handle, choice.target, choice.rememberRule, state.rememberRegion)
                         finish()
                     }
                 }
@@ -110,12 +115,19 @@ class ChooserActivity : ComponentActivity() {
                 ) { openSimSettings() }
                 ChooserContent(
                     state = state,
-                    onPlace = { target, rememberRule ->
+                    onPlace = { target, rememberRule, chosenNumber ->
+                        // A confirmed number correction places the chosen
+                        // number; the as-dialed pick keeps the original URI.
+                        val placeHandle = if (chosenNumber == dialedNumber) {
+                            handle
+                        } else {
+                            Uri.fromParts("tel", chosenNumber, null)
+                        }
                         if (hasCallPermission()) {
-                            placeCall(handle, target, rememberRule, state.rememberRegion)
+                            placeCall(placeHandle, target, rememberRule, state.rememberRegion)
                             finish()
                         } else {
-                            pending = PendingChoice(target, rememberRule)
+                            pending = PendingChoice(placeHandle, target, rememberRule)
                             permissionLauncher.launch(Manifest.permission.CALL_PHONE)
                         }
                     },
@@ -134,7 +146,11 @@ class ChooserActivity : ComponentActivity() {
         }
     }
 
-    private data class PendingChoice(val target: ChooserTargetUi, val rememberRule: Boolean)
+    private data class PendingChoice(
+        val handle: Uri,
+        val target: ChooserTargetUi,
+        val rememberRule: Boolean,
+    )
 
     private fun hasCallPermission(): Boolean =
         ContextCompat.checkSelfPermission(this, Manifest.permission.CALL_PHONE) ==
@@ -198,17 +214,28 @@ class ChooserActivity : ComponentActivity() {
     companion object {
         private const val TAG = "SimmoChooser"
         private const val EXTRA_SKIPPED_SIMS = "app.simmo.extra.SKIPPED_SIMS"
+        private const val EXTRA_NUMBER_CORRECTION = "app.simmo.extra.NUMBER_CORRECTION"
 
         private val extrasJson = Json { ignoreUnknownKeys = true }
 
         /** Launch intent for [handle]; from the service, add NEW_TASK. */
-        fun launchIntent(context: Context, handle: Uri, skippedInactiveSims: List<SimRef>): Intent =
+        fun launchIntent(
+            context: Context,
+            handle: Uri,
+            skippedInactiveSims: List<SimRef>,
+            numberCorrection: NumberCorrection? = null,
+        ): Intent =
             Intent(context, ChooserActivity::class.java)
                 .setData(handle)
                 .putExtra(
                     EXTRA_SKIPPED_SIMS,
                     extrasJson.encodeToString(ListSerializer(SimRef.serializer()), skippedInactiveSims),
                 )
+                .apply {
+                    numberCorrection?.let {
+                        putExtra(EXTRA_NUMBER_CORRECTION, extrasJson.encodeToString(it))
+                    }
+                }
 
         private fun decodeSkippedSims(encoded: String?): List<SimRef> =
             encoded?.let {
@@ -216,5 +243,10 @@ class ChooserActivity : ComponentActivity() {
                     extrasJson.decodeFromString(ListSerializer(SimRef.serializer()), it)
                 }.getOrNull()
             }.orEmpty()
+
+        private fun decodeNumberCorrection(encoded: String?): NumberCorrection? =
+            encoded?.let {
+                runCatching { extrasJson.decodeFromString<NumberCorrection>(it) }.getOrNull()
+            }
     }
 }

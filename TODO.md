@@ -300,10 +300,23 @@ Android Auto safeguards").
       pick a contact's overseas number over their local one, and whether anything can
       steer the choice before the call is placed (contact primary/default number,
       per-account number ordering). Document findings; this may be unfixable upstream.
-- [ ] Same-contact number correction: optional `READ_CONTACTS` reverse-lookup index in
-      the warm snapshot; when a dialed overseas number belongs to a contact with a
-      local-region number, redirect to the local number (unambiguous mappings only in
-      non-interactive contexts; confirm via chooser otherwise).
+- [x] Same-contact number correction, behind the Settings toggle "Use contacts'
+      local numbers" (off by default): when a dialed overseas number belongs to a
+      contact with a local-region number, route the local number — confirmed via
+      the chooser interactively (local number(s) preselected, "as dialed" one tap
+      away), silently and unambiguous-only where no UI can show. Silent
+      corrections ride Telecom's redirect (number and any rule-chosen SIM in one
+      call), rules evaluate the corrected number, and each contact number's
+      region is resolved at index-build time so the decision path stays
+      in-memory. `READ_CONTACTS` is requested when the toggle is switched on;
+      while it's missing the toggle shows an Allow hint. Device QA owed: the
+      end-to-end correction on a real device, and Android Auto behavior with the
+      Phase 6 QA item below.
+- [x] Shared-line handling for same-contact correction (maintainer decision:
+      ok to ask the user, never silent): a number listed by several contacts
+      is offered for confirmation in the chooser with each owner's local
+      numbers labeled by contact; hands-free a shared line is never
+      corrected — whose number to call is the user's guess to make.
 - [ ] Opt-in hands-free call guard: in non-interactive contexts, block overseas calls
       and/or calls whose rule needs a disabled SIM; cancel + notification with one-tap
       redial through the chooser. Decide the "driving" signal (per-call interactive-UI

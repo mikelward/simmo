@@ -162,6 +162,14 @@ class SimmoStateHolder(
         }
     }
 
+    /** The settings "Use contacts' local numbers" toggle was set to [enabled]. */
+    suspend fun setCorrectContactNumbers(enabled: Boolean) {
+        store.updateData {
+            val valid = it.withInstallValidated(installId)
+            valid.copy(correctContactNumbers = enabled)
+        }
+    }
+
     /** The "new SIM" notification for [refs] was posted (or suppressed). */
     suspend fun markNewSimsNotified(refs: List<SimRef>) {
         store.updateData {

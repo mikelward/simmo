@@ -36,6 +36,45 @@ data class ContactMatch(
 )
 
 /**
+ * One indexed number of a contact, with its calling region resolved when the
+ * index was built — so the decision path never parses regions live.
+ */
+data class ContactNumber(
+    val e164: String,
+    /** Uppercase ISO region, or null when the region couldn't be resolved. */
+    val region: String?,
+)
+
+/** One contact's identity as the correction lookup needs it. */
+data class IndexedContact(
+    val displayName: String,
+    val numbers: List<ContactNumber>,
+)
+
+/**
+ * A same-contact number correction (SPEC "Hands-free and Android Auto
+ * safeguards"): the dialed number's owning contact(s) also have local-region
+ * numbers, listed as [candidates]. [sharedLine] is true when the dialed
+ * number itself is listed by more than one contact — such a correction may
+ * only ever be *offered* (the chooser labels each candidate with its
+ * contact), never applied silently: whose local number to call is the
+ * user's guess to make. Serializable so the chooser's confirmation flow can
+ * carry it in a launch intent.
+ */
+@Serializable
+data class NumberCorrection(
+    val candidates: List<CorrectionCandidate>,
+    val sharedLine: Boolean = false,
+)
+
+/** One local number [number] (E.164) belonging to [contactName]. */
+@Serializable
+data class CorrectionCandidate(
+    val contactName: String,
+    val number: String,
+)
+
+/**
  * One raw contact phone row as read from the platform, before normalization:
  * a single number belonging to a contact. The reader emits one per (contact,
  * number); the builder normalizes and de-dups them.
@@ -83,7 +122,13 @@ internal fun normalizeToE164(
  * decision path — contacts IPC is slow and needs `READ_CONTACTS` — so the
  * decision path only does the in-memory [lookup].
  */
-class ContactNumberIndex(private val byE164: Map<String, ContactMatch>) {
+class ContactNumberIndex(
+    private val byE164: Map<String, ContactMatch>,
+    /** Every contact (by lookupKey) with its numbers, regions pre-resolved. */
+    private val contactsByKey: Map<String, IndexedContact> = emptyMap(),
+    /** The contacts (lookupKeys) listing each E.164 — a shared line has several. */
+    private val ownersByE164: Map<String, List<String>> = emptyMap(),
+) {
 
     /** The contact [dialedNumber] belongs to, or null if it matches none. */
     fun lookup(
@@ -93,6 +138,38 @@ class ContactNumberIndex(private val byE164: Map<String, ContactMatch>) {
     ): ContactMatch? {
         val e164 = normalizeToE164(dialedNumber, defaultRegion, util) ?: return null
         return byE164[e164]
+    }
+
+    /**
+     * Same-contact number correction (SPEC "Hands-free and Android Auto
+     * safeguards"): when [dialedNumber] belongs to contact(s), their distinct
+     * *other* numbers local to [defaultRegion], each labeled with its
+     * contact; null when the number matches no contact or no owner has a
+     * local alternative. A line shared by several contacts is flagged
+     * ([NumberCorrection.sharedLine]) so callers only ever *offer* the
+     * correction, never apply it silently — whose local number to call is
+     * the user's guess to make (Codex on PR #41; maintainer: confirm-only).
+     * Regions were resolved at build time, so beyond the same warm E.164
+     * parse [lookup] does, this is an in-memory filter — safe on the
+     * decision path.
+     */
+    fun localCorrectionFor(
+        dialedNumber: String,
+        defaultRegion: String,
+        util: PhoneNumberUtil = PhoneNumberUtil.getInstance(),
+    ): NumberCorrection? {
+        val e164 = normalizeToE164(dialedNumber, defaultRegion, util) ?: return null
+        if (e164 !in byE164) return null
+        val region = defaultRegion.trim().uppercase()
+        val owners = ownersByE164[e164].orEmpty()
+        val candidates = owners.flatMap { key ->
+            val contact = contactsByKey[key] ?: return@flatMap emptyList()
+            contact.numbers
+                .filter { it.e164 != e164 && region == it.region }
+                .map { CorrectionCandidate(contact.displayName, it.e164) }
+        }.distinct()
+        if (candidates.isEmpty()) return null
+        return NumberCorrection(candidates, sharedLine = owners.size > 1)
     }
 
     val size: Int get() = byE164.size
@@ -149,10 +226,31 @@ fun buildContactNumberIndex(
         actionsByE164.getOrPut(e164) { LinkedHashMap() }[action.app] = action.dataRowId
     }
     val byE164 = LinkedHashMap<String, ContactMatch>()
+    // Per contact, every normalized number with its region resolved now —
+    // same-contact correction must not parse regions on the decision path.
+    // Kept independent of the byE164 first-wins dedup: a contact's numbers
+    // stay theirs even when another contact claimed the same line's slot.
+    val numbersByContact = LinkedHashMap<String, MutableList<ContactNumber>>()
+    val namesByContact = HashMap<String, String>()
+    val ownersByE164 = LinkedHashMap<String, MutableList<String>>()
     for (row in numbers) {
         val e164 = normalizeToE164(row.number, defaultRegion, util) ?: continue
+        namesByContact.putIfAbsent(row.lookupKey, row.displayName)
+        val contactNumbers = numbersByContact.getOrPut(row.lookupKey) { ArrayList() }
+        if (contactNumbers.none { it.e164 == e164 }) {
+            val region = runCatching { util.getRegionCodeForNumber(util.parse(e164, null)) }
+                .getOrNull()
+                ?.takeUnless { it.isBlank() || it == "ZZ" }
+            contactNumbers += ContactNumber(e164, region)
+            // Distinct owners per line, so a shared number is detectable and
+            // correction can label candidates — or refuse to apply silently.
+            ownersByE164.getOrPut(e164) { ArrayList() } += row.lookupKey
+        }
         if (byE164.containsKey(e164)) continue
         byE164[e164] = ContactMatch(row.lookupKey, row.displayName, actionsByE164[e164].orEmpty())
     }
-    return ContactNumberIndex(byE164)
+    val contactsByKey = numbersByContact.entries.associate { (key, contactNumbers) ->
+        key to IndexedContact(namesByContact.getValue(key), contactNumbers)
+    }
+    return ContactNumberIndex(byE164, contactsByKey, ownersByE164)
 }

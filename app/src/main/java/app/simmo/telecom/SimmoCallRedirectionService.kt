@@ -156,7 +156,12 @@ class SimmoCallRedirectionService : CallRedirectionService() {
                 is Verdict.RedirectToAccount -> {
                     val target = app.assembler.handleFor(verdict.account)
                     if (target != null) {
-                        if (respond { redirectCall(handle, target, /* confirmFirst = */ false) }) {
+                        // A same-contact correction rides along as a new
+                        // handle; account and number change in one redirect.
+                        val newHandle = verdict.newNumber
+                            ?.let { Uri.fromParts("tel", it, null) }
+                            ?: handle
+                        if (respond { redirectCall(newHandle, target, /* confirmFirst = */ false) }) {
                             verdict.announceSim?.let(app.notifications::toastCallingUsing)
                         }
                     } else {
@@ -164,6 +169,16 @@ class SimmoCallRedirectionService : CallRedirectionService() {
                         // never gamble with the user's call.
                         respond { placeCallUnmodified() }
                     }
+                }
+
+                // Same-contact number correction without a SIM change: only
+                // the number is rewritten; the platform's own account stays.
+                is Verdict.RedirectNumber -> respond {
+                    redirectCall(
+                        Uri.fromParts("tel", verdict.newNumberE164, null),
+                        initialPhoneAccount,
+                        /* confirmFirst = */ false,
+                    )
                 }
 
                 // Delay before calling: cancel and show the countdown screen,
@@ -229,7 +244,12 @@ class SimmoCallRedirectionService : CallRedirectionService() {
                     cancelCall()
                     startActivity(
                         ChooserActivity
-                            .launchIntent(this@SimmoCallRedirectionService, handle, verdict.skippedInactiveSims)
+                            .launchIntent(
+                                this@SimmoCallRedirectionService,
+                                handle,
+                                verdict.skippedInactiveSims,
+                                verdict.numberCorrection,
+                            )
                             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
                     )
                 }

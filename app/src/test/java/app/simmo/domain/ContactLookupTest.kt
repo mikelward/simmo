@@ -127,4 +127,145 @@ class ContactLookupTest {
     fun `an empty index suggests no regions`() {
         assertEquals(emptyList<String>(), ContactNumberIndex.EMPTY.regionsByContactCount())
     }
+
+    // --- Same-contact number correction ---
+
+    @Test
+    fun `an overseas number offers the same contact's local number`() {
+        val index = buildContactNumberIndex(
+            numbers = listOf(
+                number("Mum", "+442071234567", key = "mum"),
+                // Stored national-format; must still normalize and qualify.
+                number("Mum", "0412 345 678", key = "mum"),
+            ),
+            callActions = emptyList(),
+            defaultRegion = "AU",
+        )
+        assertEquals(
+            NumberCorrection(listOf(CorrectionCandidate("Mum", "+61412345678"))),
+            index.localCorrectionFor("+442071234567", "AU"),
+        )
+    }
+
+    @Test
+    fun `a contact with several local numbers offers them all`() {
+        val index = buildContactNumberIndex(
+            numbers = listOf(
+                number("Mum", "+442071234567", key = "mum"),
+                number("Mum", "+61412345678", key = "mum"),
+                number("Mum", "+61390001234", key = "mum"),
+            ),
+            callActions = emptyList(),
+            defaultRegion = "AU",
+        )
+        assertEquals(
+            NumberCorrection(
+                listOf(
+                    CorrectionCandidate("Mum", "+61412345678"),
+                    CorrectionCandidate("Mum", "+61390001234"),
+                ),
+            ),
+            index.localCorrectionFor("+442071234567", "AU"),
+        )
+    }
+
+    @Test
+    fun `no correction without a local alternative`() {
+        // The contact's other number is also overseas.
+        val index = buildContactNumberIndex(
+            numbers = listOf(
+                number("Bea", "+442071234567", key = "bea"),
+                number("Bea", "+14155550123", key = "bea"),
+            ),
+            callActions = emptyList(),
+            defaultRegion = "AU",
+        )
+        assertNull(index.localCorrectionFor("+442071234567", "AU"))
+    }
+
+    @Test
+    fun `no correction for a number belonging to no contact`() {
+        val index = buildContactNumberIndex(
+            listOf(number("Mum", "+61412345678")),
+            emptyList(),
+            "AU",
+        )
+        assertNull(index.localCorrectionFor("+442071234567", "AU"))
+    }
+
+    @Test
+    fun `a local number never corrects to itself`() {
+        // Dialing the contact's own local number offers nothing.
+        val index = buildContactNumberIndex(
+            numbers = listOf(
+                number("Mum", "+442071234567", key = "mum"),
+                number("Mum", "+61412345678", key = "mum"),
+            ),
+            callActions = emptyList(),
+            defaultRegion = "AU",
+        )
+        assertNull(index.localCorrectionFor("+61412345678", "AU"))
+    }
+
+    @Test
+    fun `a shared line is flagged and offers every owner's local numbers`() {
+        // A shared line (family landline) can't say whose local number to
+        // prefer, so the correction is flagged confirm-only and labels each
+        // owner's candidates (maintainer: ok to ask, never silent).
+        val index = buildContactNumberIndex(
+            numbers = listOf(
+                number("Mum", "+442071234567", key = "mum"),
+                number("Mum", "+61412345678", key = "mum"),
+                number("Aunt Vi", "+442071234567", key = "aunt"),
+                number("Aunt Vi", "+61390001234", key = "aunt"),
+            ),
+            callActions = emptyList(),
+            defaultRegion = "AU",
+        )
+        assertEquals(
+            NumberCorrection(
+                listOf(
+                    CorrectionCandidate("Mum", "+61412345678"),
+                    CorrectionCandidate("Aunt Vi", "+61390001234"),
+                ),
+                sharedLine = true,
+            ),
+            index.localCorrectionFor("+442071234567", "AU"),
+        )
+    }
+
+    @Test
+    fun `a shared line with one owner's local number is still confirm-only`() {
+        // Only Mum has a local alternative, but the dialed line is shared —
+        // silently calling Mum could still reach the wrong person.
+        val index = buildContactNumberIndex(
+            numbers = listOf(
+                number("Mum", "+442071234567", key = "mum"),
+                number("Mum", "+61412345678", key = "mum"),
+                number("Aunt Vi", "+442071234567", key = "aunt"),
+            ),
+            callActions = emptyList(),
+            defaultRegion = "AU",
+        )
+        assertEquals(
+            NumberCorrection(
+                listOf(CorrectionCandidate("Mum", "+61412345678")),
+                sharedLine = true,
+            ),
+            index.localCorrectionFor("+442071234567", "AU"),
+        )
+    }
+
+    @Test
+    fun `another contact's numbers are never offered as corrections`() {
+        val index = buildContactNumberIndex(
+            numbers = listOf(
+                number("Bea", "+442071234567", key = "bea"),
+                number("Mum", "+61412345678", key = "mum"),
+            ),
+            callActions = emptyList(),
+            defaultRegion = "AU",
+        )
+        assertNull(index.localCorrectionFor("+442071234567", "AU"))
+    }
 }
