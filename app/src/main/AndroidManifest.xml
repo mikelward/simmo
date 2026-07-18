@@ -126,6 +126,21 @@
             </intent-filter>
         </service>
 
+        <!-- Roaming-watch wake-ups (SPEC "Data-roaming visibility"): both
+             actions are exempt from the implicit-broadcast restrictions, so
+             they start a dead process at the arrival moments — a timezone
+             change after landing, a SIM load. Not exported: the system
+             reaches a private receiver for its own broadcasts, and exporting
+             would let any app force telephony/DataStore work at will. -->
+        <receiver
+            android:name=".telecom.DataWatchReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+                <action android:name="android.telephony.action.CARRIER_CONFIG_CHANGED" />
+            </intent-filter>
+        </receiver>
+
         <!-- The interception hook: the platform binds here for every outgoing
              carrier call while Simmo holds ROLE_CALL_REDIRECTION. -->
         <service

@@ -242,6 +242,28 @@
     <!-- TODO: translate -->
     <string name="notification_channel_name" tools:ignore="MissingTranslation">SIM assist</string>
     <!-- TODO: translate -->
+    <string name="data_watch_channel_name" tools:ignore="MissingTranslation">Data roaming</string>
+    <!-- TODO: translate -->
+    <string name="notification_data_roaming_title" tools:ignore="MissingTranslation">Using data roaming</string>
+    <!-- TODO: translate -->
+    <string name="notification_data_roaming_body" tools:ignore="MissingTranslation">%1$s in %2$s</string>
+    <!-- TODO: translate -->
+    <string name="notification_wrong_data_sim_title" tools:ignore="MissingTranslation">Using non-preferred SIM</string>
+    <!-- TODO: translate -->
+    <string name="notification_wrong_data_sim_body" tools:ignore="MissingTranslation">Switch to %1$s for data?</string>
+    <!-- TODO: translate -->
+    <string name="notification_no_data_title" tools:ignore="MissingTranslation">No data here</string>
+    <!-- TODO: translate -->
+    <string name="notification_no_data_switch_body" tools:ignore="MissingTranslation">Switch to %1$s</string>
+    <!-- TODO: translate -->
+    <string name="notification_no_data_enable_body" tools:ignore="MissingTranslation">Enable %1$s</string>
+    <!-- TODO: translate -->
+    <string name="notification_action_enable" tools:ignore="MissingTranslation">Enable</string>
+    <!-- TODO: translate -->
+    <string name="notification_action_switch" tools:ignore="MissingTranslation">Switch</string>
+    <!-- TODO: translate -->
+    <string name="notification_action_rules" tools:ignore="MissingTranslation">Rules</string>
+    <!-- TODO: translate -->
     <string name="notification_held_call_title" tools:ignore="MissingTranslation">%1$s is now active</string>
     <!-- TODO: translate -->
     <string name="notification_held_call_body" tools:ignore="MissingTranslation">Place your call to %1$s?</string>

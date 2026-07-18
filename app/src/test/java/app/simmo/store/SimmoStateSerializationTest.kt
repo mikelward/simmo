@@ -59,6 +59,7 @@ class SimmoStateSerializationTest {
         ),
         defaultRegionOverride = "AU",
         // Non-default so the round trip proves the fields are actually written.
+        dataWatchMark = "roaming:2:AU",
         analyticsOptIn = false,
         showCallToast = true,
         callDelaySeconds = 5,
@@ -249,6 +250,8 @@ class SimmoStateSerializationTest {
         """.trimIndent()
         val read = SimmoStateSerializer.readFrom(ByteArrayInputStream(json.encodeToByteArray()))
         assertEquals(DataRuleBook.defaultDataRules(), read.dataRules.rules)
+        // And no watch mark: the first real arrival may warn.
+        assertEquals(null, read.dataWatchMark)
     }
 
     @Test

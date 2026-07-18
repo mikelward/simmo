@@ -292,7 +292,10 @@ SIM-and-country arrival, never a repeat nag for the same trip; a SIM on its home
 network never warns. The warning is about *state*, not current traffic (maintainer,
 2026-07): it fires on arrival even while Wi-Fi is carrying the bytes, because the
 roaming leak starts the moment Wi-Fi drops and the arrival is the one moment worth
-catching — the per-arrival dedupe already caps the noise at one notification.
+catching — the per-arrival dedupe already caps the noise at one notification. When
+the arrival ends — the country or the data SIM changes — an unattended warning is
+withdrawn along with the dedupe mark: a present-tense "Using data roaming" never
+outlives the trip it describes.
 
 **Preseeded default.** A fresh install seeds one data rule (maintainer, 2026-07):
 *When in EU/EEA → Roaming OK on SIMs homed in EU/EEA* — the regulation-backed
@@ -317,9 +320,11 @@ toggle needs carrier privileges or `MODIFY_PHONE_STATE` (the same wall the Quick
 Settings tile documents), so a data rule is an expectation Simmo checks reality
 against — Simmo never flips anything, and its data surfaces never show controls that
 pretend to. The warning is a notification — "Using data roaming", naming the SIM and
-country — with a single **Settings** action that opens Simmo's data rules screen; it
-never deep-links straight into system Settings, because the first question is
-whether this roaming is fine, and only Simmo can record that answer.
+country — with two actions (maintainer, 2026-07): the doing-action, labeled by the
+message's own verb (**Enable** when the fix is a disabled local profile, else
+**Switch**), jumps to the system SIM settings where data switches actually flip;
+**Rules** — and tapping the notification itself — opens Simmo's data rules screen,
+where whether this arrangement is fine gets recorded.
 
 **Triage.** The data rules screen leads with the live situation while one exists —
 which SIM is carrying data, where, roaming or not, and which active SIM is local —

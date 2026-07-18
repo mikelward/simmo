@@ -154,6 +154,62 @@ private fun defaultVerdict(dataSim: ActiveSim, country: String, snapshot: DataSn
     return DataVerdict.RoamingWarning(dataSim, country, localSims)
 }
 
+/**
+ * The once-per-arrival dedupe key (SPEC "Data rules"): the same problem for
+ * the same data SIM in the same country never warns twice — telephony
+ * refreshes fire constantly — while any change (another country, another
+ * data SIM, a different shape of problem) is a new arrival that may warn
+ * again. Null for [DataVerdict.Silent]: nothing to post; the caller then
+ * clears its stored mark only when [isMarkStale] says the marked arrival is
+ * over, so a flapping read in the same place can't re-arm a warning
+ * mid-trip. Persistence is the caller's job.
+ */
+fun DataVerdict.arrivalKey(): String? = when (this) {
+    DataVerdict.Silent -> null
+    is DataVerdict.RoamingWarning -> "roaming:${dataSim.subscriptionId}:$country"
+    is DataVerdict.WrongDataSim ->
+        "wrongSim:${dataSim.subscriptionId}:${wantedSim.subscriptionId}:$country"
+    // Enable-first and switch-ready are different arrivals: after the user
+    // enables the profile without switching data, the follow-up Switch nudge
+    // must not be suppressed by the Enable nudge's key (Codex on PR #55).
+    // The key also carries WHICH SIM the nudge offers — the first candidate,
+    // the same one the notification names — so an offer whose SIM vanished
+    // re-claims and the notification refreshes to the surviving alternative
+    // instead of naming a SIM that's gone (Codex on PR #55). The shape lives
+    // in the kind segment and the country stays last, so [isMarkStale]'s
+    // kind:subscription:…:country parse holds for every key. (Two restored
+    // disabled profiles can share the invalidated id and collide here; the
+    // registry re-binds ids on sight, so the window is a refresh wide.)
+    is DataVerdict.NoDataNudge -> {
+        val offered = switchTo.firstOrNull()?.subscriptionId
+            ?: enableFirst.firstOrNull()?.subscriptionId
+        (if (switchTo.isEmpty()) "noDataEnable" else "noDataSwitch") +
+            ":${dataSim.subscriptionId}:$offered:$country"
+    }
+}
+
+/**
+ * Whether a stored arrival mark describes an arrival that is over: the user
+ * is in a different country than the mark recorded, or a different
+ * subscription carries data. Then the mark must clear so a *return* to the
+ * marked country later warns once again (SPEC: once per arrival, "cleared
+ * when the country changes") — without this, the identical key would be
+ * skipped forever. Silence in the SAME place is not staleness: a flapping
+ * roaming flag mid-trip keeps its mark and never re-nags. An unknown
+ * network country decides nothing; a mark this code can't parse is stale by
+ * definition.
+ */
+fun isMarkStale(mark: String?, snapshot: DataSnapshot): Boolean {
+    if (mark == null) return false
+    val parts = mark.split(':')
+    if (parts.size < 3) return true
+    val markedSubscription = parts[1].toIntOrNull() ?: return true
+    val markedCountry = parts.last()
+    val country = snapshot.networkCountry.trim().uppercase()
+    if (country.isEmpty()) return false
+    return markedCountry != country || markedSubscription != snapshot.dataSubscriptionId
+}
+
 private fun DataSimScope.covers(
     dataSim: ActiveSim,
     matcher: RuleMatcher,

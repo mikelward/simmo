@@ -44,6 +44,30 @@ class SimmoStateHolderTest {
     }
 
     @Test
+    fun `the data watch mark is claimed exactly once per arrival`() = runTest {
+        val store = FakeDataStore(SimmoState(installId = "install-1"))
+        val holder = SimmoStateHolder(store, backgroundScope, installId = "install-1")
+        // Only the claim that changes the mark wins — overlapping refreshes
+        // evaluating the same arrival must not each post a warning.
+        assertEquals(true, holder.claimDataWatchMark("roaming:2:AU"))
+        assertEquals(false, holder.claimDataWatchMark("roaming:2:AU"))
+        assertEquals("roaming:2:AU", store.data.first().dataWatchMark)
+        // A new arrival replaces the mark and wins again.
+        assertEquals(true, holder.claimDataWatchMark("roaming:2:NZ"))
+        // Clearing is compare-and-swap: a clear decided against the OLD mark
+        // must not delete an arrival a concurrent refresh just claimed — and
+        // must report the loss, so the caller doesn't cancel the fresh
+        // arrival's notification either.
+        assertEquals(false, holder.clearDataWatchMark("roaming:2:AU"))
+        assertEquals("roaming:2:NZ", store.data.first().dataWatchMark)
+        // Clearing the mark actually observed re-arms a later return trip,
+        // and the winner is told so it also takes the posted warning down.
+        assertEquals(true, holder.clearDataWatchMark("roaming:2:NZ"))
+        assertEquals(null, store.data.first().dataWatchMark)
+        assertEquals(true, holder.claimDataWatchMark("roaming:2:AU"))
+    }
+
+    @Test
     fun `first capture is reported from the stored state, not the async flow`() = runTest {
         // Codex P2 on PR #21: an existing user's cold-start capture can run
         // before the eager load publishes; the fresh-install signal must come

@@ -73,6 +73,15 @@ data class SimmoState(
      * EU/EEA roam-like-home rule.
      */
     val dataRules: DataRuleBook = DataRuleBook(),
+    /**
+     * The roaming watch's last-surfaced arrival key (SPEC "Data rules":
+     * "once per SIM-and-country arrival"). Telephony refreshes fire
+     * constantly; only this persisted mark keeps the same arrival from
+     * re-nagging across them and across process restarts. Null until the
+     * first warning; a new key (another country, SIM, or problem) replaces
+     * it.
+     */
+    val dataWatchMark: String? = null,
 ) {
     companion object {
         /** Ceiling for [callDelaySeconds]; also the settings slider's range. */
@@ -101,6 +110,12 @@ fun SimmoState.withInstallValidated(currentInstallId: String): SimmoState {
         simRegistry = simRegistry
             .map { it.copy(subscriptionId = SimRef.INVALID_SUBSCRIPTION_ID) }
             .distinct(),
+        // The arrival mark embeds a subscription id too: on the new phone
+        // that integer can belong to a different SIM, and a stale mark would
+        // suppress the first genuine warning after the restore (Codex on
+        // PR #55). Clearing costs at most one repeat of an already-seen
+        // warning — the safe direction.
+        dataWatchMark = null,
         installId = currentInstallId,
     )
 }

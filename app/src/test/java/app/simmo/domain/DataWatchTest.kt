@@ -299,6 +299,53 @@ class DataWatchTest {
     }
 
     @Test
+    fun `arrival keys dedupe repeats and distinguish real changes`() {
+        val warning = DataVerdict.RoamingWarning(tmobile, "AU", localSims = listOf(telstra))
+        // Same arrival → same key, however often the refresh re-evaluates.
+        assertEquals(warning.arrivalKey(), DataVerdict.RoamingWarning(tmobile, "AU").arrivalKey())
+        // Silence never produces a key — and never disturbs a stored mark.
+        assertEquals(null, DataVerdict.Silent.arrivalKey())
+        // Another country, another data SIM, or another shape of problem is
+        // a new arrival: every key differs.
+        val keys = listOf(
+            warning.arrivalKey(),
+            DataVerdict.RoamingWarning(tmobile, "NZ").arrivalKey(),
+            DataVerdict.RoamingWarning(telstra, "AU").arrivalKey(),
+            DataVerdict.WrongDataSim(tmobile, telstra, "AU").arrivalKey(),
+            // Enable-first vs switch-ready are distinct arrivals: enabling
+            // the profile must re-arm the follow-up Switch nudge.
+            DataVerdict.NoDataNudge(tmobile, "AU").arrivalKey(),
+            DataVerdict.NoDataNudge(tmobile, "AU", switchTo = listOf(telstra)).arrivalKey(),
+            // And so is a different offered SIM: the notification must
+            // refresh when the SIM it named is no longer the candidate.
+            DataVerdict.NoDataNudge(tmobile, "AU", switchTo = listOf(vodafoneDe)).arrivalKey(),
+        )
+        assertEquals(keys.size, keys.toSet().size)
+        // Every key shape parses for staleness the same way.
+        keys.forEach { key ->
+            assertEquals(false, isMarkStale(key, snapshot("", dataSim = tmobile)))
+        }
+    }
+
+    @Test
+    fun `a mark goes stale only when the arrival is genuinely over`() {
+        val mark = DataVerdict.RoamingWarning(tmobile, "AU").arrivalKey()
+        // Same place, same data SIM: a flapping roaming flag is not a new
+        // arrival — the mark holds and nothing re-nags mid-trip.
+        assertEquals(false, isMarkStale(mark, snapshot("AU", dataSim = tmobile)))
+        assertEquals(false, isMarkStale(mark, snapshot("au", dataSim = tmobile)))
+        // Unknown network country decides nothing either way.
+        assertEquals(false, isMarkStale(mark, snapshot("", dataSim = tmobile)))
+        // Moving country or switching the data SIM ends the arrival, so a
+        // later return may warn once again.
+        assertEquals(true, isMarkStale(mark, snapshot("NZ", dataSim = tmobile)))
+        assertEquals(true, isMarkStale(mark, snapshot("AU", dataSim = telstra)))
+        // No mark, nothing to stale; an unparseable mark is stale by definition.
+        assertEquals(false, isMarkStale(null, snapshot("AU", dataSim = tmobile)))
+        assertEquals(true, isMarkStale("what", snapshot("AU", dataSim = tmobile)))
+    }
+
+    @Test
     fun `data rules match through custom groups`() {
         val rules = listOf(
             DataRule(

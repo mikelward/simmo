@@ -114,6 +114,45 @@ class SimmoStateHolder(
         return SimCapture(updated.simRegistry, firstCapture = wasEmpty)
     }
 
+    /**
+     * Atomically claims the roaming watch's once-per-arrival mark (SPEC "Data
+     * rules"): true only for the caller whose transaction actually changed
+     * the mark. Overlapping refreshes — startup, the first subscription
+     * callback, a wake broadcast — may all evaluate the same arrival; the
+     * single winner posts the warning, everyone else is deduped here rather
+     * than by a racy read-then-write.
+     */
+    suspend fun claimDataWatchMark(key: String): Boolean {
+        var claimed = false
+        store.updateData {
+            val valid = it.withInstallValidated(installId)
+            claimed = valid.dataWatchMark != key
+            if (claimed) valid.copy(dataWatchMark = key) else valid
+        }
+        return claimed
+    }
+
+    /**
+     * Clears the arrival mark once its arrival is over (the user moved
+     * country or the data SIM changed — see `isMarkStale`), so a later
+     * return to the same place may warn once again. Compare-and-swap on
+     * [observedKey]: a concurrent refresh may have already claimed a *new*
+     * arrival, and unconditionally deleting that claim would let the next
+     * refresh re-claim it and post a duplicate (Codex on PR #55). Returns
+     * whether THIS clear removed the mark — only the winner may also cancel
+     * the posted notification; a loser's cancel would tear down the fresh
+     * arrival's warning.
+     */
+    suspend fun clearDataWatchMark(observedKey: String): Boolean {
+        var cleared = false
+        store.updateData {
+            val valid = it.withInstallValidated(installId)
+            cleared = valid.dataWatchMark == observedKey
+            if (cleared) valid.copy(dataWatchMark = null) else valid
+        }
+        return cleared
+    }
+
     /** The new-SIM prompt for [ref] was answered — added a rule or dismissed. */
     suspend fun markSimRulePromptAnswered(ref: SimRef) {
         store.updateData {
