@@ -1,9 +1,11 @@
-Simmo picks the right SIM for every outgoing call, automatically, based on the country you're calling. Android's built-in dual-SIM support stops at "ask every time" or "always use SIM X" — Simmo adds simple rules on top: US numbers go out on T-Mobile, European numbers on Vodafone, everything else follows your defaults.
+Simmo makes sure the right SIM handles every call you make — and tells you when a better data SIM is available as you travel. Android's built-in dual-SIM support stops at "ask every time" or "always use SIM X"; Simmo adds simple rules on top: US numbers go out on T-Mobile, European numbers on Vodafone, and when you land somewhere your travel eSIM should take over, you hear about it before the roaming charges start.
 
-• Rules by destination country — ordered top to bottom, first match wins. Match single countries or whole groups (EU/EEA, North America, Caribbean +1).
+• Calling rules by destination country — ordered top to bottom, first match wins. Match single countries or whole groups (EU/EEA, North America, Caribbean +1).
 • Hand off to another app — send calls to Google Voice or another calling app instead of a SIM.
+• Data rules for travel — say which SIM should carry data where, or that roaming there is expected. Simmo checks on arrival and warns when reality doesn't match — a roaming SIM you didn't plan for, or data off on the SIM that's local.
+• EU roaming aware — a built-in rule keeps roam-like-at-home trips inside the EU/EEA quiet instead of crying wolf.
 • Disabled eSIM help — if a rule needs an eSIM that's currently off, Simmo guides you to re-enable it and offers to place the call once it's active.
-• No surprises — if no rule matches, your call goes through exactly as it would have. Emergency calls are never touched.
+• No surprises — if no rule matches, your call goes through exactly as it would have. Emergency calls are never touched. Android doesn't let apps switch your data SIM, so Simmo tells you the moment a switch is worth making — you stay in control.
 • Private by design — rules and number parsing run entirely on your device. Simmo has no servers, and your dialed numbers are never sent to us.
 
 Works with the system's call redirection role — Simmo is not a dialer and never draws in-call UI. Designed for dual-SIM and multi-eSIM phones like the Pixel.
