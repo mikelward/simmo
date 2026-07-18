@@ -1,7 +1,7 @@
 package app.simmo.domain
 
 /**
- * Country groups a rule can match as a single entry (SPEC "Rules"). Rules
+ * Country groups a rule can match as a single entry (SPEC "Calling rules"). Rules
  * persist the group *id*; membership is resolved here at decision time, so
  * it tracks app updates instead of being frozen into stored rules — and the
  * decision path resolves it from this in-memory table, never from I/O.

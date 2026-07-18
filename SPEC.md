@@ -8,12 +8,28 @@ defaults* — including
 hand-offs to another calling app (e.g. Google Voice) and help re-enabling a currently
 disabled eSIM profile when a rule needs it.
 
+Simmo's second, smaller pillar is **mobile data while traveling**: data rules record
+which SIM should carry data in which country — and where roaming is fine — and when
+the phone disagrees, Simmo warns and guides the fix (it cannot make the change
+itself; see "Data rules").
+
 Primary target: Pixel phones on current Android (Android 17 at the time of writing),
 where several eSIM profiles can be installed at once and swapped in Settings.
 
 ## Product behavior
 
-### Rules
+Simmo keeps two rule lists that share one grammar — ordered, first applicable rule
+wins, the same country picker and groups — but differ on the axis they match and the
+power behind them. **Calling rules** match the *destination* of an outgoing call
+("when calling Australia…") and are **enforced**: Simmo redirects the call itself.
+**Data rules** match the *current country* ("when in Australia…") and are
+**watched**: Simmo cannot switch data, so it checks reality against the rule and
+warns with a guided fix. The third place is Android's own **System settings**, where
+every switch that actually changes phone state lives; Simmo reaches it by buttons
+labeled exactly that — one consistent term, so it is always obvious what Simmo does
+itself versus what only Android can do.
+
+### Calling rules
 
 Rules are an **ordered list**, evaluated top to bottom for every outgoing call; the
 first *applicable* rule decides the call and evaluation stops. The user drags a rule's
@@ -218,7 +234,8 @@ require carrier privileges or system permissions — so Simmo:
    number needs optional `READ_PHONE_NUMBERS`). Rules can reference any registered SIM,
    active or not. The SIMs screen shows each entry with its number and country; registry
    entries can be renamed and deleted in settings.
-2. A rule targeting an inactive SIM is skipped during evaluation (see "Rules"), but
+2. A rule targeting an inactive SIM is skipped during evaluation (see "Calling
+   rules"), but
    when the chooser opens it explains that the rule wanted (e.g.) Telstra, offers a
    one-tap jump to the system SIM management screen, and offers the active SIMs /
    hand-off apps as alternatives.
@@ -244,6 +261,56 @@ regular app cannot hold on any current Android version — so the fastest honest
 is tile → Simmo's SIM registry → system SIM settings. The tile is stateless and always
 renders active. A tap before onboarding is complete lands on onboarding, and the SIMs
 screen opens as soon as the grants are in place.
+
+### Data rules
+
+Calling rules decide each outgoing call; **data rules** watch mobile data as the
+user travels. A data rule pairs a **location matcher** — one or more countries or a
+country group, the same picker and groups as calling rules, but matched against
+*where the user is* (the current network country), not who they're calling — with an
+**expectation**, one of:
+
+1. **Use <SIM> for data** — this SIM should carry data here. Simmo warns on arrival
+   when a different SIM is the data SIM — before roaming data flows, not after — and
+   guides the switch. It also covers the stranded shape: a non-local data SIM with
+   data roaming off means *no data at all*, and the same nudge names the local SIM
+   that would fix it.
+2. **Roaming OK** — data roaming here is expected (paid for, or free); no warning.
+   Optionally scoped to specific SIMs, because roaming agreements are per plan: "in
+   EU/EEA, roaming OK on Vodafone" stays quiet for the Vodafone SIM but still warns
+   if the US SIM ends up carrying data there.
+3. **Warn** — always warn here: the guard shape, placed above a broader Roaming OK
+   rule the same way "Caribbean +1 → Ask" sits above a US calling rule.
+
+Data rules are an ordered list, first match wins, with the same editing surface as
+calling rules (drag to reorder, tap to edit, per-rule menu). When no rule matches,
+the default is to **warn when the active data SIM is roaming** — once per
+SIM-and-country arrival, never a repeat nag for the same trip; a SIM on its home
+network never warns.
+
+**Watched, not enforced.** Changing the default data SIM or a SIM's data-roaming
+toggle needs carrier privileges or `MODIFY_PHONE_STATE` (the same wall the Quick
+Settings tile documents), so a data rule is an expectation Simmo checks reality
+against — Simmo never flips anything, and its data surfaces never show controls that
+pretend to. The warning is a notification — "Using data roaming", naming the SIM and
+country — with a single **Settings** action that opens Simmo's data rules screen; it
+never deep-links straight into system Settings, because the first question is
+whether this roaming is fine, and only Simmo can record that answer.
+
+**Triage.** The data rules screen leads with the live situation while one exists —
+which SIM is carrying data, where, roaming or not, and which active SIM is local —
+with both honest resolutions one tap away:
+
+- **This is OK** creates a Roaming OK rule prefilled with the current country and
+  SIM, with one-tap suggestions to widen it to the shipped or custom groups
+  containing that country ("all of EU/EEA?"), so the rest of the trip — and the next
+  one — stays quiet.
+- **System settings** jumps to where the data SIM and roaming toggles actually live.
+  Simmo sees the outcome via subscription callbacks and then offers to remember it
+  as a "Use <SIM> for data" rule for this country.
+
+Without notification permission nothing is lost but the push: the triage card still
+shows the state whenever Simmo opens.
 
 ### Hands-free and Android Auto safeguards
 
@@ -344,6 +411,46 @@ Key platform constraints the design honors:
   (`EuiccManager.ACTION_MANAGE_EMBEDDED_SUBSCRIPTIONS`, with a generic SIM settings
   fallback) and detects the result via subscription-change callbacks.
 
+### Data-roaming visibility (no foreground service)
+
+Everything data rules need to *see* is readable with `READ_PHONE_STATE`, which
+Simmo already holds: the default data subscription and the subscription actually
+carrying data right now (they differ during temporary switches), whether that
+subscription's network is roaming (the carrier-defined flag), each SIM's own
+data-roaming setting, and each active SIM's home country against the current
+network country — which is all "SIM X is local here" means. What Simmo cannot do is
+change any of it (see "Data rules: watched, not enforced").
+
+Simmo deliberately runs **no foreground service** to watch this. A persistent
+notification is a bad trade for a warning whose useful latency is minutes, not
+seconds — roaming cost accrues over hours of background data, not in the first
+moments. Instead the check runs at moments the process is already, or can be,
+awake:
+
+1. **Existing wakes**: every outgoing call (the redirection service binds), app or
+   tile open, subscription changes, and the network-country change broadcast — the
+   telephony refresh they already trigger gains the roaming check. While the
+   process lives, a service-state listener on the data subscription reports roaming
+   transitions in real time.
+2. **Manifest-registered receivers**, which wake a dead process (all three are
+   exempt from the implicit-broadcast restrictions): `ACTION_TIMEZONE_CHANGED` —
+   landing abroad means airplane mode off, the network sets the clock, Simmo
+   wakes; this is the arrival moment — plus `ACTION_CARRIER_CONFIG_CHANGED` (SIM
+   load/re-evaluation) and `ACTION_BOOT_COMPLETED` (to re-register the callback
+   below).
+3. **A `ConnectivityManager` callback delivered by `PendingIntent`**, which fires
+   without the app running when matching (cellular) connectivity changes; the
+   receiver checks the roaming capability bit. This covers the remaining gap — a
+   same-timezone land border crossed while the process is dead. Registrations
+   don't survive reboot, hence the boot receiver; exact firing behavior across
+   carriers and handovers needs device QA.
+
+There is no broadcast for "roaming started" itself — service-state and
+airplane-mode changes cannot be manifest-registered — which is why this lattice
+exists. If every layer misses, the warning appears at the user's next interaction
+that reaches Simmo, and the notification-less degradation (the triage card on
+open) still stands.
+
 ### Hand-off to another app
 
 Two mechanisms, chosen per target app at rule-creation time based on what the app
@@ -415,7 +522,8 @@ UI is forbidden).
 ## Permissions and privacy
 
 - `ROLE_CALL_REDIRECTION` (role, not permission) — the interception hook.
-- `READ_PHONE_STATE` — enumerate subscriptions and phone accounts.
+- `READ_PHONE_STATE` — enumerate subscriptions and phone accounts, and read the
+  data-subscription and roaming state that data rules watch.
 - `READ_PHONE_NUMBERS` (optional) — each SIM's own line number for the SIMs screen,
   and other apps' calling-account labels ("SIP – work") for the editor and chooser.
   Requested with `READ_PHONE_STATE` in onboarding (the two share Android's Phone
@@ -427,7 +535,9 @@ UI is forbidden).
   same-contact number correction — and offered as an onboarding row) — the
   dialed-number→contact reverse lookup; a denial just disables those features.
 - `POST_NOTIFICATIONS` (optional) — the "your SIM is now active, place the call?"
-  nudge and the "couldn't open <app>" hand-off failure notice. Requested
+  nudge, the "couldn't open <app>" hand-off failure notice, and the "Using data
+  roaming" warning (which degrades to the in-app triage card — see "Data rules").
+  Requested
   contextually, like `READ_CONTACTS`: at the chooser's SIM-settings jump, and when
   a hand-off action is picked in the rule editor — which also shows an enable hint
   (with an Allow button) under the selected action while notifications are off,
@@ -481,8 +591,8 @@ sibling Type Launcher project:
 
 - **Domain layer** (pure Kotlin, no Android deps): rule model, SIM identity + re-binding
   logic, country derivation (libphonenumber), the decision function
-  `(placed call, snapshot) → verdict`. Fully unit-tested; this is where all product
-  logic lives.
+  `(placed call, snapshot) → verdict`, and the data-rule evaluation behind the
+  roaming watch. Fully unit-tested; this is where all product logic lives.
 - **Platform layer**: the `CallRedirectionService`, subscription/phone-account readers,
   subscription-change listener, role/permission plumbing. Thin adapters over the domain,
   kept too small to hide logic.
@@ -497,16 +607,17 @@ redirection service only ever reads the snapshot.
 
 ## Testing strategy
 
-- **Unit tests** carry the product logic: rule evaluation, country parsing edge cases
-  (national format, short codes, undetermined), SIM re-binding, loop-guard tokens,
-  non-interactive degradation. The decision function is a pure function and is tested
-  as a table.
+- **Unit tests** carry the product logic: rule evaluation (calling and data),
+  country parsing edge cases (national format, short codes, undetermined), SIM
+  re-binding, loop-guard tokens, non-interactive degradation. The decision function
+  is a pure function and is tested as a table.
 - **Screenshot tests** cover each screen and state (empty rules, chooser, enable mode).
 - **Device QA is irreducible for telecom behavior**: emulators have no real SIMs, no
   eSIM profiles, and CI has no emulator at all. A manual test matrix (documented in
   `docs/qa-matrix.md` as flows land) covers: dual-eSIM Pixel, rule hit/miss, disabled
   SIM enable round-trip, Bluetooth-placed call, hand-off to Google Voice, emergency
-  numbers untouched.
+  numbers untouched, and the roaming-arrival warning (airplane-mode cycle, land
+  border).
 
 ## Non-goals (for now)
 
@@ -514,7 +625,8 @@ redirection service only ever reads the snapshot.
 - SMS/MMS routing.
 - Being a dialer or in-call UI; Simmo never draws in-call.
 - Per-contact or time-based rules (country-only until a real need shows up).
-- Cost/tariff awareness; Simmo routes by rule, it does not estimate prices.
+- Cost/tariff awareness; Simmo routes and warns by rule and state (roaming or not,
+  local or not), it does not estimate prices.
 
 ## Open questions
 
@@ -536,3 +648,10 @@ redirection service only ever reads the snapshot.
   Auto picking a contact's overseas entry over their local one) is fixable at the
   contact level before Simmo is consulted; and how best to identify "driving" for the
   call guard — the platform's per-call interactive-UI flag vs. car-mode signals.
+- Data rules: whether to preseed "when in EU/EEA → roaming OK on SIMs homed in
+  EU/EEA" — regulation-backed roam-like-at-home, symmetric with the calling side's
+  matching-country default — or ship no data rules and let the first triage create
+  them; whether the roaming warning should be suppressed while Wi-Fi is the default
+  network (background cellular can still leak); and whether the no-data nudge (data
+  roaming off on a non-local data SIM) should fire even with no rule, since it fixes
+  connectivity rather than billing.

@@ -384,6 +384,53 @@ Android Auto safeguards").
       and an in-app About surface.
 - [ ] Translations pass per the two-PR rule in `AGENTS.md` once English copy settles.
 
+## Phase 9 — Data rules and the roaming watch
+
+Design in SPEC "Data rules" and "Data-roaming visibility (no foreground service)".
+Watched, not enforced: Simmo never changes data state; it warns and guides to
+System settings.
+
+- [ ] Domain: data-rule model — location matcher (countries/groups, reusing the
+      calling picker and groups) + expectation (use-SIM-for-data / roaming-OK,
+      optionally SIM-scoped / warn) — ordered first-match evaluation, and the
+      no-match default (warn when the data SIM is roaming; home network never
+      warns). Pure evaluation over a data snapshot (default + active data
+      subscription, per-subscription roaming flags, per-SIM data-roaming setting,
+      network country); table-driven unit tests including the EU roam-like-home
+      shapes.
+- [ ] Data snapshot reader as an extension of the existing telephony refresh — no
+      new permissions (`READ_PHONE_STATE` covers all of it), off the decision path.
+- [ ] Warning notification: "Using data roaming" naming SIM and country, one
+      Settings action into the data rules screen; fires once per SIM-and-country
+      arrival (persisted dedupe, cleared when the country changes or a covering
+      rule lands); degrades to the in-app triage card when notifications are off.
+- [ ] Wake-up lattice (SPEC): roaming check on every telephony refresh; manifest
+      receivers for `TIMEZONE_CHANGED`, `CARRIER_CONFIG_CHANGED`, `BOOT_COMPLETED`;
+      service-state listener while resident; spike the `ConnectivityManager`
+      PendingIntent callback (registered at boot, roaming-capability check in the
+      receiver). Device QA owed: firing behavior across carriers/handovers, and
+      end-to-end warning latency with a dead process.
+- [ ] Data rules UI: a Data list beside Calling on the rules home (terminology per
+      SPEC "Product behavior": Calling rules / Data rules / System settings; exact
+      navigation shape decided at build time), list + editor reusing the country
+      picker, groups, reorder, and per-rule menu; screenshot tests + their CI
+      steps.
+- [ ] Triage card at the top of the data rules screen: which SIM carries data,
+      where, roaming or not, which active SIM is local; "This is OK" creates the
+      prefilled Roaming OK rule with group-widening suggestions, "System settings"
+      jumps out, and the subscription-change confirmation on return offers to save
+      "Use <SIM> for data" for this country.
+- [ ] One label for leaving Simmo: rename the chooser's "SIM settings" button to
+      "System settings" so the same words mark every jump out (SPEC "Product
+      behavior" terminology).
+- [ ] Decide the SPEC open questions before building: preseeded EU/EEA
+      roam-like-home rule vs. first-triage-creates-it; Wi-Fi suppression; rule-less
+      no-data nudge (data roaming off on a non-local data SIM).
+- [ ] Device QA (docs/qa-matrix.md): arrival after an airplane-mode cycle (timezone
+      wake), a same-timezone land border with a dead process (connectivity
+      callback), an EU SIM roaming in EU with a Roaming OK rule (no false warning),
+      and dedupe across repeated refreshes in one country.
+
 ## Deferred / open (see also SPEC "Open questions")
 
 - [ ] Permission-health surface on the rules list: one status banner when Simmo can't
