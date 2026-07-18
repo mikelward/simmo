@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -29,6 +30,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.platform.LocalLifecycleOwner
@@ -277,8 +279,17 @@ internal fun OnboardingScreen(
                 buttonText = stringResource(R.string.onboarding_call_permission_button),
                 onRequest = { callLauncher.launch(Manifest.permission.CALL_PHONE) },
             )
+            // The row itself is the toggle (and the Switch's own handler is
+            // null), so TalkBack reads label, description, and state as one
+            // switch instead of an unlabeled control (Codex on PR #27).
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .toggleable(
+                        value = analyticsOptIn,
+                        role = Role.Switch,
+                        onValueChange = onAnalyticsOptInChange,
+                    ),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -295,7 +306,7 @@ internal fun OnboardingScreen(
                 }
                 Switch(
                     checked = analyticsOptIn,
-                    onCheckedChange = onAnalyticsOptInChange,
+                    onCheckedChange = null,
                 )
             }
             if (roleHeld && phoneGranted) {
