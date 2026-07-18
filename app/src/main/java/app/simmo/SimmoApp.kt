@@ -143,6 +143,15 @@ class SimmoApp : Application() {
             // values (see setAnalyticsOptIn). No-op in builds without a
             // Firebase config.
             val gate = telemetry ?: return@launch
+            // An opt-out marked durably at tap time outlives a crash that
+            // loses the slower main-state write: seed it as a synthetic tap
+            // so a stale persisted "on" can't resurrect collection, and run
+            // the opt-out cleanup now rather than after the state loads.
+            val marker = getSharedPreferences(TELEMETRY_PREFS, MODE_PRIVATE)
+            if (!marker.getBoolean(KEY_OPT_IN, true) && optInTaps.value == null) {
+                optInTaps.value = false
+                gate.set(false)
+            }
             gate.follow(
                 persisted = stateHolderFlow.filterNotNull().first().state
                     .filterNotNull()
@@ -256,6 +265,13 @@ class SimmoApp : Application() {
         optInTaps.value = enabled
         telemetry?.set(enabled)
         appScope.launch {
+            // The durable marker first — a tiny commit with no state-holder
+            // wait — so a crash before the main write still leaves the choice
+            // on disk for the next launch's cleanup (see onCreate).
+            getSharedPreferences(TELEMETRY_PREFS, MODE_PRIVATE)
+                .edit()
+                .putBoolean(KEY_OPT_IN, enabled)
+                .commit()
             stateHolderFlow.filterNotNull().first().setAnalyticsOptIn(enabled)
         }
     }
@@ -306,5 +322,9 @@ class SimmoApp : Application() {
     private companion object {
         /** A contacts account sync fires a burst; wait for it to settle. */
         const val CONTACT_REFRESH_DEBOUNCE_MILLIS = 2_000L
+
+        /** The telemetry choice's own durable copy (see [setAnalyticsOptIn]). */
+        const val TELEMETRY_PREFS = "telemetry"
+        const val KEY_OPT_IN = "optIn"
     }
 }

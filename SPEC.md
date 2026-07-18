@@ -383,7 +383,10 @@ UI is forbidden).
   persisted "Make Simmo better" opt-in (default on, persisted with settings, so it
   survives backup/restore) — honoring a choice made before the feature existed;
   both SDKs remember the applied value, so it also holds during early startup
-  before the state loads. Only automatic telemetry ships today (crash traces,
+  before the state loads, and an opt-out is additionally marked durably at tap
+  time in its own device-local store (read at startup before the main state), so
+  a crash that loses the main settings write can neither resurrect collection nor
+  upload the tail-of-session crash report. Only automatic telemetry ships today (crash traces,
   first-open/screen/session events); the advertising ID is stripped and ad
   personalization disabled. Candidate future signals: SIM name × destination
   country routing counts and call completion/failure rates — never dialed numbers.
