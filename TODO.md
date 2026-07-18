@@ -312,10 +312,16 @@ can't dial an arbitrary number and are out of scope.
 Goal: no accidental international calls when hands-free (see SPEC "Hands-free and
 Android Auto safeguards").
 
-- [ ] Investigate the upstream wrong-number problem: when/why Android and Android Auto
+- [x] Investigate the upstream wrong-number problem: when/why Android and Android Auto
       pick a contact's overseas number over their local one, and whether anything can
       steer the choice before the call is placed (contact primary/default number,
-      per-account number ordering). Document findings; this may be unfixable upstream.
+      per-account number ordering). Findings in `docs/upstream-wrong-number.md`:
+      touch paths honor a stored contact default (`IS_SUPER_PRIMARY`) — including a
+      wrong one remembered abroad; Assistant/Auto voice picks opaquely, doesn't
+      reliably honor the default, and exposes no steering API; usage-based ranking
+      has been a no-op since Android 10. Effectively unfixable upstream for voice —
+      the shipped correction + guard at the redirection hook are the mitigation.
+      One optional lever (offer to set the contact default) filed as a backlog idea.
 - [x] Same-contact number correction, behind the Settings toggle "Use contacts'
       local numbers" (off by default): when a dialed overseas number belongs to a
       contact with a local-region number, route the local number — confirmed via
@@ -486,5 +492,9 @@ System settings.
 - [ ] Evaluate confirm-first system redirect UX vs. custom chooser for the simple case.
 - [ ] Carrier-name stability for re-binding (roaming/MVNO rebrand data needed).
 - [ ] Per-number overrides.
+- [ ] Offer to set a contact's local number as their default (`IS_SUPER_PRIMARY`)
+      after a confirmed correction — fixes the Contacts/Dialer tap path upstream
+      (`docs/upstream-wrong-number.md`). Needs `WRITE_CONTACTS`, must be an explicit
+      offer (never a silent contact edit), and device QA of which callers honor it.
 - [ ] Bump compileSdk/targetSdk to Android 17 (API 37) once the CI SDK provisioning
       hook seeds that platform.
