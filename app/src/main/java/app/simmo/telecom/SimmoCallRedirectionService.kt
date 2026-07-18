@@ -12,6 +12,7 @@ import android.util.Log
 import app.simmo.SimmoApp
 import app.simmo.domain.PassToken
 import app.simmo.domain.PlacedCall
+import app.simmo.domain.ProceedReason
 import app.simmo.domain.Verdict
 import app.simmo.ui.ChooserActivity
 import app.simmo.ui.DelayedCallActivity
@@ -135,14 +136,13 @@ class SimmoCallRedirectionService : CallRedirectionService() {
         )
 
         app.appScope.launch {
-            val verdict = app.coordinator.decide(
-                PlacedCall(
-                    dialedNumber = handle.schemeSpecificPart.orEmpty(),
-                    // In-memory ref (a string derived from the handle — no IPC).
-                    currentAccount = app.assembler.refFor(initialPhoneAccount),
-                    interactive = allowInteractiveResponse,
-                ),
+            val placedCall = PlacedCall(
+                dialedNumber = handle.schemeSpecificPart.orEmpty(),
+                // In-memory ref (a string derived from the handle — no IPC).
+                currentAccount = app.assembler.refFor(initialPhoneAccount),
+                interactive = allowInteractiveResponse,
             )
+            val verdict = app.coordinator.decide(placedCall)
             when (verdict) {
                 is Verdict.Proceed -> {
                     verdict.consumedToken?.let(app.passTokens::consume)
@@ -252,6 +252,21 @@ class SimmoCallRedirectionService : CallRedirectionService() {
                             )
                             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
                     )
+                }
+            }
+            // A correction that existed but could neither be confirmed nor
+            // applied (hands-free with a shared line or several local
+            // numbers): the call above went out as dialed — offer the local
+            // number by notification instead of staying silent (maintainer
+            // direction). After the response, like the toasts; the in-flight
+            // call is never touched. Never for a pass-token proceed: that is
+            // a re-placed call the user just resolved — including "as dialed"
+            // from this very offer's chooser — and its token was consumed
+            // above, so the fresh snapshot read here would no longer see it
+            // and would re-post the same offer (Codex on PR #44).
+            if ((verdict as? Verdict.Proceed)?.reason != ProceedReason.PASS_TOKEN) {
+                app.coordinator.missedCorrection(placedCall)?.let { missed ->
+                    app.notifications.postLocalNumberOffer(missed, handle)
                 }
             }
         }

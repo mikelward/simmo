@@ -2,6 +2,7 @@ package app.simmo.telecom
 
 import app.simmo.domain.DecisionEngine
 import app.simmo.domain.DecisionSnapshot
+import app.simmo.domain.NumberCorrection
 import app.simmo.domain.PlacedCall
 import app.simmo.domain.ProceedReason
 import app.simmo.domain.Verdict
@@ -29,5 +30,17 @@ class RedirectionCoordinator(
         } catch (_: RuntimeException) {
             Verdict.Proceed(ProceedReason.INTERNAL_ERROR)
         }
+    }
+
+    /**
+     * A same-contact correction [decide] could neither confirm nor apply for
+     * [call] (see [DecisionEngine.missedCorrection]); the caller offers it by
+     * notification after responding. Same degradation as [decide]: a missing
+     * snapshot or an internal error is just "nothing to offer".
+     */
+    fun missedCorrection(call: PlacedCall): NumberCorrection? = try {
+        snapshotProvider()?.let { engine.missedCorrection(call, it, nowMillis()) }
+    } catch (_: RuntimeException) {
+        null
     }
 }

@@ -333,6 +333,12 @@ Android Auto safeguards").
       is offered for confirmation in the chooser with each owner's local
       numbers labeled by contact; hands-free a shared line is never
       corrected — whose number to call is the user's guess to make.
+- [x] Ambiguous hands-free corrections prompt instead of vanishing
+      (maintainer direction): when no UI can confirm and the mapping is
+      ambiguous (shared line, several local numbers), the call proceeds as
+      dialed and a "Call <contact>'s local number?" notification opens the
+      confirmation chooser; never auto-placed, self-dismissing, skipped
+      without `POST_NOTIFICATIONS` (nothing failed — no toast fallback).
 - [ ] Opt-in hands-free call guard: in non-interactive contexts, block overseas calls
       and/or calls whose rule needs a disabled SIM; cancel + notification with one-tap
       redial through the chooser. Decide the "driving" signal (per-call interactive-UI

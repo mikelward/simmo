@@ -120,8 +120,14 @@ internal fun buildChooserUiState(
             .filter { resolveSim(it, activeSims) !is SimResolution.Active }
             .map { it.displayName.ifBlank { it.carrierName } },
         numberChoices = numberCorrection?.let { correction ->
-            correction.candidates.map { NumberChoiceUi(it.number, it.contactName) } +
-                NumberChoiceUi(dialedNumber, contactName = null)
+            val locals = correction.candidates.map { NumberChoiceUi(it.number, it.contactName) }
+            val asDialed = NumberChoiceUi(dialedNumber, contactName = null)
+            // The first choice is the preselected one. A sole-owner correction
+            // leads with the local number — it is why this chooser opened. A
+            // shared line leads with "as dialed": whose local number the user
+            // meant is not Simmo's to guess (maintainer decision), so picking
+            // an owner is always a deliberate tap.
+            if (correction.sharedLine) listOf(asDialed) + locals else locals + asDialed
         }.orEmpty(),
     )
 }

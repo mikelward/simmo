@@ -16,11 +16,13 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.simmo.SimmoApp
+import app.simmo.domain.CountryVerdict
 import app.simmo.domain.HeldCall
 import app.simmo.domain.NumberCorrection
 import app.simmo.domain.Rule
@@ -28,9 +30,11 @@ import app.simmo.domain.RuleAction
 import app.simmo.domain.SimRef
 import app.simmo.domain.countryMatcher
 import app.simmo.telecom.replaceCallOrOpenDialer
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
@@ -56,7 +60,6 @@ class ChooserActivity : ComponentActivity() {
             return
         }
         val dialedNumber = handle.schemeSpecificPart.orEmpty()
-        val country = app.detectCountry(dialedNumber)
         val skippedSims = decodeSkippedSims(intent.getStringExtra(EXTRA_SKIPPED_SIMS))
         val numberCorrection = decodeNumberCorrection(intent.getStringExtra(EXTRA_NUMBER_CORRECTION))
         if (skippedSims.isNotEmpty()) {
@@ -74,12 +77,22 @@ class ChooserActivity : ComponentActivity() {
         }
         setContent {
             MaterialTheme {
-                // Rebuilt from the live SIM flow (its current value is warm,
-                // so the first frame is still instant): when the user jumps
-                // to SIM settings, enables the disabled SIM, and comes back,
-                // the SIM's call button appears and its note clears.
+                // Country detection is warm when launched mid-call-attempt,
+                // but the held-call and local-number notifications can
+                // cold-start the process minutes later (Codex on PR #44):
+                // detect off the main thread and let the label pop in, never
+                // load parser metadata during composition. Costs the label
+                // one frame on warm launches; the number renders instantly.
+                val country by produceState<CountryVerdict>(CountryVerdict.Undetermined, dialedNumber) {
+                    value = withContext(Dispatchers.Default) { app.detectCountry(dialedNumber) }
+                }
+                // Rebuilt from the live SIM flow: when the user jumps to SIM
+                // settings, enables the disabled SIM, and comes back, the
+                // SIM's call button appears and its note clears — and on a
+                // cold notification start, the targets fill in the same way
+                // as soon as the startup telephony refresh lands.
                 val sims by app.assembler.simsAndAccounts().collectAsStateWithLifecycle()
-                val state = remember(sims) {
+                val state = remember(sims, country) {
                     buildChooserUiState(
                         dialedNumber = dialedNumber,
                         country = country,

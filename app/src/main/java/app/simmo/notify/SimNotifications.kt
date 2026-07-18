@@ -18,6 +18,7 @@ import androidx.core.content.ContextCompat
 import app.simmo.MainActivity
 import app.simmo.R
 import app.simmo.domain.HeldCall
+import app.simmo.domain.NumberCorrection
 import app.simmo.ui.ChooserActivity
 
 /**
@@ -146,6 +147,40 @@ class SimNotifications(private val context: Context) {
             ?.importance == NotificationManagerCompat.IMPORTANCE_NONE
 
     /**
+     * "Call <contact>'s local number?" — a same-contact correction existed
+     * but could neither be confirmed (no UI allowed) nor applied silently
+     * (a shared line, or several local numbers), so the call went out as
+     * dialed (SPEC "Hands-free and Android Auto safeguards"). Tapping opens
+     * the chooser's number confirmation for [handle]; the in-flight call is
+     * never touched and nothing is auto-placed. Needs POST_NOTIFICATIONS —
+     * nothing failed here, so there is no toast fallback; the notification
+     * self-dismisses so a stale tel: URI isn't offered much later.
+     */
+    fun postLocalNumberOffer(correction: NumberCorrection, handle: Uri) {
+        val number = handle.schemeSpecificPart.orEmpty()
+        val intent = ChooserActivity.launchIntent(context, handle, emptyList(), correction)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        post(
+            tag = TAG_LOCAL_NUMBER + number,
+            // Gate on the line being shared, not on how many candidate names
+            // remain: a shared line where only one owner has a local number
+            // must not presume that owner is who the user meant to reach
+            // (Codex on PR #44). A sole-owner line names its contact.
+            title = if (correction.sharedLine) {
+                context.getString(R.string.notification_local_number_title_shared)
+            } else {
+                context.getString(
+                    R.string.notification_local_number_title,
+                    correction.candidates.first().contactName,
+                )
+            },
+            body = context.getString(R.string.notification_local_number_body, number),
+            contentIntent = intent,
+            timeoutMillis = LOCAL_NUMBER_OFFER_TIMEOUT_MILLIS,
+        )
+    }
+
+    /**
      * The settings "Show which SIM is used" announcement: "Calling using
      * <SIM>" as the redirection service routes a rule-picked call. A plain
      * text toast — permission-free, and posted from the service's background
@@ -226,6 +261,10 @@ class SimNotifications(private val context: Context) {
         private const val TAG_HELD_CALL = "held_call"
         private const val TAG_NEW_SIM = "new_sim:"
         private const val TAG_HANDOFF_FAILED = "handoff_failed:"
+        private const val TAG_LOCAL_NUMBER = "local_number:"
+
+        /** Same window as a held call: don't re-offer a stale tel: URI later. */
+        private const val LOCAL_NUMBER_OFFER_TIMEOUT_MILLIS = 15 * 60_000L
 
         /**
          * Floor for the self-dismiss window: the store only hands out live
