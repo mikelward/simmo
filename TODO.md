@@ -74,6 +74,12 @@ small stack), fully unit-tested, with `./gradlew test` and `./gradlew lint` gree
       picker (any destination or a specific country) and action picker (specific SIM
       from the registry, matching-country SIM, Ask, no change). Hand-off actions wait
       for Phase 5's reachable-app discovery.
+- [x] Per-rule actions menu (its ⋮ button or a long-press on the row): edit, duplicate
+      (copy inserted directly below), enable/disable, delete. Disabling adds a user
+      toggle to the rule model (`Rule.enabled`, defaults true so existing state reads as
+      on) that the engine skips over — kept in place and greyed with its own "Disabled"
+      label, distinct from the automatic SIM-pause skips. Reorder stays on the drag
+      handle, so long-press never contends with it.
 - [x] Country picker search: a searchable full-screen subpage (reached from the editor's
       country row) that fuzzy-matches by name, dial code, ISO alpha-2/alpha-3, and aliases
       (UK/USA/America), ranked exact/prefix-first with capitals-match-capitals acronym
