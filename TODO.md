@@ -401,7 +401,9 @@ System settings.
       homed in EU/EEA* and the "SIMs homed in the matched countries" scope it
       needs (the data-side sibling of the calling matching-country action).
 - [ ] Data snapshot reader as an extension of the existing telephony refresh — no
-      new permissions (`READ_PHONE_STATE` covers all of it), off the decision path.
+      new runtime permissions (`READ_PHONE_STATE` covers the telephony reads; the
+      connectivity layer below adds install-time `ACCESS_NETWORK_STATE`), off the
+      decision path.
 - [ ] Warning notification: "Using data roaming" naming SIM and country, one
       Settings action into the data rules screen; fires once per SIM-and-country
       arrival (persisted dedupe, cleared when the country changes or a covering
@@ -416,8 +418,9 @@ System settings.
       receivers for `TIMEZONE_CHANGED`, `CARRIER_CONFIG_CHANGED`, `BOOT_COMPLETED`;
       service-state listener while resident; spike the `ConnectivityManager`
       PendingIntent callback (registered at boot, roaming-capability check in the
-      receiver). Device QA owed: firing behavior across carriers/handovers, and
-      end-to-end warning latency with a dead process.
+      receiver — declare the normal `ACCESS_NETWORK_STATE` permission both need,
+      flagged by Codex on PR #47). Device QA owed: firing behavior across
+      carriers/handovers, and end-to-end warning latency with a dead process.
 - [ ] Data rules UI: a Data list beside Calling on the rules home (terminology per
       SPEC "Product behavior": Calling rules / Data rules / System settings; exact
       navigation shape decided at build time), list + editor reusing the country
