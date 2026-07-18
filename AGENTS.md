@@ -112,6 +112,19 @@ fixing it in the same commit.
   `git merge origin/main --no-commit` before bisecting your own commits. Check whether
   the failure is pre-existing on the base commit before debugging.
 
+## Asking questions
+
+- Ask questions as plain chat messages. Claude specifically: never use the
+  `AskUserQuestion` tool. Chat keeps the question, its context, and the answer in one
+  readable thread.
+- After asking, stop and wait for the answer. Don't proceed on an assumed answer, pick
+  a "recommended" option yourself, or keep working on the part the question affects.
+- Acknowledge every answer explicitly before acting on it, so it's clear the answer was
+  received and how it was understood.
+- Whenever you change direction — because of an answer, something discovered in the
+  code, a failing check, or any other reason — say so immediately in chat: what changed,
+  and why. Never let a plan silently drift from what was last stated.
+
 ## Language and spelling
 
 Use US English everywhere people read English: user-facing strings, commit subjects and
