@@ -395,6 +395,11 @@ Android Auto safeguards").
       can push listing updates.
 - [ ] Play listing graphics: store screenshots (device frames of rules list,
       chooser, enable flow), 512×512 icon, feature graphic.
+- [ ] Sync the fastlane listing metadata into Play Console at first submission
+      (manual paste today — see `docs/play-store-internal-track.md` "Store
+      listing"; consider wiring metadata sync, e.g. `fastlane supply`, into the
+      deploy job later). The current description covers data rules — do not
+      publish it before Phase 9 ships.
 - [x] Privacy policy (`docs/PRIVACY.md`) — short thanks to the no-INTERNET-permission
       commitment; served by stock branch-based GitHub Pages (Jekyll) at
       https://mikelward.github.io/simmo/PRIVACY.html once Pages is enabled.
