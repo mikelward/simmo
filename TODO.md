@@ -415,7 +415,7 @@ Design in SPEC "Data rules" and "Data-roaming visibility (no foreground service)
 Watched, not enforced: Simmo never changes data state; it warns and guides to
 System settings.
 
-- [ ] Domain: data-rule model — location matcher (countries/groups, reusing the
+- [x] Domain: data-rule model — location matcher (countries/groups, reusing the
       calling picker and groups) + expectation (use-SIM-for-data / roaming-OK,
       optionally SIM-scoped / warn) — ordered first-match evaluation, and the
       no-match default (warn when the data SIM is roaming; home network never
@@ -425,6 +425,9 @@ System settings.
       shapes. Includes the preseeded default *when in EU/EEA → roaming OK on SIMs
       homed in EU/EEA* and the "SIMs homed in the matched countries" scope it
       needs (the data-side sibling of the calling matching-country action).
+      Landed as `domain/DataRules.kt` + `domain/DataWatch.kt`, plus the
+      persisted `SimmoState.dataRules` (pre-field state decodes to the preseed;
+      install validation invalidates stored SimRefs like calling rules).
 - [ ] Data snapshot reader as an extension of the existing telephony refresh — no
       new runtime permissions (`READ_PHONE_STATE` covers the telephony reads; the
       connectivity layer below adds install-time `ACCESS_NETWORK_STATE`), off the

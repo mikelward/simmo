@@ -1,5 +1,9 @@
 package app.simmo.store
 
+import app.simmo.domain.DataExpectation
+import app.simmo.domain.DataRule
+import app.simmo.domain.DataRuleBook
+import app.simmo.domain.DataSimScope
 import app.simmo.domain.PhoneAccountRef
 import app.simmo.domain.RegisteredSim
 import app.simmo.domain.Rule
@@ -25,6 +29,21 @@ class SimmoStateValidationTest {
         simRegistry = listOf(
             RegisteredSim(1, "Telstra", "Telstra personal", 100L),
             RegisteredSim(2, "T-Mobile", "T-Mobile US", 200L),
+        ),
+        dataRules = DataRuleBook(
+            listOf(
+                DataRule(
+                    RuleMatcher.Country("AU"),
+                    DataExpectation.UseSimForData(SimRef(1, "Telstra", "Telstra personal")),
+                ),
+                DataRule(
+                    RuleMatcher.Country("FR"),
+                    DataExpectation.RoamingOk(
+                        DataSimScope.Sims(listOf(SimRef(2, "T-Mobile", "T-Mobile US"))),
+                    ),
+                ),
+                DataRule(RuleMatcher.Country("TR"), DataExpectation.AlwaysWarn),
+            ) + DataRuleBook.defaultDataRules(),
         ),
         defaultRegionOverride = "AU",
         installId = "old-phone",
@@ -61,6 +80,27 @@ class SimmoStateValidationTest {
         )
         assertEquals("new-phone", migrated.installId)
         assertEquals("AU", migrated.defaultRegionOverride)
+    }
+
+    @Test
+    fun `mismatched install id also invalidates SIM refs inside data rules`() {
+        // Data rules store SimRefs too (use-SIM expectation, scoped RoamingOk);
+        // a restored subscription id must never exact-match a stranger's SIM.
+        val migrated = state.withInstallValidated("new-phone")
+        val invalid = SimRef.INVALID_SUBSCRIPTION_ID
+        assertEquals(
+            DataExpectation.UseSimForData(SimRef(invalid, "Telstra", "Telstra personal")),
+            migrated.dataRules.rules[0].expectation,
+        )
+        assertEquals(
+            DataExpectation.RoamingOk(
+                DataSimScope.Sims(listOf(SimRef(invalid, "T-Mobile", "T-Mobile US"))),
+            ),
+            migrated.dataRules.rules[1].expectation,
+        )
+        // AlwaysWarn and the preseeded homed-in-matched rule carry no ids.
+        assertEquals(state.dataRules.rules[2], migrated.dataRules.rules[2])
+        assertEquals(state.dataRules.rules[3], migrated.dataRules.rules[3])
     }
 
     @Test
