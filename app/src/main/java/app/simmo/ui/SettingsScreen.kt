@@ -37,13 +37,15 @@ import app.simmo.R
 import app.simmo.store.SimmoState
 import kotlin.math.roundToInt
 
-/** The Settings screen's call options, mirroring persisted state. */
-data class CallSettingsUi(
+/** The Settings screen's options, mirroring persisted state. */
+data class SettingsUi(
     val showCallToast: Boolean = false,
     /** Seconds of cancelable countdown before a rule-picked call; 0 = off. */
     val callDelaySeconds: Int = 0,
     /** Same-contact number correction (SPEC "Hands-free and Android Auto safeguards"). */
     val correctContactNumbers: Boolean = false,
+    /** The "Make Simmo better" telemetry choice (SPEC "Permissions and privacy"). */
+    val analyticsOptIn: Boolean = true,
 )
 
 /**
@@ -59,7 +61,7 @@ fun SettingsScreen(
     onOpenSims: () -> Unit,
     onBack: () -> Unit,
 ) {
-    val settings by viewModel.callSettings.collectAsStateWithLifecycle()
+    val settings by viewModel.settings.collectAsStateWithLifecycle()
     val contactsLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
     ) { granted ->
@@ -81,6 +83,7 @@ fun SettingsScreen(
             }
         },
         onRequestContacts = { contactsLauncher.launch(Manifest.permission.READ_CONTACTS) },
+        onAnalyticsOptInChange = viewModel::setAnalyticsOptIn,
         onOpenSims = onOpenSims,
         onBack = onBack,
     )
@@ -88,12 +91,13 @@ fun SettingsScreen(
 
 @Composable
 internal fun SettingsContent(
-    settings: CallSettingsUi = CallSettingsUi(),
+    settings: SettingsUi = SettingsUi(),
     contactsGranted: Boolean = true,
     onShowCallToastChange: (Boolean) -> Unit = {},
     onCallDelayChange: (Int) -> Unit = {},
     onCorrectContactNumbersChange: (Boolean) -> Unit = {},
     onRequestContacts: () -> Unit = {},
+    onAnalyticsOptInChange: (Boolean) -> Unit = {},
     onOpenSims: () -> Unit = {},
     onBack: () -> Unit = {},
 ) {
@@ -254,6 +258,36 @@ internal fun SettingsContent(
                         Text(stringResource(R.string.settings_local_numbers_allow))
                     }
                 }
+            }
+            // The onboarding "Make Simmo better" choice, changeable after
+            // setup — the privacy policy says this switch controls collection,
+            // so a set-up user must be able to reach it.
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .toggleable(
+                        value = settings.analyticsOptIn,
+                        role = Role.Switch,
+                        onValueChange = onAnalyticsOptInChange,
+                    )
+                    .padding(vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.analytics_opt_in_label),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                    Text(
+                        text = stringResource(R.string.analytics_opt_in_description),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Switch(
+                    checked = settings.analyticsOptIn,
+                    onCheckedChange = null,
+                )
             }
         }
     }

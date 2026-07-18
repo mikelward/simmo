@@ -28,10 +28,11 @@ class SettingsScreenshotTest {
         composeRule.setContent {
             MaterialTheme {
                 SettingsContent(
-                    settings = CallSettingsUi(
+                    settings = SettingsUi(
                         showCallToast = true,
                         callDelaySeconds = 3,
                         correctContactNumbers = true,
+                        analyticsOptIn = true,
                     ),
                 )
             }
@@ -44,6 +45,7 @@ class SettingsScreenshotTest {
         composeRule.onNodeWithText("Delay before calling").assertExists()
         composeRule.onNodeWithText("3 seconds").assertExists()
         composeRule.onNodeWithText("Use contacts' local numbers").assertExists()
+        composeRule.onNodeWithText("Make Simmo better").assertExists()
         captureSnapshot("settings.png")
     }
 

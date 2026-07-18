@@ -22,7 +22,8 @@ class TelemetryGateTest {
         val applied = mutableListOf<Boolean>()
         val persisted = MutableSharedFlow<Boolean>()
         val job = launch {
-            TelemetryGate { applied += it }.follow(persisted, taps = MutableStateFlow(null))
+            TelemetryGate { applied += it }
+                .follow(TelemetryGate.effectiveOptIns(persisted, taps = MutableStateFlow(null)))
         }
         runCurrent()
 
@@ -42,7 +43,10 @@ class TelemetryGateTest {
         val applied = mutableListOf<Boolean>()
         val persisted = MutableSharedFlow<Boolean>()
         val taps = MutableStateFlow<Boolean?>(null)
-        val job = launch { TelemetryGate { applied += it }.follow(persisted, taps) }
+        val job = launch {
+            TelemetryGate { applied += it }
+                .follow(TelemetryGate.effectiveOptIns(persisted, taps))
+        }
         runCurrent()
 
         persisted.emit(true) // Fresh install: the default loads as opted in.
@@ -51,6 +55,47 @@ class TelemetryGateTest {
         runCurrent()
 
         assertEquals(listOf(true, false), applied)
+        job.cancel()
+    }
+
+    @Test
+    fun `a tap emits before the persisted state has loaded`() = runTest {
+        val applied = mutableListOf<Boolean>()
+        val persisted = MutableSharedFlow<Boolean>()
+        val taps = MutableStateFlow<Boolean?>(null)
+        val job = launch {
+            TelemetryGate { applied += it }
+                .follow(TelemetryGate.effectiveOptIns(persisted, taps))
+        }
+        runCurrent()
+
+        taps.value = false // Tapped while DataStore is still loading.
+        runCurrent()
+        assertEquals(listOf(false), applied)
+
+        persisted.emit(true) // The late, stale state must not flip it back.
+        runCurrent()
+        assertEquals(listOf(false), applied)
+        job.cancel()
+    }
+
+    @Test
+    fun `a marker-seeded re-enable wins over a staler persisted opt-out`() = runTest {
+        val applied = mutableListOf<Boolean>()
+        val persisted = MutableSharedFlow<Boolean>()
+        // The re-enable's marker committed but its main-state write was lost;
+        // startup seeds the marker value before the state loads.
+        val taps = MutableStateFlow<Boolean?>(true)
+        val job = launch {
+            TelemetryGate { applied += it }
+                .follow(TelemetryGate.effectiveOptIns(persisted, taps))
+        }
+        runCurrent()
+
+        persisted.emit(false) // The stale opt-out from the lost write.
+        runCurrent()
+
+        assertEquals(listOf(true), applied)
         job.cancel()
     }
 

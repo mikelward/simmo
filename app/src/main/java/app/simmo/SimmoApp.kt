@@ -33,11 +33,15 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.asExecutor
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
@@ -97,6 +101,63 @@ class SimmoApp : Application() {
     /** For the UI, which needs to react when the holder becomes available. */
     fun stateHolders(): StateFlow<SimmoStateHolder?> = stateHolderFlow
 
+    /**
+     * The best-known choice right now from memory alone — never disk, so UI
+     * construction can call it on the first frame's critical path: the
+     * latest in-process tap (which the off-main marker seeding also feeds),
+     * else the loaded state when it's already in memory (a restore carries
+     * no marker — only `datastore/` is backed up), else the default (on).
+     * For seeding initial UI state; [analyticsOptIns] is the live stream,
+     * which folds in the durable marker itself.
+     */
+    fun currentAnalyticsOptIn(): Boolean =
+        optInTaps.value
+            ?: stateHolder()?.current?.analyticsOptIn
+            ?: true
+
+    /**
+     * The effective "Make Simmo better" choice: the latest in-process tap (or
+     * the durable marker it left behind) masking the persisted state. The
+     * telemetry gate and the Settings switch both read this stream, so the
+     * switch always shows what telemetry is actually doing — including in the
+     * crash-recovery window where the marker says off but the main state
+     * still says on.
+     */
+    fun analyticsOptIns(): Flow<Boolean> =
+        TelemetryGate.effectiveOptIns(
+            // Only the persisted branch waits for the holder; taps subscribe
+            // and emit at once, so a flip in the first instants of the
+            // process is visible before the holder is even published. The
+            // branch consults the durable marker before it may emit — on the
+            // collector's worker via flowOn, never blocking process start,
+            // which sits on the cold-call path (AGENTS "Fast decision
+            // path") — so a stale stored value can't slip out ahead of a
+            // crash-recovered choice.
+            persisted = flow {
+                seedTapFromMarker()
+                emitAll(
+                    stateHolderFlow.filterNotNull().first().state
+                        .filterNotNull()
+                        .map { it.analyticsOptIn },
+                )
+            }.flowOn(Dispatchers.Default),
+            taps = optInTaps,
+        )
+
+    /**
+     * Seeds the durable marker as a synthetic tap — the marker is the
+     * freshest record of the choice (every tap commits it before the slower
+     * main-state write), so a crash that loses that write can't misapply
+     * the last choice in either direction. Idempotent, and a real tap
+     * always wins the seed.
+     */
+    private fun seedTapFromMarker() {
+        val marker = getSharedPreferences(TELEMETRY_PREFS, MODE_PRIVATE)
+        if (marker.contains(KEY_OPT_IN)) {
+            optInTaps.compareAndSet(null, marker.getBoolean(KEY_OPT_IN, true))
+        }
+    }
+
     override fun onCreate() {
         super.onCreate()
         val reader = TelephonyReader(this)
@@ -137,27 +198,20 @@ class SimmoApp : Application() {
             metadataWarm = true
         }
         appScope.launch {
-            // Crash reporting and analytics follow the persisted "Make Simmo
-            // better" choice; until the state loads, the manifest keeps
-            // collection off, and in-process taps mask staler persisted
-            // values (see setAnalyticsOptIn). No-op in builds without a
-            // Firebase config.
+            // Seed the marker off the main thread — cold start for a call
+            // must never wait on disk (AGENTS "Fast decision path"). Stream
+            // correctness doesn't depend on this early seed: every collector's
+            // persisted branch consults the marker itself before emitting.
+            // This one feeds the snap readers (currentAnalyticsOptIn) and the
+            // opt-out cleanup below.
+            seedTapFromMarker()
+            // Crash reporting and analytics follow the effective choice;
+            // until the state loads, the manifest keeps collection off.
+            // No-op in builds without a Firebase config.
             val gate = telemetry ?: return@launch
-            // An opt-out marked durably at tap time outlives a crash that
-            // loses the slower main-state write: seed it as a synthetic tap
-            // so a stale persisted "on" can't resurrect collection, and run
-            // the opt-out cleanup now rather than after the state loads.
-            val marker = getSharedPreferences(TELEMETRY_PREFS, MODE_PRIVATE)
-            if (!marker.getBoolean(KEY_OPT_IN, true) && optInTaps.value == null) {
-                optInTaps.value = false
-                gate.set(false)
-            }
-            gate.follow(
-                persisted = stateHolderFlow.filterNotNull().first().state
-                    .filterNotNull()
-                    .map { it.analyticsOptIn },
-                taps = optInTaps,
-            )
+            // A marked opt-out runs its cleanup now, not after the state loads.
+            if (optInTaps.value == false) gate.set(false)
+            gate.follow(analyticsOptIns())
         }
         appScope.launch {
             // One sequential collector persists the opt-in taps into the main
