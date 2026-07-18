@@ -128,13 +128,16 @@ small stack), fully unit-tested, with `./gradlew test` and `./gradlew lint` gree
       prepaid/MVNO tiers are domestic-only), and "Caribbean +1" (the 18 non-US
       NANP countries that dial like domestic calls but bill internationally),
       enabling the guard rule "Caribbean +1 → Ask" placed above a USA rule.
-- [ ] Custom country groups: user-defined groups ("My plan's included countries")
-      created in the picker and referenced from rules like the built-ins — the
-      answer to carrier "Tier 1"/zone lists, which differ per carrier (and often
-      split landline vs. mobile) so no shipped list can be right. Also the home
-      for carrier-footprint sets (Vodafone/Three/T-Mobile markets) rejected as
-      built-ins. Membership must resolve from the warm snapshot on the decision
-      path, same as built-in groups resolve from the static table.
+- [x] Custom country groups: user-defined groups ("Vodafone Zone 1") created and
+      managed on a Country groups screen (reached from the rules list) and referenced
+      from rules like the built-ins — the answer to carrier "Tier 1"/zone lists, which
+      differ per carrier so no shipped list can be right. Persisted as
+      `SimmoState.customGroups`; membership resolves from the warm snapshot on the
+      decision path, the same as built-in groups resolve from the static table (the
+      two id spaces are disjoint). Custom groups are selectable in the rule editor's
+      country picker; a deleted group leaves referencing rules matching none of it.
+  - [ ] Create a group from within the picker (currently created on the Groups screen),
+        so a group can be made in the middle of scoping a rule without losing context.
 - [ ] Per-contact rule overrides: consider letting a rule (or a quick action) target a
       specific contact — e.g. "always call Mum on Telstra" — layered above the
       country rules. Decide where it lives in the ordered rule model and how it reads on
