@@ -22,12 +22,13 @@ import kotlinx.serialization.Serializable
 enum class DialHandoffApp(val packageName: String, val label: String) {
     GOOGLE_VOICE("com.google.android.apps.googlevoice", "Google Voice"),
     TEAMS("com.microsoft.teams", "Microsoft Teams"),
+    VIBER("com.viber.voip", "Viber"),
     ;
 
     /**
-     * The deep link that opens this app at [e164] (`+<cc><national>`). The `+` is
-     * encoded as `%2B` in every template — it sits in a query/path value where a
-     * literal `+` decodes to a space (docs/handoff-intents.md).
+     * The deep link that opens this app at [e164] (`+<cc><national>`). Google
+     * Voice and Teams encode the `+` as `%2B` — it sits in a query/path value
+     * where a literal `+` decodes to a space (docs/handoff-intents.md).
      */
     fun launchUri(e164: String): String {
         val digits = e164.removePrefix("+")
@@ -38,6 +39,10 @@ enum class DialHandoffApp(val packageName: String, val label: String) {
             // 4: is the PSTN MRI prefix; connecting the number needs a Teams
             // Phone calling plan (app-to-app Teams calls work without one).
             TEAMS -> "msteams://teams.microsoft.com/l/call/0/0?users=4:%2B$digits"
+            // Opens Viber's keypad pre-filled with the number (not auto-dial);
+            // calling a non-Viber number needs Viber Out credit. The keypad form
+            // takes the bare digits (docs/handoff-intents.md).
+            VIBER -> "viber://keypad?number=$digits"
         }
     }
 }
