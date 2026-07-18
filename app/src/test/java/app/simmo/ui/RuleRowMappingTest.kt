@@ -92,4 +92,13 @@ class RuleRowMappingTest {
         assertEquals(null, row.matcherCountryLabel)
         assertNull(row.pause)
     }
+
+    @Test
+    fun `the rule's enabled flag carries into the row`() {
+        val on = Rule(RuleMatcher.AnyDestination, RuleAction.SystemDefault).toRow(emptyList())
+        assertEquals(true, on.enabled)
+        val off = Rule(RuleMatcher.AnyDestination, RuleAction.SystemDefault, enabled = false)
+            .toRow(emptyList())
+        assertEquals(false, off.enabled)
+    }
 }

@@ -65,6 +65,20 @@ class DecisionEngineTest {
         )
     }
 
+    @Test
+    fun `a disabled rule is skipped even when it matches`() {
+        // The AU rule would win, but the user turned it off, so evaluation
+        // falls through to the next applicable rule.
+        val rules = listOf(
+            country("AU", RuleAction.UseSim(telstra.ref())).copy(enabled = false),
+            any(RuleAction.SystemDefault),
+        )
+        assertEquals(
+            Verdict.Proceed(ProceedReason.SYSTEM_DEFAULT),
+            engine.decide(call(auNumber), snapshot(rules), now),
+        )
+    }
+
     // --- App-to-app (contact) hand-off ---
 
     private val whatsApp = RuleAction.HandOff.ViaContactApp(ContactCallApp.WHATSAPP)

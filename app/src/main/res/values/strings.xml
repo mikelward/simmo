@@ -70,6 +70,20 @@
     <!-- TODO: translate -->
     <string name="rules_drag_handle" tools:ignore="MissingTranslation">Drag to reorder</string>
     <!-- TODO: translate -->
+    <string name="rule_menu_more" tools:ignore="MissingTranslation">More options</string>
+    <!-- TODO: translate -->
+    <string name="rule_menu_edit" tools:ignore="MissingTranslation">Edit</string>
+    <!-- TODO: translate -->
+    <string name="rule_menu_duplicate" tools:ignore="MissingTranslation">Duplicate</string>
+    <!-- TODO: translate -->
+    <string name="rule_menu_disable" tools:ignore="MissingTranslation">Disable</string>
+    <!-- TODO: translate -->
+    <string name="rule_menu_enable" tools:ignore="MissingTranslation">Enable</string>
+    <!-- TODO: translate -->
+    <string name="rule_menu_delete" tools:ignore="MissingTranslation">Delete</string>
+    <!-- TODO: translate -->
+    <string name="rule_disabled" tools:ignore="MissingTranslation">Disabled</string>
+    <!-- TODO: translate -->
     <string name="new_sim_prompt_title" tools:ignore="MissingTranslation">New SIM: %1$s</string>
     <!-- TODO: translate -->
     <string name="new_sim_prompt_body" tools:ignore="MissingTranslation">Add a rule so your calls know when to use it.</string>

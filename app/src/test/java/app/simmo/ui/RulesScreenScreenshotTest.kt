@@ -6,9 +6,12 @@ import android.view.View
 import androidx.activity.ComponentActivity
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import app.simmo.domain.SimRef
 import com.github.takahirom.roborazzi.captureRoboImage
+import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -38,7 +41,8 @@ class RulesScreenScreenshotTest {
                         RuleRowUi("+1 United States", ActionUi.UseSim("T-Mobile")),
                         RuleRowUi("+44 United Kingdom", ActionUi.UseSim("Vodafone UK"), pause = RulePause.SIM_DISABLED),
                         RuleRowUi("+81 Japan", ActionUi.UseSim("Docomo"), pause = RulePause.SIM_AMBIGUOUS),
-                        RuleRowUi("+64 New Zealand", ActionUi.Ask),
+                        // User-disabled: greyed with its own label, separate from a SIM pause.
+                        RuleRowUi("+64 New Zealand", ActionUi.Ask, enabled = false),
                         RuleRowUi("+33 France, +49 Germany", ActionUi.UseSim("T-Mobile")),
                         RuleRowUi(null, ActionUi.MatchingCountrySim),
                         RuleRowUi(null, ActionUi.SystemDefault),
@@ -53,8 +57,33 @@ class RulesScreenScreenshotTest {
 
         composeRule.onNodeWithText("+61 Australia").assertExists()
         composeRule.onNodeWithText("SIM disabled — rule paused").assertExists()
+        composeRule.onNodeWithText("Disabled").assertExists()
         composeRule.onNodeWithText("New SIM: Optus travel").assertExists()
         captureSnapshot("rules_list.png")
+    }
+
+    @Test
+    fun overflowMenu_duplicateAndDisableInvokeCallbacks() {
+        var duplicated = -1
+        var toggled: Pair<Int, Boolean>? = null
+        composeRule.setContent {
+            MaterialTheme {
+                RulesScreenContent(
+                    rows = listOf(RuleRowUi("+61 Australia", ActionUi.UseSim("Telstra"))),
+                    onDuplicateRule = { duplicated = it },
+                    onSetRuleEnabled = { i, enabled -> toggled = i to enabled },
+                )
+            }
+        }
+
+        // An enabled rule's menu offers Disable; picking it toggles off.
+        composeRule.onNodeWithContentDescription("More options").performClick()
+        composeRule.onNodeWithText("Disable").performClick()
+        composeRule.runOnIdle { assertEquals(0 to false, toggled) }
+
+        composeRule.onNodeWithContentDescription("More options").performClick()
+        composeRule.onNodeWithText("Duplicate").performClick()
+        composeRule.runOnIdle { assertEquals(0, duplicated) }
     }
 
     private fun captureSnapshot(name: String, widthPx: Int = 1080, heightPx: Int = 1920) {

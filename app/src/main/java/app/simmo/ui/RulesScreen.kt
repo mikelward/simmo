@@ -1,6 +1,7 @@
 package app.simmo.ui
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -17,9 +18,12 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -65,6 +69,9 @@ fun RulesScreen(
         newSimPrompts = newSimPrompts,
         onAddRule = onAddRule,
         onEditRule = onEditRule,
+        onDuplicateRule = viewModel::duplicateRule,
+        onDeleteRule = viewModel::removeRule,
+        onSetRuleEnabled = viewModel::setRuleEnabled,
         onMoveRule = viewModel::moveRule,
         onAddRuleForSim = viewModel::openNewRuleForSim,
         onDismissNewSimPrompt = viewModel::dismissNewSimPrompt,
@@ -78,6 +85,9 @@ internal fun RulesScreenContent(
     newSimPrompts: List<NewSimPromptUi> = emptyList(),
     onAddRule: () -> Unit = {},
     onEditRule: (Int) -> Unit = {},
+    onDuplicateRule: (Int) -> Unit = {},
+    onDeleteRule: (Int) -> Unit = {},
+    onSetRuleEnabled: (Int, Boolean) -> Unit = { _, _ -> },
     onMoveRule: (Int, Int) -> Unit = { _, _ -> },
     onAddRuleForSim: (NewSimPromptUi) -> Unit = {},
     onDismissNewSimPrompt: (SimRef) -> Unit = {},
@@ -154,6 +164,9 @@ internal fun RulesScreenContent(
                             dragState = dragState,
                             index = index,
                             onClick = { onEditRule(index) },
+                            onDuplicate = { onDuplicateRule(index) },
+                            onDelete = { onDeleteRule(index) },
+                            onSetEnabled = { enabled -> onSetRuleEnabled(index, enabled) },
                             modifier = Modifier
                                 // Draw the dragged row above its neighbors. The
                                 // translation is read inside the layer block so
@@ -221,6 +234,9 @@ private fun RuleRow(
     dragState: DragReorderState,
     index: Int,
     onClick: () -> Unit,
+    onDuplicate: () -> Unit,
+    onDelete: () -> Unit,
+    onSetEnabled: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     // Rows are identified by position (rules have no stable IDs), so the
@@ -228,16 +244,21 @@ private fun RuleRow(
     // start rather than baking one into the pointerInput key — restarting
     // the pointer coroutine mid-drag would cancel the drag.
     val currentIndex by rememberUpdatedState(index)
+    var menuOpen by remember { mutableStateOf(false) }
+    // Greyed when the rule can't act — either the user turned it off or an
+    // automatic pause (disabled SIM, ambiguous re-bind) applies. Applied to the
+    // handle and content, not the whole row, so the actions menu button stays
+    // legible enough to re-enable a disabled rule.
+    val contentAlpha = if (!row.enabled || row.pause != null) 0.4f else 1f
     Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .alpha(if (row.pause == null) 1f else 0.4f),
+        modifier = modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         // Sized like the editor's radio buttons for a 48dp touch target.
         Box(
             modifier = Modifier
                 .size(48.dp)
+                .alpha(contentAlpha)
                 .pointerInputDragHandle(dragState) { currentIndex },
             contentAlignment = Alignment.Center,
         ) {
@@ -250,7 +271,10 @@ private fun RuleRow(
         Column(
             modifier = Modifier
                 .weight(1f)
-                .clickable(onClick = onClick),
+                // Tap edits; long-press opens the same menu as the ⋮ button.
+                // Reorder lives on the handle, so long-press here never contends.
+                .combinedClickable(onClick = onClick, onLongClick = { menuOpen = true })
+                .alpha(contentAlpha),
         ) {
             Text(
                 text = row.matcherCountryLabel ?: stringResource(R.string.rule_matcher_any),
@@ -266,15 +290,54 @@ private fun RuleRow(
                 },
                 style = MaterialTheme.typography.bodyMedium,
             )
-            when (row.pause) {
-                null -> Unit
-                RulePause.SIM_DISABLED -> Text(
+            // The user-off state reads first: it overrides why the rule can't
+            // act (an off rule wouldn't act even with its SIM enabled).
+            when {
+                !row.enabled -> Text(
+                    text = stringResource(R.string.rule_disabled),
+                    style = MaterialTheme.typography.labelMedium,
+                )
+                row.pause == RulePause.SIM_DISABLED -> Text(
                     text = stringResource(R.string.rule_sim_disabled),
                     style = MaterialTheme.typography.labelMedium,
                 )
-                RulePause.SIM_AMBIGUOUS -> Text(
+                row.pause == RulePause.SIM_AMBIGUOUS -> Text(
                     text = stringResource(R.string.rule_sim_ambiguous),
                     style = MaterialTheme.typography.labelMedium,
+                )
+            }
+        }
+        // The row's actions. The menu is not dimmed with the rule — it must
+        // stay legible to re-enable a disabled rule.
+        Box {
+            IconButton(onClick = { menuOpen = true }) {
+                Icon(
+                    imageVector = Icons.Filled.MoreVert,
+                    contentDescription = stringResource(R.string.rule_menu_more),
+                )
+            }
+            DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.rule_menu_edit)) },
+                    onClick = { menuOpen = false; onClick() },
+                )
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.rule_menu_duplicate)) },
+                    onClick = { menuOpen = false; onDuplicate() },
+                )
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            stringResource(
+                                if (row.enabled) R.string.rule_menu_disable else R.string.rule_menu_enable,
+                            ),
+                        )
+                    },
+                    onClick = { menuOpen = false; onSetEnabled(!row.enabled) },
+                )
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.rule_menu_delete)) },
+                    onClick = { menuOpen = false; onDelete() },
                 )
             }
         }
