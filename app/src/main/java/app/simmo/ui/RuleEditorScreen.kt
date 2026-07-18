@@ -2,7 +2,10 @@ package app.simmo.ui
 
 import android.Manifest
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.os.Build
+import android.provider.Settings
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -48,6 +51,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -62,6 +66,7 @@ import app.simmo.domain.SimRef
 import app.simmo.domain.destinationMatcher
 import app.simmo.domain.groupIds
 import app.simmo.domain.regionCodes
+import app.simmo.notify.SimNotifications
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -115,11 +120,40 @@ fun RuleEditorScreen(
     // the filled bucket.
     val context = LocalContext.current
     var contactsGranted by remember { mutableStateOf(isContactsGranted(context)) }
+    // Notifications back the "couldn't open <app>" failure notice, so picking a
+    // hand-off action asks for POST_NOTIFICATIONS (once — a denial isn't
+    // re-nagged on every pick) and, while notifications stay off, the selected
+    // hand-off row shows a tappable enable hint. `areNotificationsEnabled`
+    // rather than the bare permission check: notifications turned off in system
+    // settings (any SDK) mute the notice just the same.
+    var notificationsEnabled by remember { mutableStateOf(areNotificationsEnabled(context)) }
+    var notificationsAsked by rememberSaveable { mutableStateOf(false) }
+    val notificationsLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) {
+        notificationsEnabled = areNotificationsEnabled(context)
+    }
+    fun requestNotifications() {
+        if (canRequestNotifications(context) && !notificationsAsked) {
+            notificationsAsked = true
+            notificationsLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
+    // Picking WhatsApp needs contacts *and* notifications; two launchers can't
+    // be in flight together, so the contacts result chains into the
+    // notifications ask (the callback also fires immediately when contacts are
+    // already granted). The picker's suggest affordance shares the launcher but
+    // not the chain — suggesting countries has nothing to notify about.
+    var chainNotificationsRequest by remember { mutableStateOf(false) }
     val contactsLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
     ) { granted ->
         contactsGranted = granted
         if (granted) viewModel.onContactsAccessGranted()
+        if (chainNotificationsRequest) {
+            chainNotificationsRequest = false
+            requestNotifications()
+        }
     }
     // A grant or revoke made in Settings bypasses the launcher, so re-check on
     // every resume — otherwise a revocation would leave the prompt suppressed
@@ -128,7 +162,10 @@ fun RuleEditorScreen(
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) contactsGranted = isContactsGranted(context)
+            if (event == Lifecycle.Event.ON_RESUME) {
+                contactsGranted = isContactsGranted(context)
+                notificationsEnabled = areNotificationsEnabled(context)
+            }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
@@ -143,6 +180,26 @@ fun RuleEditorScreen(
         handOffApps = handOffApps,
         dialHandoffApps = dialHandoffApps,
         onRequestContactsAccess = { contactsLauncher.launch(Manifest.permission.READ_CONTACTS) },
+        notificationsEnabled = notificationsEnabled,
+        onRequestNotifications = ::requestNotifications,
+        onContactHandOffPicked = {
+            chainNotificationsRequest = true
+            contactsLauncher.launch(Manifest.permission.READ_CONTACTS)
+        },
+        onEnableNotifications = {
+            // The hint must always lead somewhere: request while the dialog can
+            // still show, otherwise (already asked and denied, or notifications
+            // off in settings) open the app's notification settings.
+            if (canRequestNotifications(context) && !notificationsAsked) {
+                notificationsAsked = true
+                notificationsLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            } else {
+                context.startActivity(
+                    Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                        .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName),
+                )
+            }
+        },
         onSave = { draft ->
             val rule = ruleFromDraft(draft, target)
             when (target) {
@@ -179,8 +236,16 @@ internal fun RuleEditorContent(
     handOffApps: Set<ContactCallApp> = emptySet(),
     /** Reachable dial-intent hand-off targets (Google Voice, Teams); each is an action. */
     dialHandoffApps: Set<DialHandoffApp> = emptySet(),
-    /** Invoked when a contact-app action is picked, to request READ_CONTACTS. */
+    /** Invoked from the country picker's suggest affordance, to request READ_CONTACTS. */
     onRequestContactsAccess: () -> Unit = {},
+    /** False while notifications are off; a selected hand-off action then shows the enable hint. */
+    notificationsEnabled: Boolean = true,
+    /** Invoked when a dial-intent hand-off action is picked, to request POST_NOTIFICATIONS. */
+    onRequestNotifications: () -> Unit = {},
+    /** Invoked when a contact-app action is picked, to request READ_CONTACTS then POST_NOTIFICATIONS. */
+    onContactHandOffPicked: () -> Unit = {},
+    /** The hint's tap: request the permission or open the app's notification settings. */
+    onEnableNotifications: () -> Unit = {},
 ) {
     // rememberSaveable so an in-progress edit survives rotation / recreation.
     val initial = (target as? EditorTarget.Existing)?.rule
@@ -378,22 +443,40 @@ internal fun RuleEditorContent(
                             text = stringResource(R.string.rule_action_hand_off, ContactCallApp.WHATSAPP.label),
                             onSelect = {
                                 actionChoice = ActionChoice.HANDOFF_WHATSAPP
-                                onRequestContactsAccess()
+                                onContactHandOffPicked()
                             },
                         )
+                    }
+                    if (actionChoice == ActionChoice.HANDOFF_WHATSAPP && !notificationsEnabled) {
+                        item(key = "notifications-hint-whatsapp") {
+                            NotificationsHintRow(
+                                appLabel = ContactCallApp.WHATSAPP.label,
+                                onClick = onEnableNotifications,
+                            )
+                        }
                     }
                 }
                 // Dial-intent hand-off (cancel the carrier call, open the app at
                 // the number), offered only for installed apps. Skipped hands-free.
-                items(
-                    dialHandoffApps.toList(),
-                    key = { "dial|${it.packageName}" },
-                ) { dialApp ->
-                    ChoiceRow(
-                        selected = actionChoice == ActionChoice.ofDial(dialApp),
-                        text = stringResource(R.string.rule_action_hand_off, dialApp.label),
-                        onSelect = { actionChoice = ActionChoice.ofDial(dialApp) },
-                    )
+                dialHandoffApps.forEach { dialApp ->
+                    item(key = "dial|${dialApp.packageName}") {
+                        ChoiceRow(
+                            selected = actionChoice == ActionChoice.ofDial(dialApp),
+                            text = stringResource(R.string.rule_action_hand_off, dialApp.label),
+                            onSelect = {
+                                actionChoice = ActionChoice.ofDial(dialApp)
+                                onRequestNotifications()
+                            },
+                        )
+                    }
+                    if (actionChoice == ActionChoice.ofDial(dialApp) && !notificationsEnabled) {
+                        item(key = "notifications-hint-dial") {
+                            NotificationsHintRow(
+                                appLabel = dialApp.label,
+                                onClick = onEnableNotifications,
+                            )
+                        }
+                    }
                 }
                 item {
                     ChoiceRow(
@@ -486,6 +569,34 @@ private fun SelectedCountryRow(
                 contentDescription = stringResource(R.string.editor_remove_country, label),
             )
         }
+    }
+}
+
+/**
+ * Shown under a selected hand-off action while notifications are off: the
+ * "couldn't open <app>" failure notice is a notification, so without it a
+ * failed hand-off degrades to a passing toast. Explanation plus an Allow
+ * button — the same grant affordance as onboarding's rows, so it reads as
+ * actionable, not as a caption. Indented to sit under the action's label
+ * (48dp radio + 8dp gap), like the selected-country rows.
+ */
+@Composable
+private fun NotificationsHintRow(appLabel: String, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 56.dp)
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(
+            text = stringResource(R.string.editor_notifications_hint, appLabel),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.weight(1f),
+        )
+        Button(onClick = onClick) { Text(stringResource(R.string.editor_notifications_allow)) }
     }
 }
 
@@ -784,6 +895,31 @@ internal fun isValid(
 
 private fun isContactsGranted(context: Context): Boolean =
     ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CONTACTS) ==
+        PackageManager.PERMISSION_GRANTED
+
+/**
+ * Whether Simmo's notifications can show — the hint hides once they can. A
+ * blocked sim_assist channel counts as off even when app-level notifications
+ * are on: notify() would be silently suppressed and the failure notice would
+ * degrade to the toast, so the hint must keep offering the settings path
+ * (Codex on PR #32).
+ */
+internal fun areNotificationsEnabled(context: Context): Boolean {
+    val manager = NotificationManagerCompat.from(context)
+    val channelBlocked = manager.getNotificationChannelCompat(SimNotifications.CHANNEL_ID)
+        ?.importance == NotificationManagerCompat.IMPORTANCE_NONE
+    return manager.areNotificationsEnabled() && !channelBlocked
+}
+
+/**
+ * Whether the POST_NOTIFICATIONS dialog can be requested at all: the runtime
+ * permission exists only from API 33, and re-requesting a granted one is a
+ * no-op (notifications can still be off in settings — the hint's settings
+ * fallback covers that).
+ */
+private fun canRequestNotifications(context: Context): Boolean =
+    Build.VERSION.SDK_INT >= 33 &&
+        ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
         PackageManager.PERMISSION_GRANTED
 
 /** Persists the rule's chosen countries across recreation. */

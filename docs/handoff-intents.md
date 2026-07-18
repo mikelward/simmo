@@ -183,5 +183,6 @@ pre-fill vs browser).
 | 11 | Resolve-then-cancel | Force an unresolvable intent | Simmo must **proceed unmodified**, never cancel-and-strand | |
 | 12 | Hands-free | Trigger a hand-off rule while on a Bluetooth headset / Android Auto | Rule is **skipped** (interactive-only); a silent rule or pass-through applies | |
 | 13 | Emergency | Confirm emergency numbers are never handed off | Untouched | |
+| 14 | Notifications off | Deny `POST_NOTIFICATIONS`, then force a hand-off failure (e.g. uninstall the target after saving its rule) | The failure surfaces as a plain text toast from the service — background *custom* toasts are blocked but text toasts should pass; record whether it actually shows | |
 
 Update the confidence column of each MVP app above once these are run.

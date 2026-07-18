@@ -174,6 +174,40 @@ class RuleEditorScreenshotTest {
         captureSnapshot("rule_editor_dial_handoff.png")
     }
 
+    @Test
+    fun editor_handOffNotificationsHint() {
+        val telstra = SimRef(1, "Telstra", "Telstra AU")
+        composeRule.setContent {
+            MaterialTheme {
+                RuleEditorContent(
+                    target = EditorTarget.Existing(
+                        0,
+                        // A Google Voice hand-off rule edited while notifications
+                        // are off: the enable hint sits under the selected action.
+                        SimmoRule(
+                            RuleMatcher.Country("US"),
+                            RuleAction.HandOff.ViaDialIntent(DialHandoffApp.GOOGLE_VOICE),
+                        ),
+                    ),
+                    simOptions = listOf(SimOptionUi(telstra, "Telstra AU", active = true)),
+                    countryOptions = listOf(CountryOptionUi("US", "+1 United States")),
+                    dialHandoffApps = DialHandoffApp.entries.toSet(),
+                    notificationsEnabled = false,
+                    onSave = {},
+                    onDelete = {},
+                    onCancel = {},
+                )
+            }
+        }
+        composeRule.waitForIdle()
+
+        composeRule
+            .onNodeWithText("Let Simmo tell you if there's a Google Voice problem")
+            .assertExists()
+        composeRule.onNodeWithText("Allow").assertExists()
+        captureSnapshot("rule_editor_notifications_hint.png")
+    }
+
     private fun captureSnapshot(name: String, widthPx: Int = 1080, heightPx: Int = 1920) {
         val isRecord = System.getProperty("roborazzi.test.record") == "true"
         val isVerify = System.getProperty("roborazzi.test.verify") == "true"
