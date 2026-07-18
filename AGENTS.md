@@ -26,9 +26,17 @@ UI**:
 
 - **Correctness**: the change matches `SPEC.md` and the user's stated intent, handles
   the obvious edge cases (no rules, one SIM, missing role/permission, undetermined
-  country, process death, configuration change), and preserves existing invariants —
-  above all: **a call is never silently dropped, and emergency calls are never
-  touched**. New behavior is covered by a unit test; when fixing a bug, add a test that
+  country, process death, configuration change), and preserves existing invariants. Two
+  stay hard: **emergency calls are never touched**, and the service **never misses the
+  Telecom deadline** — a timeout silently drops the call (see *Fast decision path*).
+  Beyond those, **avoid stranding a call** — degrade to "proceed unmodified" wherever you
+  can, and prefer to skip a rule over cancelling into nothing. But zero-strand is *not* an
+  absolute that blocks shipping useful options: a best-effort action that can occasionally
+  leave the user without a placed call (e.g. handing off to an app that turns out to be
+  unprovisioned) is acceptable **when it genuinely tries to avoid stranding and surfaces
+  the failure to the user** rather than failing silently. Don't withhold a useful option
+  to guarantee a strand can never happen; do make the avoidance real and the failure
+  visible. New behavior is covered by a unit test; when fixing a bug, add a test that
   fails before the fix and passes after.
 - **Fast decision path**: the platform gives the call-redirection service a hard ~5 s
   deadline, and a missed deadline means **Telecom cancels the call** — a timeout drops
