@@ -144,9 +144,9 @@
     <!-- TODO: translate -->
     <string name="settings_sims_description" tools:ignore="MissingTranslation">Every SIM Simmo has seen</string>
     <!-- TODO: translate -->
-    <string name="settings_call_toast_label" tools:ignore="MissingTranslation">Show which SIM is used</string>
+    <string name="settings_call_toast_label" tools:ignore="MissingTranslation">Show which SIM or app is used</string>
     <!-- TODO: translate -->
-    <string name="settings_call_toast_description" tools:ignore="MissingTranslation">A \"Calling using…\" message appears when a rule picks a SIM</string>
+    <string name="settings_call_toast_description" tools:ignore="MissingTranslation">A \"Calling using…\" message appears when a rule routes a call</string>
     <!-- TODO: translate -->
     <string name="calling_using" tools:ignore="MissingTranslation">Calling using %1$s</string>
     <!-- TODO: translate -->

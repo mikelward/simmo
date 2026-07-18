@@ -650,9 +650,47 @@ class DecisionEngineTest {
     }
 
     @Test
-    fun `a hand-off phone account is not announced as a SIM`() {
-        // The receiving app opening is its own feedback, and the account has
-        // no SIM name to toast.
+    fun `announces the app of a dial-intent hand-off`() {
+        val gv = DialHandoffApp.GOOGLE_VOICE
+        val rules = listOf(country("US", RuleAction.HandOff.ViaDialIntent(gv)))
+        val verdict = engine.decide(
+            call(usNumber),
+            snapshot(rules, handOffApps = setOf(gv.packageName)).copy(announceCalls = true),
+            now,
+        )
+        assertEquals(true, (verdict as Verdict.ForwardToApp).announce)
+        assertEquals(gv.label, verdict.appLabel)
+    }
+
+    @Test
+    fun `announces the app of a contact-app hand-off`() {
+        val rules = listOf(any(whatsApp))
+        val verdict = engine.decide(
+            call(auNumber),
+            snapshot(rules, contacts = whatsAppContact(auNumber, 7L)).copy(announceCalls = true),
+            now,
+        )
+        assertEquals(true, (verdict as Verdict.ForwardToContactApp).announce)
+        assertEquals(ContactCallApp.WHATSAPP.label, verdict.appLabel)
+    }
+
+    @Test
+    fun `hand-offs are not announced while the toast setting is off`() {
+        val gv = DialHandoffApp.GOOGLE_VOICE
+        val rules = listOf(country("US", RuleAction.HandOff.ViaDialIntent(gv)))
+        val verdict = engine.decide(
+            call(usNumber),
+            snapshot(rules, handOffApps = setOf(gv.packageName)),
+            now,
+        )
+        assertEquals(false, (verdict as Verdict.ForwardToApp).announce)
+    }
+
+    @Test
+    fun `a hand-off phone account is not announced`() {
+        // Unlike the dial-intent and contact-app hand-offs, a bare phone
+        // account carries no app label the snapshot could name (and no MVP
+        // target registers one — TODO.md Phase 5).
         val gv = PhoneAccountRef("acct-gv")
         val rules = listOf(country("US", RuleAction.HandOff.ViaPhoneAccount(gv)))
         assertEquals(

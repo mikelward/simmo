@@ -163,7 +163,8 @@ small stack), fully unit-tested, with `./gradlew test` and `./gradlew lint` gree
       options (the default-region override is the next candidate), with the
       SIM registry reached through it instead of directly from the gear.
 - [x] Call feedback settings (SPEC "Call feedback and delay"): an optional
-      "Calling using <SIM>" toast when a rule picks a SIM, and an optional
+      "Calling using <SIM or app>" toast when a rule routes a call
+      (maintainer: hand-offs announce the app name too), and an optional
       1–10 s cancelable countdown screen before a rule-picked redirect is
       placed (cancel-and-re-place with a pass token; never delays the Telecom
       response; skipped in non-interactive contexts). Device QA owed: the
