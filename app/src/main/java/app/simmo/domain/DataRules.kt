@@ -22,6 +22,8 @@ data class DataRule(
     val enabled: Boolean = true,
     /** Stable identity, same semantics as [Rule.id]. */
     val id: String = "",
+    /** Soft-deleted awaiting purge; struck-through and skipped in evaluation. See [Rule.pendingRemoval]. */
+    val pendingRemoval: Boolean = false,
 )
 
 /**
@@ -121,19 +123,21 @@ data class DataRuleBook(
     fun withRuleReplaced(id: String, rule: DataRule): DataRuleBook =
         if (id.isBlank()) this else copy(rules = rules.map { if (it.id == id) rule else it })
 
-    /** Remove the rule with [id]; a no-op if none matches (a blank [id] matches nothing). */
-    fun withRuleRemoved(id: String): DataRuleBook =
-        if (id.isBlank()) this else copy(rules = rules.filterNot { it.id == id })
+    /** Soft-delete the rule with [id]: mark it pending purge; see [RuleBook.withRuleMarkedForRemoval]. */
+    fun withRuleMarkedForRemoval(id: String): DataRuleBook =
+        if (id.isBlank()) this else copy(rules = rules.map { if (it.id == id) it.copy(pendingRemoval = true) else it })
+
+    /** Undo a soft-delete: clear [DataRule.pendingRemoval] on the rule with [id]. */
+    fun withRuleRemovalUndone(id: String): DataRuleBook =
+        if (id.isBlank()) this else copy(rules = rules.map { if (it.id == id) it.copy(pendingRemoval = false) else it })
+
+    /** Purge every soft-deleted data rule. */
+    fun withPendingRemovalsPurged(): DataRuleBook =
+        if (rules.none { it.pendingRemoval }) this else copy(rules = rules.filterNot { it.pendingRemoval })
 
     /** Insert a copy of the rule at [index] below it under [newId]; see [RuleBook.withRuleDuplicated]. */
     fun withRuleDuplicated(index: Int, newId: String): DataRuleBook =
         rules.getOrNull(index)?.let { withRuleInserted(index + 1, it.copy(id = newId)) } ?: this
-
-    /** Re-insert a deleted [rule] relative to its surviving neighbor for Undo, once; see [RuleBook.withRuleRestored]. */
-    fun withRuleRestored(rule: DataRule, afterId: String?, beforeId: String?): DataRuleBook {
-        if (rules.any { it.id == rule.id }) return this
-        return withRuleInserted(restoreIndexFor(rules.map { it.id }, afterId, beforeId), rule)
-    }
 
     /** Reorder for drag-and-drop; out-of-range indices are a no-op. */
     fun withRuleMoved(fromIndex: Int, toIndex: Int): DataRuleBook {

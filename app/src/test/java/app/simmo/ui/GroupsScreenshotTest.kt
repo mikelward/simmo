@@ -6,8 +6,6 @@ import android.view.View
 import androidx.activity.ComponentActivity
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
-import androidx.compose.ui.test.onAllNodesWithText
-import androidx.compose.ui.test.onLast
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -78,7 +76,7 @@ class GroupsScreenshotTest {
     }
 
     @Test
-    fun deletingAGroupAsksToConfirmFirst() {
+    fun deletingAGroupTakesEffectAtOnceWithNoConfirmDialog() {
         var deleted: String? = null
         composeRule.setContent {
             MaterialTheme {
@@ -90,14 +88,8 @@ class GroupsScreenshotTest {
             }
         }
         composeRule.onNodeWithText("Work trips").performClick() // open its editor
-        // The editor's own Delete button (only "Delete" on screen at this point).
+        // The editor's Delete button soft-deletes at once — no confirm dialog.
         composeRule.onNodeWithText("Delete").performClick()
-        // The confirm dialog names the group; nothing is deleted yet.
-        composeRule.onNodeWithText("Delete Work trips?").assertExists()
-        composeRule.runOnIdle { assertEquals(null, deleted) }
-        // Now the editor's button and the dialog's confirm both read "Delete";
-        // the confirm composes later, so it's the last of the two.
-        composeRule.onAllNodesWithText("Delete").onLast().performClick()
         composeRule.runOnIdle { assertEquals("custom:1", deleted) }
     }
 

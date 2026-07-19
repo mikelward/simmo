@@ -299,6 +299,19 @@ class DataWatchTest {
     }
 
     @Test
+    fun `a soft-deleted rule never acts`() {
+        // Tombstoned (struck-through, awaiting purge on leave): inert here too, so
+        // the default roaming warning falls through instead.
+        val rules = listOf(
+            inCountry("AU", DataExpectation.RoamingOk()).copy(pendingRemoval = true),
+        )
+        assertEquals(
+            DataVerdict.RoamingWarning(tmobile, "AU", localSims = listOf(telstra)),
+            evaluate(rules, snapshot("AU", dataSim = tmobile)),
+        )
+    }
+
+    @Test
     fun `arrival keys dedupe repeats and distinguish real changes`() {
         val warning = DataVerdict.RoamingWarning(tmobile, "AU", localSims = listOf(telstra))
         // Same arrival → same key, however often the refresh re-evaluates.

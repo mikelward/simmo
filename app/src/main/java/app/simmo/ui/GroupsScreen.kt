@@ -7,13 +7,13 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -33,7 +33,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.simmo.R
@@ -57,6 +59,7 @@ fun GroupsScreen(
         countryOptions = countryOptions,
         onSaveGroup = viewModel::saveCustomGroup,
         onDeleteGroup = viewModel::deleteCustomGroup,
+        onUndoDeleteGroup = viewModel::undoGroupRemoval,
         onBack = onBack,
     )
 }
@@ -67,6 +70,7 @@ internal fun GroupsContent(
     countryOptions: List<CountryOptionUi>,
     onSaveGroup: (id: String?, name: String, regionCodes: List<String>) -> Unit = { _, _, _ -> },
     onDeleteGroup: (String) -> Unit = {},
+    onUndoDeleteGroup: (String) -> Unit = {},
     onBack: () -> Unit = {},
 ) {
     // null = the list; "" = a new group; else the id being edited. A plain
@@ -119,7 +123,11 @@ internal fun GroupsContent(
                 }
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     items(groups, key = { it.id }) { group ->
-                        GroupRow(group = group, onClick = { editingId = group.id })
+                        GroupRow(
+                            group = group,
+                            onClick = { editingId = group.id },
+                            onUndoDelete = { onUndoDeleteGroup(group.id) },
+                        )
                     }
                 }
             }
@@ -140,18 +148,32 @@ internal fun GroupsContent(
 }
 
 @Composable
-private fun GroupRow(group: CustomGroup, onClick: () -> Unit) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
+private fun GroupRow(group: CustomGroup, onClick: () -> Unit, onUndoDelete: () -> Unit) {
+    // A soft-deleted group is struck-through and inert (no tap-to-edit); it
+    // still resolves for referencing rules until the screen is left, and only
+    // its Undo acts on it.
+    val strike = if (group.pendingRemoval) TextDecoration.LineThrough else null
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(text = group.name, style = MaterialTheme.typography.titleMedium)
-        Text(
-            text = group.regionCodes.joinToString { countryDisplayName(it) },
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .then(if (group.pendingRemoval) Modifier else Modifier.clickable(onClick = onClick))
+                .alpha(if (group.pendingRemoval) 0.4f else 1f),
+        ) {
+            Text(text = group.name, style = MaterialTheme.typography.titleMedium, textDecoration = strike)
+            Text(
+                text = group.regionCodes.joinToString { countryDisplayName(it) },
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textDecoration = strike,
+            )
+        }
+        if (group.pendingRemoval) {
+            TextButton(onClick = onUndoDelete) { Text(stringResource(R.string.action_undo)) }
+        }
     }
 }
 
@@ -176,8 +198,6 @@ internal fun GroupEditor(
     }
     var showPicker by rememberSaveable { mutableStateOf(false) }
     var pickerQuery by rememberSaveable { mutableStateOf("") }
-    // Delete asks first; saveable so the confirm survives a rotation.
-    var confirmDelete by rememberSaveable { mutableStateOf(false) }
     if (showPicker) {
         CountryPickerContent(
             options = countryOptions,
@@ -241,7 +261,9 @@ internal fun GroupEditor(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 if (onDelete != null) {
-                    OutlinedButton(onClick = { confirmDelete = true }) {
+                    // Immediate soft-delete; the list shows the group struck-
+                    // through with an Undo until the screen is left (purge).
+                    OutlinedButton(onClick = onDelete) {
                         Text(stringResource(R.string.editor_delete))
                     }
                 }
@@ -254,29 +276,6 @@ internal fun GroupEditor(
                 }
             }
         }
-    }
-    if (confirmDelete && onDelete != null) {
-        AlertDialog(
-            onDismissRequest = { confirmDelete = false },
-            // The group's name (its own, from [initial]) makes clear which is going.
-            title = { Text(stringResource(R.string.group_delete_title, initial?.name.orEmpty())) },
-            text = { Text(stringResource(R.string.group_delete_body)) },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        confirmDelete = false
-                        onDelete()
-                    },
-                ) {
-                    Text(stringResource(R.string.editor_delete))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { confirmDelete = false }) {
-                    Text(stringResource(R.string.editor_cancel))
-                }
-            },
-        )
     }
 }
 

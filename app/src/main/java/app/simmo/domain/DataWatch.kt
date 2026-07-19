@@ -95,7 +95,8 @@ fun evaluateDataRules(book: DataRuleBook, snapshot: DataSnapshot): DataVerdict {
         ?: return DataVerdict.Silent
 
     for (rule in book.rules) {
-        if (!rule.enabled) continue
+        // Disabled, or soft-deleted awaiting purge: kept in the list, never acts.
+        if (!rule.enabled || rule.pendingRemoval) continue
         if (!rule.matcher.matchesRegion(country, snapshot.customGroups)) continue
         when (val expectation = rule.expectation) {
             is DataExpectation.UseSimForData ->

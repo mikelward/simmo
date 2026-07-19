@@ -43,6 +43,8 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.LocalActivity
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.flow.filterNotNull
@@ -146,6 +148,18 @@ class MainActivity : ComponentActivity() {
                 }
                 if (ready) {
                     val vm = viewModel<RulesViewModel>()
+                    val activity = LocalActivity.current
+                    // Leaving the app (or screen-off) finalizes any soft-deleted
+                    // rules/groups (SPEC "Calling rules"): the Undo affordance
+                    // lives only while the user is looking at the list. A crash
+                    // doesn't run ON_STOP, so a soft-delete survives it and stays
+                    // undoable. A configuration change (rotation, locale, dark
+                    // mode) also stops the activity but isn't a leave — the
+                    // recreated screen restores the same tombstones, so don't
+                    // purge them then (Codex on PR #61).
+                    LifecycleEventEffect(Lifecycle.Event.ON_STOP) {
+                        if (activity?.isChangingConfigurations != true) vm.purgePendingRemovals()
+                    }
                     // Routes live in the ViewModel so a rotation mid-edit (or
                     // mid-registry-browse) keeps the user where they were.
                     val target by vm.editorTarget.collectAsStateWithLifecycle()

@@ -147,6 +147,48 @@ class RuleEditorScreenshotTest {
     }
 
     @Test
+    fun editor_showsTheNameForATombstonedGroupSelection() {
+        val telstra = SimRef(1, "Telstra", "Telstra AU")
+        composeRule.setContent {
+            MaterialTheme {
+                RuleEditorContent(
+                    // An existing rule references a group the user just soft-
+                    // deleted (still resolvable during the undo window).
+                    target = EditorTarget.Existing(
+                        "r",
+                        SimmoRule(
+                            RuleMatcher.Countries(groupIds = listOf("custom:gone")),
+                            RuleAction.UseSim(telstra),
+                        ),
+                    ),
+                    simOptions = listOf(SimOptionUi(telstra, "Telstra AU", active = true)),
+                    countryOptions = emptyList(),
+                    groupOptions = listOf(
+                        // Non-selectable (tombstoned) but still carries its label
+                        // so the selected entry renders the name, not the raw id.
+                        CountryGroupOptionUi(
+                            id = "custom:gone",
+                            label = "Work trips",
+                            description = "United States, Japan",
+                            memberRegions = emptySet(),
+                            searchTerms = emptyList(),
+                            selectable = false,
+                        ),
+                    ),
+                    onSave = { _, _ -> },
+                    onDelete = {},
+                    onCancel = {},
+                )
+            }
+        }
+        composeRule.waitForIdle()
+
+        // The name renders; the raw id never leaks to the UI.
+        composeRule.onNodeWithText("Work trips").assertExists()
+        composeRule.onNodeWithText("custom:gone").assertDoesNotExist()
+    }
+
+    @Test
     fun editor_offersDialHandoffApps() {
         val telstra = SimRef(1, "Telstra", "Telstra AU")
         composeRule.setContent {

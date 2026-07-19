@@ -107,6 +107,37 @@ class SimmoStateHolderTest {
     }
 
     @Test
+    fun `purge drops every soft-deleted rule, data rule, and group in one write`() = runTest {
+        val store = FakeDataStore(
+            SimmoState(
+                rules = RuleBook(
+                    listOf(
+                        Rule(RuleMatcher.Country("AU"), RuleAction.Ask, id = "keep-r"),
+                        Rule(RuleMatcher.Country("US"), RuleAction.Ask, id = "gone-r", pendingRemoval = true),
+                    ),
+                ),
+                dataRules = app.simmo.domain.DataRuleBook(
+                    listOf(
+                        DataRule(RuleMatcher.Country("AU"), DataExpectation.AlwaysWarn, id = "keep-d"),
+                        DataRule(RuleMatcher.Country("US"), DataExpectation.AlwaysWarn, id = "gone-d", pendingRemoval = true),
+                    ),
+                ),
+                customGroups = listOf(
+                    CustomGroup("keep-g", "Keep", listOf("AU")),
+                    CustomGroup("gone-g", "Gone", listOf("US"), pendingRemoval = true),
+                ),
+                installId = "install-1",
+            ),
+        )
+        val holder = SimmoStateHolder(store, backgroundScope, installId = "install-1")
+        holder.purgePendingRemovals()
+        val state = store.data.first()
+        assertEquals(listOf("keep-r"), state.rules.rules.map { it.id })
+        assertEquals(listOf("keep-d"), state.dataRules.rules.map { it.id })
+        assertEquals(listOf("keep-g"), state.customGroups.map { it.id })
+    }
+
+    @Test
     fun `first capture is reported from the stored state, not the async flow`() = runTest {
         // Codex P2 on PR #21: an existing user's cold-start capture can run
         // before the eager load publishes; the fresh-install signal must come
