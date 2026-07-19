@@ -335,9 +335,10 @@ registry keeps each SIM's last-known home country precisely so a disabled eSIM c
 still be recognized as local). The nudge only fires when there is such a SIM to
 offer, follows the same Settings-into-triage flow. Unlike the roaming case there is
 no rule to record — "no mobile data here is fine" isn't a data-rule expectation — so
-the card's only action is **Change SIM**; a rule-free per-trip dismiss (leaning on
-the existing once-per-arrival suppression, not a negative rule) is the planned way to
-quiet it deliberately (TODO).
+the card's actions are **Change SIM** (the settings jump) and **Ignore for this
+trip**, a rule-free per-trip dismiss that quiets the nudge — card and notification —
+without recording anything, leaning on the existing once-per-arrival suppression
+rather than a negative rule (see Triage).
 
 **Watched, not enforced.** Changing the default data SIM or a SIM's data-roaming
 toggle needs carrier privileges or `MODIFY_PHONE_STATE` (the same wall the Quick
@@ -352,15 +353,22 @@ where whether this arrangement is fine gets recorded.
 
 **Triage.** The data rules screen leads with the live situation while one exists —
 which SIM is carrying data, where, roaming or not, and which active SIM is local —
-with both honest resolutions one tap away:
+with its honest resolutions one tap away:
 
-- **This is OK** creates a Roaming OK rule prefilled with the current country and
-  SIM, with one-tap suggestions to widen it to the shipped or custom groups
-  containing that country ("all of EU/EEA?"), so the rest of the trip — and the next
-  one — stays quiet.
-- **System settings** jumps to where the data SIM and roaming toggles actually live.
+- **Use in \<country\>** (roaming only) creates a Roaming OK rule prefilled with the
+  current country and the SIM now carrying data, with one-tap **Use in \<group\>**
+  suggestions to widen it to a shipped or custom group containing that country ("all
+  of EU/EEA?"), so the rest of the trip — and the next one — stays quiet.
+- **Ignore for this trip** dismisses the situation for the rest of the trip without
+  recording any rule — the rule-free opt-out, and the only accept action the no-data
+  and wrong-SIM cards have (there is no expectation to record for them). It leans on
+  the same once-per-arrival suppression the notification uses — a per-trip dismiss
+  mark, deliberately separate from the notification's own mark so posting a warning
+  can never pre-dismiss the card — and clears when the arrival ends (the country or
+  data SIM changes), so the next trip surfaces the situation again.
+- **Change SIM** jumps to where the data SIM and roaming toggles actually live.
   Simmo sees the outcome via subscription callbacks and then offers to remember it
-  as a "Use <SIM> for data" rule for this country.
+  as a "Use \<SIM\> for data" rule for this country.
 
 Without notification permission nothing is lost but the push: the triage card still
 shows the state whenever Simmo opens.

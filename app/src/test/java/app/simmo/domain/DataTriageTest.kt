@@ -47,8 +47,32 @@ class DataTriageTest {
     fun `roaming surfaces the SIM, country, locals, and no widen groups off-group`() {
         val triage = triageFor(DataRuleBook(emptyList()), snapshot("AU", tmobile))
         assertEquals(
-            DataTriage.Roaming(tmobile, "AU", localSims = listOf(telstra), widenGroupIds = emptyList()),
+            DataTriage.Roaming(
+                tmobile,
+                "AU",
+                arrivalKey = "roaming:2:AU",
+                localSims = listOf(telstra),
+                widenGroupIds = emptyList(),
+            ),
             triage,
+        )
+    }
+
+    @Test
+    fun `dismissing this arrival hides the card until a different one arrives`() {
+        val book = DataRuleBook(emptyList())
+        val roaming = triageFor(book, snapshot("AU", tmobile)) as DataTriage.Roaming
+        // The card's own arrival key, dismissed, silences exactly this arrival.
+        assertNull(triageFor(book, snapshot("AU", tmobile), dismissedKeys = setOf(roaming.arrivalKey)))
+        // A different country is a different arrival: the stale dismiss doesn't
+        // suppress it (the notification mark clears on the same staleness).
+        assertEquals(
+            "roaming:2:FR",
+            (triageFor(
+                book,
+                snapshot("FR", tmobile, activeSims = listOf(tmobile)),
+                dismissedKeys = setOf(roaming.arrivalKey),
+            ) as DataTriage.Roaming).arrivalKey,
         )
     }
 
@@ -60,6 +84,7 @@ class DataTriageTest {
             snapshot("FR", tmobile, activeSims = listOf(tmobile)),
         ) as DataTriage.Roaming
         assertEquals(listOf(CountryGroups.EU_EEA), triage.widenGroupIds)
+        assertEquals("roaming:2:FR", triage.arrivalKey)
     }
 
     @Test
@@ -78,7 +103,10 @@ class DataTriageTest {
             DataRuleBook(emptyList()),
             snapshot("AU", tmobile, dataRoamingEnabled = emptySet()),
         )
-        assertEquals(DataTriage.NoData(tmobile, "AU", switchTo = listOf(telstra)), noData)
+        assertEquals(
+            DataTriage.NoData(tmobile, "AU", arrivalKey = "noDataSwitch:2:1:AU", switchTo = listOf(telstra)),
+            noData,
+        )
 
         // A use-SIM rule wants Telstra, but T-Mobile carries data.
         val wantTelstra = DataRuleBook(
@@ -90,7 +118,7 @@ class DataTriageTest {
             ),
         )
         assertEquals(
-            DataTriage.WrongSim(tmobile, "AU", wantedSim = telstra),
+            DataTriage.WrongSim(tmobile, "AU", arrivalKey = "wrongSim:2:1:AU", wantedSim = telstra),
             triageFor(wantTelstra, snapshot("AU", tmobile)),
         )
     }

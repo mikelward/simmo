@@ -141,13 +141,14 @@ sealed interface DataExpectationUi {
 /** Which shape of situation the triage card shows (SPEC "Data rules" → Triage). */
 enum class DataTriageKind { ROAMING, NO_DATA, WRONG_SIM }
 
-/** A shipped or custom group offered as a one-tap "widen This is OK to…" chip. */
+/** A shipped or custom group offered as a one-tap "widen the rule to…" chip. */
 data class TriageGroupUi(val id: String, val label: String)
 
 /**
  * The triage card atop the Data tab: the live data situation, ready to render.
- * [country] and [dataSimRef] are the non-display payload the "This is OK"
- * action reads back to build the Roaming OK rule.
+ * [country] and [dataSimRef] are the non-display payload the "Use in ⟨place⟩"
+ * action reads back to build the Roaming OK rule; [arrivalKey] is what the
+ * "Ignore for this trip" action records as the per-trip dismiss.
  */
 data class DataTriageUi(
     val kind: DataTriageKind,
@@ -161,6 +162,8 @@ data class DataTriageUi(
     val otherSimName: String?,
     val country: String,
     val dataSimRef: SimRef,
+    /** This arrival's once-per-arrival key; recorded by "Ignore for this trip." */
+    val arrivalKey: String,
     /** Widen-to-group chips; empty except for the roaming situation. */
     val widenGroups: List<TriageGroupUi> = emptyList(),
 )
@@ -291,7 +294,14 @@ class RulesViewModel(
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     private fun buildTriage(state: SimmoState, dataState: TelephonyReader.DataState): DataTriageUi? {
-        val triage = triageFor(state.dataRules, buildDataSnapshot(dataState, state)) ?: return null
+        // Pass the per-trip dismiss set: an arrival the user chose to ignore
+        // for the trip yields no card until it ends (SPEC "Ignore for this
+        // trip"), mirroring the notification's own suppression.
+        val triage = triageFor(
+            state.dataRules,
+            buildDataSnapshot(dataState, state),
+            dismissedKeys = state.dataDismissMarks,
+        ) ?: return null
         val labels = builtInGroupLabels + state.customGroups.associate { it.id to it.name }
         return triage.toUi(groupLabel = { id -> labels[id] ?: id })
     }
@@ -304,6 +314,7 @@ class RulesViewModel(
             otherSimName = localSims.firstOrNull()?.name(),
             country = country.trim().uppercase(),
             dataSimRef = dataSim.simRef(),
+            arrivalKey = arrivalKey,
             widenGroups = widenGroupIds.map { TriageGroupUi(it, groupLabel(it)) },
         )
         is DataTriage.NoData -> DataTriageUi(
@@ -316,6 +327,7 @@ class RulesViewModel(
                 ?: enableFirst.firstOrNull()?.let { it.displayName.ifBlank { it.carrierName } },
             country = country.trim().uppercase(),
             dataSimRef = dataSim.simRef(),
+            arrivalKey = arrivalKey,
         )
         is DataTriage.WrongSim -> DataTriageUi(
             kind = DataTriageKind.WRONG_SIM,
@@ -324,6 +336,7 @@ class RulesViewModel(
             otherSimName = wantedSim.name(),
             country = country.trim().uppercase(),
             dataSimRef = dataSim.simRef(),
+            arrivalKey = arrivalKey,
         )
     }
 
@@ -387,6 +400,28 @@ class RulesViewModel(
                 confirmingTriage = false
             }
         }
+    }
+
+    /**
+     * "Ignore for this trip" (SPEC "Data rules" → Triage): record a rule-free,
+     * per-trip dismiss of exactly the arrival the tapped card rendered
+     * ([arrivalKey]), so its card and notification stay quiet until the arrival
+     * ends. Unlike "Use in ⟨place⟩" it writes no data rule — this is the opt-out
+     * the no-data situation needs, where there is no expectation to record.
+     *
+     * The authoritative work — revalidating the live arrival, persisting the
+     * mark, and cancelling the notification — is serialized with the roaming
+     * watch in [SimmoApp.dismissDataArrival] under `dataWatchMutex`, so a
+     * country/SIM change racing the tap can't persist a stale dismiss and a
+     * concurrent watch check can't re-post the warning being retired (Codex on
+     * PR #64). That call is fire-and-forget on the app scope, so it survives the
+     * activity finishing (Done/Back) right after the tap. The cheap
+     * `triage.value` guard here just drops an obviously stale tap before
+     * dispatching; the lock does the real check.
+     */
+    fun dismissDataArrival(arrivalKey: String) {
+        if (triage.value?.arrivalKey != arrivalKey) return
+        app.dismissDataArrival(arrivalKey)
     }
 
     /** SIMs the user can target: every registered SIM, active or not. */

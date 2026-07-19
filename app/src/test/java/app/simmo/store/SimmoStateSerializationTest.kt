@@ -60,6 +60,7 @@ class SimmoStateSerializationTest {
         defaultRegionOverride = "AU",
         // Non-default so the round trip proves the fields are actually written.
         dataWatchMark = "roaming:2:AU",
+        dataDismissMarks = setOf("roaming:2:NZ", "noDataSwitch:2:1:NZ"),
         analyticsOptIn = false,
         showCallToast = true,
         callDelaySeconds = 5,

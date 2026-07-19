@@ -162,6 +162,7 @@ class RulesScreenScreenshotTest {
                         otherSimName = null,
                         country = "US",
                         dataSimRef = SimRef(2, "Vodafone", "Vodafone"),
+                        arrivalKey = "roaming:2:US",
                         // The real shipped groups that contain the US.
                         widenGroups = listOf(
                             TriageGroupUi("usa_territories", "USA + territories"),
@@ -179,6 +180,7 @@ class RulesScreenScreenshotTest {
         composeRule.onNodeWithText("Use in United States").assertExists()
         composeRule.onNodeWithText("Use in USA + territories").assertExists()
         composeRule.onNodeWithText("Use in North America").assertExists()
+        composeRule.onNodeWithText("Ignore for this trip").assertExists()
         composeRule.onNodeWithText("Change SIM").assertExists()
         captureSnapshot("data_triage.png")
     }
@@ -199,10 +201,11 @@ class RulesScreenScreenshotTest {
                         otherSimName = null,
                         country = "FR",
                         dataSimRef = ref,
+                        arrivalKey = "roaming:2:FR",
                         widenGroups = listOf(TriageGroupUi("eu_eea", "EU/EEA")),
                     ),
                     tab = RulesTab.DATA,
-                    onTriageThisIsOk = { country, sim -> useCountry = country to sim },
+                    onTriageUseInCountry = { country, sim -> useCountry = country to sim },
                     onTriageWiden = { country, sim, groupId -> usedGroup = Triple(country, sim, groupId) },
                 )
             }
@@ -217,7 +220,8 @@ class RulesScreenScreenshotTest {
     }
 
     @Test
-    fun triageNoData_offersOnlySystemSettings() {
+    fun triageNoData_offersIgnoreAndChangeSimButNoRule() {
+        var ignored: String? = null
         composeRule.setContent {
             MaterialTheme {
                 RulesScreenContent(
@@ -229,8 +233,10 @@ class RulesScreenScreenshotTest {
                         otherSimName = "Telstra AU",
                         country = "AU",
                         dataSimRef = SimRef(2, "T-Mobile", "T-Mobile US"),
+                        arrivalKey = "noDataSwitch:2:1:AU",
                     ),
                     tab = RulesTab.DATA,
+                    onTriageIgnoreForTrip = { ignored = it },
                 )
             }
         }
@@ -238,9 +244,12 @@ class RulesScreenScreenshotTest {
 
         composeRule.onNodeWithText("No data in Australia").assertExists()
         composeRule.onNodeWithText("T-Mobile US has no data here; Telstra AU is preferred").assertExists()
-        // No rule to make here - only the change-SIM resolution.
+        // No rule to make here - only the rule-free dismiss and the change-SIM
+        // resolution. "Ignore for this trip" carries the card's arrival key.
         composeRule.onNodeWithText("Use in Australia").assertDoesNotExist()
         composeRule.onNodeWithText("Change SIM").assertExists()
+        composeRule.onNodeWithText("Ignore for this trip").performClick()
+        composeRule.runOnIdle { assertEquals("noDataSwitch:2:1:AU", ignored) }
     }
 
     @Test
@@ -256,6 +265,7 @@ class RulesScreenScreenshotTest {
                         otherSimName = "Telstra AU",
                         country = "AU",
                         dataSimRef = SimRef(2, "T-Mobile", "T-Mobile US"),
+                        arrivalKey = "roaming:2:AU",
                     ),
                     tab = RulesTab.DATA,
                 )

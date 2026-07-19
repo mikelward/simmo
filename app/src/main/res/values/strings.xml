@@ -68,6 +68,8 @@
     <!-- TODO: translate -->
     <string name="triage_use" tools:ignore="MissingTranslation">Use in %1$s</string>
     <!-- TODO: translate -->
+    <string name="triage_ignore_trip" tools:ignore="MissingTranslation">Ignore for this trip</string>
+    <!-- TODO: translate -->
     <string name="triage_pick_sim" tools:ignore="MissingTranslation">Change SIM</string>
     <!-- TODO: translate -->
     <string name="rule_matcher_any" tools:ignore="MissingTranslation">Any country</string>
