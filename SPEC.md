@@ -214,8 +214,9 @@ what it blocks.
 ### Call feedback and delay
 
 Global options on the Settings screen (reached from the rules-screen gear; also home of
-the SIM registry, the **Country groups** manager, and the "Make Simmo better" telemetry
-switch — see "Permissions and privacy"), all off by default:
+the SIM registry, the **Country groups** manager, the "Make Simmo better" telemetry
+switch — see "Permissions and privacy" — and, at its foot, a **privacy policy** link
+above the app **version**), all off by default:
 
 - **Show which SIM or app is used**: when a rule routes a call, a brief toast names
   where it went — "Calling using Telstra" for a SIM or another calling account (on a

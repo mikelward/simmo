@@ -442,8 +442,9 @@ Android Auto safeguards").
       https://mikelward.github.io/simmo/PRIVACY.html once Pages is enabled.
 - [x] Enable GitHub Pages: Settings → Pages → Deploy from a branch → `main`,
       `/docs` folder (done by the maintainer in the GitHub UI, 2026-07-17).
-- [ ] Link the privacy policy from the Play listing (App content → Privacy policy)
-      and an in-app About surface.
+- [ ] Link the privacy policy from the Play listing (App content → Privacy policy).
+- [x] In-app privacy/version surface: the Settings page shows a privacy policy link
+      (opens the hosted policy) above the app version at its foot.
 - [ ] Translations pass per the two-PR rule in `AGENTS.md` once English copy settles.
 
 ## Phase 9 — Data rules and the roaming watch
