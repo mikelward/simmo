@@ -147,12 +147,21 @@ class SimmoStateHolder(
      * callback, a wake broadcast — may all evaluate the same arrival; the
      * single winner posts the warning, everyone else is deduped here rather
      * than by a racy read-then-write.
+     *
+     * The claim also refuses an arrival the user dismissed for the trip
+     * ([dismissDataArrival]). This is checked INSIDE the transaction, not
+     * against [current], because `current` is published by an asynchronous
+     * `stateIn` collector and can still read pre-dismiss after the dismiss
+     * write has committed — a watch check queued behind a dismiss would
+     * otherwise claim and re-post the warning the dismiss just cancelled
+     * (Codex on PR #64). The transaction sees the freshest committed state, so
+     * a committed dismiss reliably blocks the post.
      */
     suspend fun claimDataWatchMark(key: String): Boolean {
         var claimed = false
         store.updateData {
             val valid = it.withInstallValidated(installId)
-            claimed = valid.dataWatchMark != key
+            claimed = valid.dataWatchMark != key && key !in valid.dataDismissMarks
             if (claimed) valid.copy(dataWatchMark = key) else valid
         }
         return claimed
@@ -178,6 +187,69 @@ class SimmoStateHolder(
         }
         return cleared
     }
+
+    /**
+     * Retires the arrival mark unconditionally — used when the per-trip dismiss
+     * branch cancels the posted warning and must release whatever mark owned
+     * it, which may be a *different* arrival's than the one dismissed (Codex on
+     * PR #64). Unlike the compare-and-swap [clearDataWatchMark] this is only
+     * called from inside `dataWatchMutex`, where no concurrent claim can race
+     * it, so it doesn't need to guard against deleting a fresh claim.
+     */
+    suspend fun clearDataWatchMark() {
+        store.updateData {
+            val valid = it.withInstallValidated(installId)
+            if (valid.dataWatchMark == null) valid else valid.copy(dataWatchMark = null)
+        }
+    }
+
+    /**
+     * Records that the user chose "Ignore for this trip" on the triage card
+     * (SPEC "Data rules" → Triage): adds [key] to the per-trip dismiss set so
+     * the matching arrival's card and notification stay quiet until the arrival
+     * ends. Additive, not a replace, so a second dismiss on the same trip (a
+     * different problem shape) doesn't drop the first. Adding into the
+     * committed set inside the transaction re-adds a duplicate as a no-op.
+     */
+    suspend fun dismissDataArrival(key: String) {
+        store.updateData {
+            val valid = it.withInstallValidated(installId)
+            valid.copy(dataDismissMarks = valid.dataDismissMarks + key)
+        }
+    }
+
+    /**
+     * Drops every per-trip dismiss key that [isStale] accepts — once an
+     * arrival is over (country or data SIM changed — see `isMarkStale`), so a
+     * *return* to a dismissed place warns once again. [isStale] is evaluated
+     * against the COMMITTED set INSIDE the transaction, not the caller's
+     * lagging [current] snapshot: a key committed just before a country/SIM
+     * change would otherwise be absent from the caller's set and never swept,
+     * so a return would find it still current and suppress the new trip (Codex
+     * on PR #64). Filtering rather than removing a fixed list also preserves a
+     * concurrent dismiss of another arrival on the same trip. No write when
+     * nothing is stale, so DataStore skips the disk touch.
+     */
+    suspend fun clearStaleDataDismissMarks(isStale: (String) -> Boolean) {
+        store.updateData {
+            val valid = it.withInstallValidated(installId)
+            val kept = valid.dataDismissMarks.filterNot(isStale).toSet()
+            if (kept.size == valid.dataDismissMarks.size) valid else valid.copy(dataDismissMarks = kept)
+        }
+    }
+
+    /**
+     * The committed state, read through the write path so it reflects every
+     * prior commit: [current] is published by an asynchronous `stateIn`
+     * collector and can still expose a just-committed dismiss/clear/mark's
+     * prior value. The roaming watch must see committed state — a stale dismiss
+     * set or watch mark would suppress or re-post a warning (Codex on PR #64).
+     * The identity transform returns the same instance once the install is
+     * adopted, so DataStore skips the disk write — this is a serialized read,
+     * not a mutation.
+     */
+    suspend fun committedState(): SimmoState =
+        store.updateData { it.withInstallValidated(installId) }
 
     /** The new-SIM prompt for [ref] was answered — added a rule or dismissed. */
     suspend fun markSimRulePromptAnswered(ref: SimRef) {

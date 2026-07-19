@@ -536,17 +536,35 @@ System settings.
       every situation offers "Pick a different SIM" (the system-settings jump).
       Landed as `domain/DataTriage.kt` (`triageFor`, `roamingOkRule`) +
       `RulesViewModel.triage` + `DataTriageCard`.
-- [ ] Triage "This is OK" — dismiss for the trip, no rule (maintainer,
+- [x] Triage "Ignore for this trip" — dismiss for the trip, no rule (maintainer,
       2026-07-19). A button on every triage card that acknowledges the current
       arrival and suppresses the card (and notification) for the rest of the
       trip *without* creating a data rule — the rule-free opt-out the no-data
       situation needs (there is no "no data is fine" expectation to record).
-      Needs its own persisted "acknowledged arrival" marker, SEPARATE from the
-      notification's `dataWatchMark` (the notification claiming its mark on post
-      must not pre-dismiss the card), cleared on the same country/SIM change
-      that ends the arrival so the card returns next trip. Subsumes the
-      deferred "claim the arrival mark when the card is displayed" (Codex on
-      PR #62): an explicit user acknowledge replaces auto-claim-on-display.
+      Landed as `SimmoState.dataDismissMark` (a persisted per-trip mark SEPARATE
+      from `dataWatchMark`, so posting a warning can't pre-dismiss the card),
+      claimed by `RulesViewModel.dismissDataArrival` and read back by `triageFor`
+      / `checkDataWatch`; cleared on the same `isMarkStale` country/SIM change
+      that ends the arrival, so the card returns next trip. This explicit user
+      acknowledge is what the deferred "claim the arrival mark when the card is
+      displayed" (Codex on PR #62) becomes — no auto-claim-on-display.
+- [ ] Robust data-watch notification recovery — option B (Codex on PR #64,
+      maintainer accepts the bound for now, 2026-07-19). `retireDataWatch` does two
+      non-atomic operations — clear the persisted `dataWatchMark`, then cancel the
+      OS notification — and either order has a process-death window between them.
+      We chose clear-before-cancel deliberately: the failure lands in the
+      less-harmful direction (a stale "Using data roaming" notification lingers)
+      rather than the worse one (mark survives, notification gone → a real roaming
+      warning deduped into silence). The residual: if the process is killed in that
+      ~µs window AND the verdict then goes Silent in the same country/SIM AND
+      nothing else happens the rest of the trip, the orphaned notification (now
+      markless) survives — mark-based recovery in `checkDataWatch` can't see it.
+      Fully closing it needs reconciliation against OS notification state:
+      `NotificationManager.getActiveNotifications()` each `checkDataWatch`, and
+      cancel a posted data-watch notification that the current verdict says
+      shouldn't show (Silent/dismissed/covered), instead of relying on the mark to
+      own it. Deferred as a real chunk of new code (an OS notifications query on the
+      maintenance path); revisit if the lingering-notification window ever bites.
 - [ ] Triage card overflow (Codex on PR #62, maintainer accepts the bound for
       now): the "Use in <group>" buttons stack roughly one per row, so a country
       in *many custom groups* could grow the card past the fold — the country and

@@ -102,8 +102,9 @@ fun RulesScreen(
         onUndoDeleteDataRule = viewModel::undoDataRuleRemoval,
         onSetDataRuleEnabled = viewModel::setDataRuleEnabled,
         onMoveDataRule = viewModel::moveDataRule,
-        onTriageThisIsOk = { country, sim -> viewModel.confirmDataRoamingOk(country, sim) },
+        onTriageUseInCountry = { country, sim -> viewModel.confirmDataRoamingOk(country, sim) },
         onTriageWiden = { country, sim, groupId -> viewModel.confirmDataRoamingOk(country, sim, groupId) },
+        onTriageIgnoreForTrip = viewModel::dismissDataArrival,
         onTriageOpenSimSettings = { context.openSimSettings() },
         onAddRuleForSim = viewModel::openNewRuleForSim,
         onDismissNewSimPrompt = viewModel::dismissNewSimPrompt,
@@ -136,8 +137,9 @@ internal fun RulesScreenContent(
     onUndoDeleteDataRule: (String) -> Unit = {},
     onSetDataRuleEnabled: (String, Boolean) -> Unit = { _, _ -> },
     onMoveDataRule: (Int, Int) -> Unit = { _, _ -> },
-    onTriageThisIsOk: (country: String, sim: SimRef) -> Unit = { _, _ -> },
+    onTriageUseInCountry: (country: String, sim: SimRef) -> Unit = { _, _ -> },
     onTriageWiden: (country: String, sim: SimRef, groupId: String) -> Unit = { _, _, _ -> },
+    onTriageIgnoreForTrip: (arrivalKey: String) -> Unit = {},
     onTriageOpenSimSettings: () -> Unit = {},
     onAddRuleForSim: (NewSimPromptUi) -> Unit = {},
     onDismissNewSimPrompt: (SimRef) -> Unit = {},
@@ -204,8 +206,9 @@ internal fun RulesScreenContent(
                     triage?.let { situation ->
                         DataTriageCard(
                             triage = situation,
-                            onThisIsOk = onTriageThisIsOk,
+                            onUseInCountry = onTriageUseInCountry,
                             onWiden = onTriageWiden,
+                            onIgnoreForTrip = onTriageIgnoreForTrip,
                             onOpenSimSettings = onTriageOpenSimSettings,
                         )
                     }
@@ -317,8 +320,9 @@ internal fun dataExpectationLabel(expectation: DataExpectationUi): String = when
 @Composable
 private fun DataTriageCard(
     triage: DataTriageUi,
-    onThisIsOk: (country: String, sim: SimRef) -> Unit,
+    onUseInCountry: (country: String, sim: SimRef) -> Unit,
     onWiden: (country: String, sim: SimRef, groupId: String) -> Unit,
+    onIgnoreForTrip: (arrivalKey: String) -> Unit,
     onOpenSimSettings: () -> Unit,
 ) {
     Card(
@@ -340,13 +344,14 @@ private fun DataTriageCard(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 // One uniform, bordered style for every choice. A roaming
-                // situation can be accepted here (a rule for the country, or
+                // situation can be accepted as a rule (for the country, or
                 // widened to a group that contains it); every situation can be
-                // resolved by picking a different SIM in system settings.
+                // ignored for the trip without a rule, or resolved by picking a
+                // different SIM in system settings.
                 if (triage.kind == DataTriageKind.ROAMING) {
                     // Pass the identity this card rendered, so the write acts on
                     // exactly the situation shown, never a later replacement.
-                    OutlinedButton(onClick = { onThisIsOk(triage.country, triage.dataSimRef) }) {
+                    OutlinedButton(onClick = { onUseInCountry(triage.country, triage.dataSimRef) }) {
                         Text(stringResource(R.string.triage_use, triage.countryLabel))
                     }
                     triage.widenGroups.forEach { group ->
@@ -354,6 +359,11 @@ private fun DataTriageCard(
                             Text(stringResource(R.string.triage_use, group.label))
                         }
                     }
+                }
+                // The rule-free per-trip dismiss, on every situation — the only
+                // opt-out the no-data case has (no expectation to record).
+                OutlinedButton(onClick = { onIgnoreForTrip(triage.arrivalKey) }) {
+                    Text(stringResource(R.string.triage_ignore_trip))
                 }
                 OutlinedButton(onClick = onOpenSimSettings) {
                     Text(stringResource(R.string.triage_pick_sim))

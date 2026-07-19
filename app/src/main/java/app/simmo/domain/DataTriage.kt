@@ -15,15 +15,24 @@ sealed interface DataTriage {
     val country: String
 
     /**
+     * This situation's once-per-arrival key ([DataVerdict.arrivalKey]) — the
+     * same key the roaming-watch notification dedupes on. The card carries it
+     * so the "Ignore for this trip" action can record a dismiss for exactly
+     * this arrival, matched against the live card before it writes.
+     */
+    val arrivalKey: String
+
+    /**
      * The data SIM is roaming with data roaming on and no rule allows it — the
      * "should I make a rule?" moment. [localSims] are the other active SIMs
      * homed here (switch-to candidates); [widenGroupIds] are the shipped or
      * custom groups that contain [country], offered as one-tap ways to widen a
-     * "This is OK" rule beyond the single country.
+     * roaming-OK rule beyond the single country.
      */
     data class Roaming(
         override val dataSim: ActiveSim,
         override val country: String,
+        override val arrivalKey: String,
         val localSims: List<ActiveSim> = emptyList(),
         val widenGroupIds: List<String> = emptyList(),
     ) : DataTriage
@@ -37,6 +46,7 @@ sealed interface DataTriage {
     data class NoData(
         override val dataSim: ActiveSim,
         override val country: String,
+        override val arrivalKey: String,
         val switchTo: List<ActiveSim> = emptyList(),
         val enableFirst: List<RegisteredSim> = emptyList(),
     ) : DataTriage
@@ -49,42 +59,63 @@ sealed interface DataTriage {
     data class WrongSim(
         override val dataSim: ActiveSim,
         override val country: String,
+        override val arrivalKey: String,
         val wantedSim: ActiveSim,
     ) : DataTriage
 }
 
 /**
  * The current triage situation, or null when there is nothing to triage — a
- * rule already covers it, the data SIM is home, or the country is unknown
- * (the same cases [evaluateDataRules] resolves to [DataVerdict.Silent]).
+ * rule already covers it, the data SIM is home, the country is unknown (the
+ * same cases [evaluateDataRules] resolves to [DataVerdict.Silent]), or the
+ * user dismissed this exact arrival for the trip.
+ *
+ * [dismissedKeys] are the persisted "Ignore for this trip" marks: when the
+ * current arrival's key is among them the card stays hidden until the arrival
+ * ends and the key clears (same country/SIM-change staleness the notification
+ * mark uses), so a deliberate dismiss quiets the card without recording a rule.
  */
-fun triageFor(book: DataRuleBook, snapshot: DataSnapshot): DataTriage? =
-    when (val verdict = evaluateDataRules(book, snapshot)) {
+fun triageFor(
+    book: DataRuleBook,
+    snapshot: DataSnapshot,
+    dismissedKeys: Set<String> = emptySet(),
+): DataTriage? {
+    val verdict = evaluateDataRules(book, snapshot)
+    val key = verdict.arrivalKey() ?: return null
+    if (key in dismissedKeys) return null
+    return when (verdict) {
+        // Unreachable: a non-null arrivalKey means the verdict isn't Silent.
         DataVerdict.Silent -> null
         is DataVerdict.RoamingWarning -> DataTriage.Roaming(
             dataSim = verdict.dataSim,
             country = verdict.country,
+            arrivalKey = key,
             localSims = verdict.localSims,
             widenGroupIds = groupsContaining(verdict.country, snapshot.customGroups),
         )
         is DataVerdict.NoDataNudge -> DataTriage.NoData(
             dataSim = verdict.dataSim,
             country = verdict.country,
+            arrivalKey = key,
             switchTo = verdict.switchTo,
             enableFirst = verdict.enableFirst,
         )
         is DataVerdict.WrongDataSim -> DataTriage.WrongSim(
             dataSim = verdict.dataSim,
             country = verdict.country,
+            arrivalKey = key,
             wantedSim = verdict.wantedSim,
         )
     }
+}
 
 /**
- * The "This is OK" rule (SPEC): roaming is expected here on the SIM now
- * carrying data. Scoped to that SIM (the current one, per SPEC) and matched on
- * the current [country], or on [groupId] when the user widens it to a group
- * that contains the country. Assigned an id at write time like any new rule.
+ * The "Use in ⟨place⟩" rule (SPEC "Data rules" → Triage): roaming is expected
+ * here on the SIM now carrying data. Scoped to that SIM (the current one, per
+ * SPEC) and matched on the current [country], or on [groupId] when the user
+ * widens it to a group that contains the country. Assigned an id at write time
+ * like any new rule. (Distinct from "Ignore for this trip," which records no
+ * rule at all — see the dismiss mark.)
  */
 fun roamingOkRule(country: String, groupId: String?, dataSim: SimRef): DataRule {
     val matcher =

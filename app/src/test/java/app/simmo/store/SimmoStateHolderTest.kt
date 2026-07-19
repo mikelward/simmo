@@ -72,6 +72,54 @@ class SimmoStateHolderTest {
     }
 
     @Test
+    fun `per-trip dismisses accumulate as a set and clear independently of the watch mark`() = runTest {
+        val store = FakeDataStore(SimmoState(installId = "install-1"))
+        val holder = SimmoStateHolder(store, backgroundScope, installId = "install-1")
+        // "Ignore for this trip" records the arrival without touching the
+        // notification's own once-per-arrival mark. Two problem shapes on one
+        // trip both stay dismissed — the second doesn't drop the first.
+        holder.dismissDataArrival("roaming:2:AU")
+        holder.dismissDataArrival("noDataSwitch:2:1:AU")
+        assertEquals(setOf("roaming:2:AU", "noDataSwitch:2:1:AU"), store.data.first().dataDismissMarks)
+        assertEquals(null, store.data.first().dataWatchMark)
+        // The stale sweep drops only the keys its predicate accepts, preserving
+        // the rest — so a still-current shape stays dismissed for the trip.
+        holder.clearStaleDataDismissMarks { it == "roaming:2:AU" }
+        assertEquals(setOf("noDataSwitch:2:1:AU"), store.data.first().dataDismissMarks)
+        // Clearing the last key re-arms the card next trip.
+        holder.clearStaleDataDismissMarks { it == "noDataSwitch:2:1:AU" }
+        assertEquals(emptySet<String>(), store.data.first().dataDismissMarks)
+    }
+
+    @Test
+    fun `claiming the watch mark refuses an arrival dismissed for the trip`() = runTest {
+        val store = FakeDataStore(SimmoState(installId = "install-1"))
+        val holder = SimmoStateHolder(store, backgroundScope, installId = "install-1")
+        // A watch check queued behind a dismiss must not re-post it: the claim
+        // consults the committed dismiss atomically, so `current` lagging the
+        // dismiss write can't let the warning through (Codex on PR #64).
+        holder.dismissDataArrival("roaming:2:AU")
+        assertEquals(false, holder.claimDataWatchMark("roaming:2:AU"))
+        assertEquals(null, store.data.first().dataWatchMark)
+        // A different arrival is unaffected — it isn't the dismissed one.
+        assertEquals(true, holder.claimDataWatchMark("roaming:2:NZ"))
+    }
+
+    @Test
+    fun `unconditional clear retires a displaced watch mark so it can be re-claimed`() = runTest {
+        val store = FakeDataStore(SimmoState(installId = "install-1"))
+        val holder = SimmoStateHolder(store, backgroundScope, installId = "install-1")
+        // A roaming warning claimed the mark; the dismiss branch cancels that
+        // warning (a different, dismissed arrival is current) and must retire
+        // the mark it owned, or the roaming warning can't re-post on return
+        // (Codex on PR #64).
+        assertEquals(true, holder.claimDataWatchMark("roaming:2:AU"))
+        holder.clearDataWatchMark()
+        assertEquals(null, store.data.first().dataWatchMark)
+        assertEquals(true, holder.claimDataWatchMark("roaming:2:AU"))
+    }
+
+    @Test
     fun `data-rule edits write through, picker groups in the same transaction`() = runTest {
         val store = FakeDataStore(SimmoState(installId = "install-1"))
         val holder = SimmoStateHolder(store, backgroundScope, installId = "install-1")

@@ -525,8 +525,16 @@ open class SimmoApp : Application() {
         // state, so a late resume can't repost an arrival that's over or
         // seesaw the mark (Codex on PR #55).
         val holder = stateHolderFlow.value ?: return@withLock
-        val state = holder.current ?: return@withLock
-        val snapshot = assembler.currentDataSnapshot() ?: return@withLock
+        // COMMITTED state, not holder.current: current is published by an async
+        // stateIn collector that lags commits, and the watch cannot tolerate a
+        // stale dismiss set or watch mark — it would suppress or re-post a
+        // warning. Reading through the write path makes every prior commit
+        // visible, so all the dismiss/mark checks below are authoritative
+        // (Codex on PR #64).
+        val state = holder.committedState()
+        // Build the snapshot from the SAME committed state, so rules, groups,
+        // and registry are one coherent version (Codex on PR #64).
+        val snapshot = assembler.currentDataSnapshot(state)
         val verdict = evaluateDataRules(state.dataRules, snapshot)
         // Housekeeping before ANY early return: a mark whose arrival is over
         // — the user moved country or the data SIM changed — clears, so a
@@ -538,6 +546,16 @@ open class SimmoApp : Application() {
         // flapping roaming flag must not re-nag mid-trip. Compare-and-swap
         // on the observed mark, so a concurrent refresh's fresh claim is
         // never deleted.
+        // The per-trip "Ignore for this trip" dismisses clear on the same
+        // staleness as the watch mark (country or data SIM changed), so a
+        // return to a dismissed place warns once again (SPEC "Data rules" →
+        // Triage). All keys for a trip share its country/SIM, so they go stale
+        // and clear together. The sweep filters the COMMITTED set inside its
+        // transaction (not the lagging `state`), so a key committed just before
+        // this refresh is still swept when it's stale (Codex on PR #64). No
+        // notification to cancel here — the card's dismiss already retired any
+        // posted warning; this only frees the keys.
+        holder.clearStaleDataDismissMarks { isMarkStale(it, snapshot) }
         val observed = state.dataWatchMark
         if (observed != null && isMarkStale(observed, snapshot)) {
             // The winner also takes down the posted warning: the arrival it
@@ -553,7 +571,29 @@ open class SimmoApp : Application() {
                 notifications.cancelDataWatch()
             }
         }
+        // An interrupted dismiss (process death after the mark commit, before
+        // retireDataWatch's cancel) can leave a dismissed arrival's warning
+        // posted with its mark still claimed. Retire it whenever the claimed
+        // mark is itself dismissed — BEFORE the arrival-key return below, so it
+        // also fires when the verdict is now Silent (roaming stopped with no
+        // local SIM to offer, same place), where that return would otherwise
+        // skip recovery for the whole trip (Codex on PR #64). Falls through: a
+        // non-dismissed current arrival still posts after the leftover is gone.
+        if (observed != null && observed in state.dataDismissMarks) retireDataWatch(holder)
         val key = verdict.arrivalKey() ?: return
+        // The user chose "Ignore for this trip" for exactly this arrival: stay
+        // silent until it ends and the dismiss key clears (above). `state` is
+        // the committed dismiss set (read at the top), so a key another refresh
+        // just cleared won't wrongly read as present. A different-shaped problem
+        // in the same place has a different key and still warns.
+        if (key in state.dataDismissMarks) {
+            // Retire both surfaces — completing a dismiss whose in-app cancel
+            // was lost to a cancelled coroutine or process death (the card is
+            // hidden in parallel by triage). See [retireDataWatch] for why the
+            // mark must go down with the notification.
+            retireDataWatch(holder)
+            return
+        }
         // Unpostable (permission denied, channel blocked): leave the mark
         // unclaimed so a later grant still warns about this arrival. The
         // tiny window where a revocation lands between this check and the
@@ -567,6 +607,70 @@ open class SimmoApp : Application() {
         // re-nag.
         if (!holder.claimDataWatchMark(key)) return
         notifications.postDataWatch(verdict)
+    }
+
+    /**
+     * Records the triage card's "Ignore for this trip" dismiss (SPEC "Data
+     * rules" → Triage). Fire-and-forget: the work is dispatched on the
+     * process-lifetime [appScope], NOT the caller's `viewModelScope`, so it is
+     * a durable action — tapping Ignore and immediately hitting Done/Back (which
+     * finishes the activity and clears the view model) still commits the dismiss
+     * and cancels the notification, even while the work is still waiting on
+     * [dataWatchMutex] because a telephony refresh holds it (Codex on PR #64).
+     * Same reason the leave-time purge runs on [appScope].
+     *
+     * Serialized with [checkDataWatch] under that lock so the two never
+     * interleave. [renderedKey] is the arrival the tapped card showed; the
+     * dismiss is honored only if the live arrival — re-derived from the freshest
+     * snapshot — still matches it, so a country or data-SIM change between the
+     * tap and the write cannot persist a stale key that would later suppress a
+     * genuine return-trip warning. Cancelling the warning here, under the lock,
+     * means a concurrent watch check cannot re-post it: whichever of the two runs
+     * second sees the committed dismiss.
+     */
+    fun dismissDataArrival(renderedKey: String) {
+        appScope.launch {
+            dataWatchMutex.withLock {
+                val holder = stateHolderFlow.value ?: return@withLock
+                // Committed state + a snapshot built from it: one coherent
+                // version, and the freshest rules/dismisses (Codex on PR #64).
+                val state = holder.committedState()
+                val snapshot = assembler.currentDataSnapshot(state)
+                val key = evaluateDataRules(state.dataRules, snapshot).arrivalKey() ?: return@withLock
+                // Only the arrival the user actually saw: a stale tap — the
+                // situation changed underneath before the write reached the lock
+                // — is a no-op, never a dismiss recorded against another arrival.
+                if (key != renderedKey) return@withLock
+                holder.dismissDataArrival(key)
+                retireDataWatch(holder)
+            }
+        }
+    }
+
+    /**
+     * Take down the roaming warning AND retire the watch mark that owned it,
+     * together, under [dataWatchMutex]. Every path that cancels the shared
+     * data-watch notification must do both: the posted warning can belong to a
+     * DIFFERENT arrival than the one being dismissed (post a roaming warning →
+     * the snapshot turns to no-data → the user dismisses that card, or a later
+     * check hits the dismiss branch). Cancelling the notification but leaving
+     * its mark claimed would make [SimmoStateHolder.claimDataWatchMark] dedupe
+     * that problem when it returns, suppressing a warning with nothing on screen
+     * (Codex on PR #64). Unconditional clear is safe here — both callers hold
+     * the mutex, so no concurrent claim races it — and idempotent: both calls
+     * no-op once nothing is posted and no mark is set.
+     *
+     * Clear the durable mark BEFORE the external cancel. If the process dies (or
+     * the cancel fails) between the two, the recoverable direction is a stale
+     * notification — the next post or dismiss replaces or cancels it under the
+     * shared tag — NOT a still-claimed mark whose notification is already gone,
+     * which would dedupe a returning problem into silence with nothing on screen
+     * (Codex on PR #64). Persisted state is the source of truth, so it moves
+     * first.
+     */
+    private suspend fun retireDataWatch(holder: SimmoStateHolder) {
+        holder.clearDataWatchMark()
+        notifications.cancelDataWatch()
     }
 
     /**

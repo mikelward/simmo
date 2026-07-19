@@ -416,15 +416,16 @@ class SnapshotAssembler(
     fun dataStates(): StateFlow<TelephonyReader.DataState> = dataStateFlow.asStateFlow()
 
     /**
-     * The roaming watch's input (SPEC "Data rules"), or null until the
-     * persisted state's first load lands — the same contract as [current].
-     * The watch evaluates this on telephony refreshes and wake-ups, never on
-     * the call-decision path.
+     * The roaming watch's input (SPEC "Data rules"), built from a
+     * caller-supplied [state]. The watch evaluates this on telephony refreshes
+     * and wake-ups, never on the call-decision path. The caller passes the
+     * COMMITTED state (not the lagging [current]) so the rules, groups, and
+     * registry the verdict sees are one coherent version — a refresh racing a
+     * custom-group edit must not combine committed rules with stale group
+     * membership and post a false warning (Codex on PR #64).
      */
-    fun currentDataSnapshot(): DataSnapshot? {
-        val state = stateHolder()?.current ?: return null
-        return buildDataSnapshot(dataStateFlow.value, state)
-    }
+    fun currentDataSnapshot(state: SimmoState): DataSnapshot =
+        buildDataSnapshot(dataStateFlow.value, state)
 
     /**
      * Rebuilds the contact index. Blocking contacts IPC — call from a background

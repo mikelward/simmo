@@ -82,6 +82,21 @@ data class SimmoState(
      * it.
      */
     val dataWatchMark: String? = null,
+    /**
+     * The arrivals the user chose to "Ignore for this trip" on the triage card
+     * (SPEC "Data rules" → Triage): a rule-free, per-trip dismiss keyed on the
+     * same [DataVerdict.arrivalKey]s the notification dedupes on. While an
+     * arrival's key is in the set its card stays hidden and its warning stays
+     * unposted; a key clears on the same country/SIM change that ends its
+     * arrival (see `isMarkStale`), so the next trip warns again. It is a SET,
+     * not one key, because several problem shapes can be dismissed on one trip
+     * (dismiss the no-data nudge, then the roaming warning after enabling
+     * roaming) and each must stay dismissed independently — they share a
+     * country/SIM, so they go stale and clear together when the trip ends.
+     * Separate from [dataWatchMark] on purpose: the notification claiming its
+     * own mark on post must never pre-dismiss the card.
+     */
+    val dataDismissMarks: Set<String> = emptySet(),
 ) {
     companion object {
         /** Ceiling for [callDelaySeconds]; also the settings slider's range. */
@@ -116,6 +131,9 @@ fun SimmoState.withInstallValidated(currentInstallId: String): SimmoState {
         // PR #55). Clearing costs at most one repeat of an already-seen
         // warning — the safe direction.
         dataWatchMark = null,
+        // The dismiss keys embed a subscription id too: keep them and a
+        // restore could silence the first genuine warning on the new phone.
+        dataDismissMarks = emptySet(),
         installId = currentInstallId,
     )
 }
