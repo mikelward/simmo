@@ -39,4 +39,12 @@ class DialHandoffAppTest {
             DialHandoffApp.YOLLA.launchUri("+12125550123"),
         )
     }
+
+    @Test
+    fun `Roamless launch is the generic tel form with the plus kept literal`() {
+        assertEquals(
+            "tel:+12125550123",
+            DialHandoffApp.ROAMLESS.launchUri("+12125550123"),
+        )
+    }
 }

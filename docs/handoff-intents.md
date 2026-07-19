@@ -55,7 +55,8 @@ without `+`; `«E164enc»` = URL-encoded for a query value (`+` → `%2B`, e.g.
 
 ## MVP targets
 
-**Status:** Google Voice, Teams, Viber, and Yolla are **implemented** as cancel-and-forward
+**Status:** Google Voice, Teams, Viber, Yolla, and Roamless are **implemented** as
+cancel-and-forward
 targets (`DialHandoffApp`, `RuleAction.HandOff.ViaDialIntent`) — the number is normalized
 to E.164 off the fast path, the deep link resolved before the carrier call is cancelled,
 and each is offered in the editor only when its number-carrying intent resolves (not a
@@ -102,6 +103,16 @@ handling) is unconfirmed.
 | **What happens** | Expected to open Yolla at the number (pre-fill vs auto-dial unknown). If the installed build doesn't receive `VIEW tel:`, the intent doesn't resolve, so discovery never offers Yolla in the editor and a stale rule proceeds unmodified — never a stranded call, just no Yolla option (fix would be a probed custom scheme, if one exists). |
 | **Requires** | Yolla installed and signed in. Yolla-to-Yolla is free; calling a **phone number needs paid Yolla credit**. Credit balance isn't detectable from the intent ("resolves ≠ ready"). |
 | **Notes** | Yolla (Yolla Calls International) publishes no deep-link documentation; searches turned up neither a `yolla://` dial form nor an app-link. So this target rides on the tel: fallback and is the row most in need of the device check — record whether `VIEW tel:` resolves at all, and what surface it opens. |
+| **Confidence** | Low — the tel: handling is unverified; only the safe-degrade path (unresolved → proceed unmodified) is certain. |
+
+### 5. Roamless — `com.roamless.roamless`
+
+| | |
+|---|---|
+| **Launch** | `ACTION_VIEW`, `tel:«E164»`, `setPackage("com.roamless.roamless")` — the generic fallback below; no public custom scheme or app-link found. |
+| **What happens** | Expected to open Roamless at the number (pre-fill vs auto-dial unknown). Roamless places VoIP calls to any phone number worldwide from inside the app, so it *is* a number-dialing target (not app-to-app-only). If the installed build doesn't receive `VIEW tel:`, the intent doesn't resolve, so discovery never offers Roamless and a stale rule proceeds unmodified — never a stranded call. |
+| **Requires** | Roamless installed and signed in. Calling a **phone number needs paid Roamless credit** (VoIP, from ~$0.01/min). Credit balance isn't detectable from the intent ("resolves ≠ ready"). |
+| **Notes** | Roamless publishes no deep-link documentation; searches turned up neither a `roamless://` dial form nor an app-link. So this target rides on the tel: fallback exactly like Yolla and needs the same device check — record whether `VIEW tel:` resolves at all, and what surface it opens. |
 | **Confidence** | Low — the tel: handling is unverified; only the safe-degrade path (unresolved → proceed unmodified) is certain. |
 
 ---
@@ -163,7 +174,7 @@ pre-fill vs browser).
 - Pixel, Android 17, dual SIM (or at least one).
 - Google Voice signed in with a linked number; Teams signed in (test both with and
   without a Teams Phone plan); Viber signed in (with and without Viber Out credit); Yolla
-  signed in (with and without credit).
+  and Roamless signed in (each with and without credit).
 
 **Per-app**
 
@@ -184,5 +195,7 @@ pre-fill vs browser).
 | 12 | Hands-free | Trigger a hand-off rule while on a Bluetooth headset / Android Auto | Rule is **skipped** (interactive-only); a silent rule or pass-through applies | |
 | 13 | Emergency | Confirm emergency numbers are never handed off | Untouched | |
 | 14 | Notifications off | Deny `POST_NOTIFICATIONS`, then force a hand-off failure (e.g. uninstall the target after saving its rule) | The failure surfaces as a plain text toast from the service — background *custom* toasts are blocked but text toasts should pass; record whether it actually shows | |
+| 15 | Roamless | Launch `tel:«E164»` with `setPackage("com.roamless.roamless")` | First: does it **resolve at all**? If yes, opens Roamless at the number (record pre-fill vs auto-dial); if no, Roamless is never offered in the editor and needs a probed custom scheme instead | |
+| 16 | Roamless credit | Same, then place the call with and without credit | Placed via credit; without, a top-up prompt (record whether the number survives to redial) | |
 
 Update the confidence column of each MVP app above once these are run.

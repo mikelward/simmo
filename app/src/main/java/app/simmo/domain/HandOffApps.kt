@@ -24,6 +24,7 @@ enum class DialHandoffApp(val packageName: String, val label: String) {
     TEAMS("com.microsoft.teams", "Microsoft Teams"),
     VIBER("com.viber.voip", "Viber"),
     YOLLA("com.yollacalls", "Yolla"),
+    ROAMLESS("com.roamless.roamless", "Roamless"),
     ;
 
     /**
@@ -50,6 +51,12 @@ enum class DialHandoffApp(val packageName: String, val label: String) {
             // discovery never offers it and a stale rule proceeds unmodified
             // (docs/handoff-intents.md). Calling a number needs Yolla credit.
             YOLLA -> "tel:$e164"
+            // Roamless places VoIP calls to any phone number worldwide (credit-
+            // based), but publishes no deep link, so it rides the same generic
+            // tel: fallback as Yolla. If the installed build has no VIEW tel:
+            // handler the intent won't resolve, so discovery never offers it and
+            // no rule strands (docs/handoff-intents.md). Calling needs credit.
+            ROAMLESS -> "tel:$e164"
         }
     }
 }

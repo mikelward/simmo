@@ -214,6 +214,7 @@ class RuleEditorScreenshotTest {
         composeRule.onNodeWithText("Microsoft Teams").assertExists()
         composeRule.onNodeWithText("Viber").assertExists()
         composeRule.onNodeWithText("Yolla").assertExists()
+        composeRule.onNodeWithText("Roamless").assertExists()
         captureSnapshot("rule_editor_dial_handoff.png")
     }
 
