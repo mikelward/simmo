@@ -7,7 +7,9 @@ import androidx.activity.ComponentActivity
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import com.github.takahirom.roborazzi.captureRoboImage
+import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -42,6 +44,9 @@ class SettingsScreenshotTest {
 
         composeRule.onNodeWithText("Settings").assertExists()
         composeRule.onNodeWithText("SIMs").assertExists()
+        // Country groups moved here from the rules toolbar.
+        composeRule.onNodeWithText("Country groups").assertExists()
+        composeRule.onNodeWithText("Custom sets of countries a rule can match").assertExists()
         composeRule.onNodeWithText("Show which SIM or app is used").assertExists()
         composeRule.onNodeWithText("Delay before calling").assertExists()
         composeRule.onNodeWithText("3 seconds").assertExists()
@@ -51,6 +56,18 @@ class SettingsScreenshotTest {
         composeRule.onNodeWithText("Calls needing a disabled SIM").assertExists()
         composeRule.onNodeWithText("Make Simmo better").assertExists()
         captureSnapshot("settings.png")
+    }
+
+    @Test
+    fun tappingCountryGroupsOpensThem() {
+        var opened = false
+        composeRule.setContent {
+            MaterialTheme {
+                SettingsContent(onOpenGroups = { opened = true })
+            }
+        }
+        composeRule.onNodeWithText("Country groups").performClick()
+        composeRule.runOnIdle { assertEquals(true, opened) }
     }
 
     private fun captureSnapshot(name: String, widthPx: Int = 1080, heightPx: Int = 1920) {
