@@ -108,6 +108,10 @@ small stack), fully unit-tested, with `./gradlew test` and `./gradlew lint` gree
       does *not* commit — only Apply, Done, or leaving the app.
 - [x] Title the home screen with the app name ("Simmo"); the Calling/Data tabs below name
       the two lists, so the old per-tab "Calling rules"/"Data rules" titles were redundant.
+- [x] Move Country groups off the rules toolbar into Settings (a row beside "SIMs"),
+      dropping the menu-looking list icon. Groups are mostly built inline from the rule
+      editor's picker, so the standalone screen is a manage-existing surface that belongs
+      under Settings; opened from there, Back returns to Settings.
   - [ ] Consider extending the leave-to-purge undo window to *other* modifications
         (reorders, edits, enable/disable), not just deletes — right now anything but a
         delete commits immediately, and a leave that undoes only deletes hints at a more
@@ -116,6 +120,10 @@ small stack), fully unit-tested, with `./gradlew test` and `./gradlew lint` gree
         every mutation routes through one guarded surface — the chooser's direct
         `updateRules` bypassing view-model invariants is the pattern this would prevent
         (id-minting already moved to the holder boundary for the same reason).
+  - [ ] Rename the calling-rule domain type `Rule` → `CallingRule` (a behavior-preserving
+        `refactor:` PR) so it pairs symmetrically with `DataRule`; deferred earlier until
+        the delete/undo and header stack landed. Touches the type, `RuleBook`, the decision
+        engine, and the UI mappers — no user-visible change, so a `refactor:` subject.
 - [x] Country picker search: a searchable full-screen subpage (reached from the editor's
       country row) that fuzzy-matches by name, dial code, ISO alpha-2/alpha-3, and aliases
       (UK/USA/America), ranked exact/prefix-first with capitals-match-capitals acronym
