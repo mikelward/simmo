@@ -116,14 +116,14 @@ small stack), fully unit-tested, with `./gradlew test` and `./gradlew lint` gree
         (reorders, edits, enable/disable), not just deletes — right now anything but a
         delete commits immediately, and a leave that undoes only deletes hints at a more
         general "discard my changes" affordance worth a deliberate UX pass.
-  - [ ] Consider making `RuleBook`/`DataRuleBook` rule lists private behind accessors so
-        every mutation routes through one guarded surface — the chooser's direct
-        `updateRules` bypassing view-model invariants is the pattern this would prevent
-        (id-minting already moved to the holder boundary for the same reason).
-  - [ ] Rename the calling-rule domain type `Rule` → `CallingRule` (a behavior-preserving
-        `refactor:` PR) so it pairs symmetrically with `DataRule`; deferred earlier until
-        the delete/undo and header stack landed. Touches the type, `RuleBook`, the decision
-        engine, and the UI mappers — no user-visible change, so a `refactor:` subject.
+  - [ ] Consider making `CallingRuleBook`/`DataRuleBook` rule lists private behind
+        accessors so every mutation routes through one guarded surface — the chooser's
+        direct `updateRules` bypassing view-model invariants is the pattern this would
+        prevent (id-minting already moved to the holder boundary for the same reason).
+  - [x] Rename the calling-rule domain types for symmetry with the data side:
+        `Rule` → `CallingRule` and `RuleBook` → `CallingRuleBook` (behavior-preserving
+        `refactor:`). `RuleMatcher` (shared by both rule kinds) and `RuleAction` (twin of
+        `DataExpectation`) are deliberately left unchanged.
 - [x] Country picker search: a searchable full-screen subpage (reached from the editor's
       country row) that fuzzy-matches by name, dial code, ISO alpha-2/alpha-3, and aliases
       (UK/USA/America), ranked exact/prefix-first with capitals-match-capitals acronym
