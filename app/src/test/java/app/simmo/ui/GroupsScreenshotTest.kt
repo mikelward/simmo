@@ -60,6 +60,7 @@ class GroupsScreenshotTest {
                         CustomGroup("custom:2", "Work trips", listOf("US", "JP"), pendingRemoval = true),
                     ),
                     countryOptions = emptyList(),
+                    pendingRemovals = true,
                 )
             }
         }
@@ -68,6 +69,46 @@ class GroupsScreenshotTest {
         composeRule.onNodeWithText("Work trips").assertExists()
         composeRule.onNodeWithText("Undo").assertExists()
         captureSnapshot("groups_list_pending_removal.png")
+    }
+
+    @Test
+    fun applyReplacesDoneWhileAGroupDeletionIsPending() {
+        var applied = false
+        composeRule.setContent {
+            MaterialTheme {
+                GroupsContent(
+                    groups = listOf(
+                        CustomGroup("custom:1", "Vodafone Zone 1", listOf("GB")),
+                        CustomGroup("custom:2", "Work trips", listOf("US"), pendingRemoval = true),
+                    ),
+                    countryOptions = emptyList(),
+                    pendingRemovals = true,
+                    onApply = { applied = true },
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("Done").assertDoesNotExist()
+        composeRule.onNodeWithText("Apply").performClick()
+        composeRule.runOnIdle { assertEquals(true, applied) }
+    }
+
+    @Test
+    fun doneShowsWithNoPendingGroup() {
+        var done = false
+        composeRule.setContent {
+            MaterialTheme {
+                GroupsContent(
+                    groups = listOf(CustomGroup("custom:1", "Vodafone Zone 1", listOf("GB"))),
+                    countryOptions = emptyList(),
+                    onDone = { done = true },
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("Apply").assertDoesNotExist()
+        composeRule.onNodeWithText("Done").performClick()
+        composeRule.runOnIdle { assertEquals(true, done) }
     }
 
     @Test

@@ -71,12 +71,14 @@ fun RulesScreen(
     onAddRule: () -> Unit,
     onEditRule: (String) -> Unit,
     onOpenGroups: () -> Unit = {},
+    onDone: () -> Unit = {},
 ) {
     val rows by viewModel.rows.collectAsStateWithLifecycle()
     val dataRows by viewModel.dataRows.collectAsStateWithLifecycle()
     val triage by viewModel.triage.collectAsStateWithLifecycle()
     val newSimPrompts by viewModel.newSimPrompts.collectAsStateWithLifecycle()
     val tab by viewModel.rulesTab.collectAsStateWithLifecycle()
+    val pendingRemovals by viewModel.hasPendingRemovals.collectAsStateWithLifecycle()
     val context = LocalContext.current
     RulesScreenContent(
         rows = rows,
@@ -85,6 +87,9 @@ fun RulesScreen(
         tab = tab,
         onSelectTab = viewModel::selectRulesTab,
         newSimPrompts = newSimPrompts,
+        pendingRemovals = pendingRemovals,
+        onApply = viewModel::purgePendingRemovals,
+        onDone = onDone,
         onAddRule = onAddRule,
         onEditRule = onEditRule,
         onDuplicateRule = viewModel::duplicateRule,
@@ -117,6 +122,9 @@ internal fun RulesScreenContent(
     tab: RulesTab = RulesTab.CALLING,
     onSelectTab: (RulesTab) -> Unit = {},
     newSimPrompts: List<NewSimPromptUi> = emptyList(),
+    pendingRemovals: Boolean = false,
+    onApply: () -> Unit = {},
+    onDone: () -> Unit = {},
     onAddRule: () -> Unit = {},
     onEditRule: (String) -> Unit = {},
     onDuplicateRule: (String) -> Unit = {},
@@ -156,9 +164,9 @@ internal fun RulesScreenContent(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        text = stringResource(
-                            if (tab == RulesTab.CALLING) R.string.rules_title else R.string.data_rules_title,
-                        ),
+                        // The home screen carries the app name; the Calling/Data
+                        // tabs below name the two lists.
+                        text = stringResource(R.string.app_name),
                         style = MaterialTheme.typography.headlineMedium,
                         modifier = Modifier.weight(1f),
                     )
@@ -173,6 +181,15 @@ internal fun RulesScreenContent(
                             imageVector = Icons.Filled.Settings,
                             contentDescription = stringResource(R.string.settings_open),
                         )
+                    }
+                    // While any deletion is pending — a rule, data rule, or group
+                    // — the button is Apply, which flushes them all in place. With
+                    // nothing pending it's Done, which just closes the UI (leaving
+                    // the app already commits, so Done needs no separate apply).
+                    if (pendingRemovals) {
+                        TextButton(onClick = onApply) { Text(stringResource(R.string.action_apply)) }
+                    } else {
+                        TextButton(onClick = onDone) { Text(stringResource(R.string.action_done)) }
                     }
                 }
                 TabRow(

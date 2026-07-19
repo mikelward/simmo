@@ -51,15 +51,20 @@ import app.simmo.domain.CustomGroup
 fun GroupsScreen(
     viewModel: RulesViewModel,
     onBack: () -> Unit,
+    onDone: () -> Unit = {},
 ) {
     val groups by viewModel.customGroups.collectAsStateWithLifecycle()
     val countryOptions by viewModel.countryOptions.collectAsStateWithLifecycle()
+    val pendingRemovals by viewModel.hasPendingRemovals.collectAsStateWithLifecycle()
     GroupsContent(
         groups = groups,
         countryOptions = countryOptions,
+        pendingRemovals = pendingRemovals,
         onSaveGroup = viewModel::saveCustomGroup,
         onDeleteGroup = viewModel::deleteCustomGroup,
         onUndoDeleteGroup = viewModel::undoGroupRemoval,
+        onApply = viewModel::purgePendingRemovals,
+        onDone = onDone,
         onBack = onBack,
     )
 }
@@ -68,9 +73,12 @@ fun GroupsScreen(
 internal fun GroupsContent(
     groups: List<CustomGroup>,
     countryOptions: List<CountryOptionUi>,
+    pendingRemovals: Boolean = false,
     onSaveGroup: (id: String?, name: String, regionCodes: List<String>) -> Unit = { _, _, _ -> },
     onDeleteGroup: (String) -> Unit = {},
     onUndoDeleteGroup: (String) -> Unit = {},
+    onApply: () -> Unit = {},
+    onDone: () -> Unit = {},
     onBack: () -> Unit = {},
 ) {
     // null = the list; "" = a new group; else the id being edited. A plain
@@ -104,11 +112,26 @@ internal fun GroupsContent(
                     .safeDrawingPadding()
                     .padding(16.dp),
             ) {
-                Text(
-                    text = stringResource(R.string.groups_title),
-                    style = MaterialTheme.typography.headlineMedium,
-                    modifier = Modifier.padding(bottom = 16.dp),
-                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = stringResource(R.string.groups_title),
+                        style = MaterialTheme.typography.headlineMedium,
+                        modifier = Modifier.weight(1f),
+                    )
+                    // Apply while any deletion is pending (rule, data rule, or
+                    // group — it flushes them all); otherwise Done closes the UI
+                    // (leaving already commits).
+                    if (pendingRemovals) {
+                        TextButton(onClick = onApply) { Text(stringResource(R.string.action_apply)) }
+                    } else {
+                        TextButton(onClick = onDone) { Text(stringResource(R.string.action_done)) }
+                    }
+                }
                 Text(
                     text = stringResource(R.string.groups_explainer),
                     style = MaterialTheme.typography.bodyMedium,

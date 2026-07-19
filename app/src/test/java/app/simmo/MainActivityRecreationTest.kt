@@ -44,6 +44,8 @@ class MainActivityRecreationTest {
         composeRule.waitForIdle()
 
         composeRule.onNodeWithText("Continue").assertExists()
-        composeRule.onNodeWithText("Calling rules").assertDoesNotExist()
+        // The rules screen must not be shown yet — its Calling tab is a marker
+        // onboarding never renders (the title "Simmo" is shared with onboarding).
+        composeRule.onNodeWithText("Calling").assertDoesNotExist()
     }
 }

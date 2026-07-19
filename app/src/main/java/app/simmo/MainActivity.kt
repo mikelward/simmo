@@ -243,6 +243,7 @@ class MainActivity : ComponentActivity() {
                         groupsOpen -> GroupsScreen(
                             viewModel = vm,
                             onBack = vm::closeGroups,
+                            onDone = { activity?.finish() },
                         )
 
                         settingsOpen -> SettingsScreen(
@@ -264,6 +265,7 @@ class MainActivity : ComponentActivity() {
                             onAddRule = vm::openNewRule,
                             onEditRule = vm::openEditRule,
                             onOpenGroups = vm::openGroups,
+                            onDone = { activity?.finish() },
                         )
                     }
                 } else {
