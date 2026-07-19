@@ -206,6 +206,10 @@
     <!-- A URL, not translatable copy. -->
     <string name="settings_privacy_url" translatable="false">https://mikelward.github.io/simmo/PRIVACY.html</string>
     <!-- TODO: translate -->
+    <string name="settings_licenses" tools:ignore="MissingTranslation">Licenses</string>
+    <!-- TODO: translate -->
+    <string name="settings_licenses_title" tools:ignore="MissingTranslation">Open source licenses</string>
+    <!-- TODO: translate -->
     <string name="settings_call_toast_label" tools:ignore="MissingTranslation">Show which SIM or app is used</string>
     <!-- TODO: translate -->
     <string name="settings_call_toast_description" tools:ignore="MissingTranslation">A \"Calling using…\" message appears when a rule routes a call</string>

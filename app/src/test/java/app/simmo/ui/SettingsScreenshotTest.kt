@@ -56,11 +56,12 @@ class SettingsScreenshotTest {
         composeRule.onNodeWithText("Overseas calls").assertExists()
         composeRule.onNodeWithText("Calls needing a disabled SIM").assertExists()
         composeRule.onNodeWithText("Make Simmo better").assertExists()
-        // Privacy policy link and version sit at the foot of the page.
+        // Privacy policy, Licenses, and version sit at the foot of the page.
         composeRule.onNodeWithText("Privacy policy").assertExists()
+        composeRule.onNodeWithText("Licenses").assertExists()
         composeRule.onNodeWithText("Version 1.4.87+ab12cd").assertExists()
         // Tall enough to show the whole scrolling page, including the footer.
-        captureSnapshot("settings.png", heightPx = 2150)
+        captureSnapshot("settings.png", heightPx = 2250)
     }
 
     @Test
@@ -84,6 +85,18 @@ class SettingsScreenshotTest {
             }
         }
         composeRule.onNodeWithText("Privacy policy").performClick()
+        composeRule.runOnIdle { assertEquals(true, opened) }
+    }
+
+    @Test
+    fun tappingLicensesOpensThem() {
+        var opened = false
+        composeRule.setContent {
+            MaterialTheme {
+                SettingsContent(onOpenLicenses = { opened = true })
+            }
+        }
+        composeRule.onNodeWithText("Licenses").performClick()
         composeRule.runOnIdle { assertEquals(true, opened) }
     }
 

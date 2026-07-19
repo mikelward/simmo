@@ -1,0 +1,3034 @@
+{
+    "libraries": [
+        {
+            "uniqueId": "androidx.activity:activity",
+            "artifactVersion": "1.13.0",
+            "name": "Activity",
+            "description": "Provides the base Activity subclass and the relevant hooks to build a composable structure on top.",
+            "website": "https://developer.android.com/jetpack/androidx/releases/activity#1.13.0",
+            "developers": [
+                {
+                    "name": "The Android Open Source Project"
+                }
+            ],
+            "organization": {
+                "name": "The Android Open Source Project"
+            },
+            "scm": {
+                "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
+                "url": "https://cs.android.com/androidx/platform/frameworks/support"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "androidx.activity:activity-compose",
+            "artifactVersion": "1.13.0",
+            "name": "Activity Compose",
+            "description": "Compose integration with Activity",
+            "website": "https://developer.android.com/jetpack/androidx/releases/activity#1.13.0",
+            "developers": [
+                {
+                    "name": "The Android Open Source Project"
+                }
+            ],
+            "organization": {
+                "name": "The Android Open Source Project"
+            },
+            "scm": {
+                "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
+                "url": "https://cs.android.com/androidx/platform/frameworks/support"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "androidx.activity:activity-ktx",
+            "artifactVersion": "1.13.0",
+            "name": "Activity Kotlin Extensions",
+            "description": "Kotlin extensions for 'activity' artifact",
+            "website": "https://developer.android.com/jetpack/androidx/releases/activity#1.13.0",
+            "developers": [
+                {
+                    "name": "The Android Open Source Project"
+                }
+            ],
+            "organization": {
+                "name": "The Android Open Source Project"
+            },
+            "scm": {
+                "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
+                "url": "https://cs.android.com/androidx/platform/frameworks/support"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "androidx.annotation:annotation-experimental",
+            "artifactVersion": "1.4.1",
+            "name": "Experimental annotation",
+            "description": "Java annotation for use on unstable Android API surfaces. When used in conjunction with the Experimental annotation lint checks, this annotation provides functional parity with Kotlin's Experimental annotation.",
+            "website": "https://developer.android.com/jetpack/androidx/releases/annotation#1.4.1",
+            "developers": [
+                {
+                    "name": "The Android Open Source Project"
+                }
+            ],
+            "organization": {
+                "name": "The Android Open Source Project"
+            },
+            "scm": {
+                "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
+                "url": "https://cs.android.com/androidx/platform/frameworks/support"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "androidx.annotation:annotation-jvm",
+            "artifactVersion": "1.9.1",
+            "name": "Annotation",
+            "description": "Provides source annotations for tooling and readability.",
+            "website": "https://developer.android.com/jetpack/androidx/releases/annotation#1.9.1",
+            "developers": [
+                {
+                    "name": "The Android Open Source Project"
+                }
+            ],
+            "organization": {
+                "name": "The Android Open Source Project"
+            },
+            "scm": {
+                "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
+                "url": "https://cs.android.com/androidx/platform/frameworks/support"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "androidx.arch.core:core-common",
+            "artifactVersion": "2.2.0",
+            "name": "Android Arch-Common",
+            "description": "Android Arch-Common",
+            "website": "https://developer.android.com/jetpack/androidx/releases/arch-core#2.2.0",
+            "developers": [
+                {
+                    "name": "The Android Open Source Project"
+                }
+            ],
+            "scm": {
+                "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
+                "url": "https://cs.android.com/androidx/platform/frameworks/support"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "androidx.arch.core:core-runtime",
+            "artifactVersion": "2.2.0",
+            "name": "Android Arch-Runtime",
+            "description": "Android Arch-Runtime",
+            "website": "https://developer.android.com/jetpack/androidx/releases/arch-core#2.2.0",
+            "developers": [
+                {
+                    "name": "The Android Open Source Project"
+                }
+            ],
+            "scm": {
+                "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
+                "url": "https://cs.android.com/androidx/platform/frameworks/support"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "androidx.autofill:autofill",
+            "artifactVersion": "1.0.0",
+            "name": "AndroidX Autofill",
+            "description": "AndroidX Autofill",
+            "website": "https://developer.android.com/jetpack/androidx",
+            "developers": [
+                {
+                    "name": "The Android Open Source Project"
+                }
+            ],
+            "scm": {
+                "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
+                "url": "http://source.android.com"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "androidx.collection:collection-jvm",
+            "artifactVersion": "1.5.0",
+            "name": "collections",
+            "description": "Standalone efficient collections.",
+            "website": "https://developer.android.com/jetpack/androidx/releases/collection#1.5.0",
+            "developers": [
+                {
+                    "name": "The Android Open Source Project"
+                }
+            ],
+            "organization": {
+                "name": "The Android Open Source Project"
+            },
+            "scm": {
+                "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
+                "url": "https://cs.android.com/androidx/platform/frameworks/support"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "androidx.collection:collection-ktx",
+            "artifactVersion": "1.5.0",
+            "name": "Collections Kotlin Extensions",
+            "description": "Kotlin extensions for 'collection' artifact",
+            "website": "https://developer.android.com/jetpack/androidx/releases/collection#1.5.0",
+            "developers": [
+                {
+                    "name": "The Android Open Source Project"
+                }
+            ],
+            "organization": {
+                "name": "The Android Open Source Project"
+            },
+            "scm": {
+                "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
+                "url": "https://cs.android.com/androidx/platform/frameworks/support"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "androidx.compose.animation:animation-android",
+            "artifactVersion": "1.11.2",
+            "name": "Compose Animation",
+            "description": "Compose animation library",
+            "website": "https://developer.android.com/jetpack/androidx/releases/compose-animation#1.11.2",
+            "developers": [
+                {
+                    "name": "The Android Open Source Project"
+                }
+            ],
+            "organization": {
+                "name": "The Android Open Source Project"
+            },
+            "scm": {
+                "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
+                "url": "https://cs.android.com/androidx/platform/frameworks/support"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "androidx.compose.animation:animation-core-android",
+            "artifactVersion": "1.11.2",
+            "name": "Compose Animation Core",
+            "description": "Animation engine and animation primitives that are the building blocks of the Compose animation library",
+            "website": "https://developer.android.com/jetpack/androidx/releases/compose-animation#1.11.2",
+            "developers": [
+                {
+                    "name": "The Android Open Source Project"
+                }
+            ],
+            "organization": {
+                "name": "The Android Open Source Project"
+            },
+            "scm": {
+                "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
+                "url": "https://cs.android.com/androidx/platform/frameworks/support"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "androidx.compose.foundation:foundation-android",
+            "artifactVersion": "1.11.2",
+            "name": "Compose Foundation",
+            "description": "Higher level abstractions of the Compose UI primitives. This library is design system agnostic, providing the high-level building blocks for both application and design-system developers",
+            "website": "https://developer.android.com/jetpack/androidx/releases/compose-foundation#1.11.2",
+            "developers": [
+                {
+                    "name": "The Android Open Source Project"
+                }
+            ],
+            "organization": {
+                "name": "The Android Open Source Project"
+            },
+            "scm": {
+                "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
+                "url": "https://cs.android.com/androidx/platform/frameworks/support"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "androidx.compose.foundation:foundation-layout-android",
+            "artifactVersion": "1.11.2",
+            "name": "Compose Layouts",
+            "description": "Compose layout implementations",
+            "website": "https://developer.android.com/jetpack/androidx/releases/compose-foundation#1.11.2",
+            "developers": [
+                {
+                    "name": "The Android Open Source Project"
+                }
+            ],
+            "organization": {
+                "name": "The Android Open Source Project"
+            },
+            "scm": {
+                "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
+                "url": "https://cs.android.com/androidx/platform/frameworks/support"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "androidx.compose.material3:material3-android",
+            "artifactVersion": "1.4.0",
+            "name": "Compose Material3 Components",
+            "description": "Compose Material You Design Components library",
+            "website": "https://developer.android.com/jetpack/androidx/releases/compose-material3#1.4.0",
+            "developers": [
+                {
+                    "name": "The Android Open Source Project"
+                }
+            ],
+            "organization": {
+                "name": "The Android Open Source Project"
+            },
+            "scm": {
+                "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
+                "url": "https://cs.android.com/androidx/platform/frameworks/support"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "androidx.compose.material:material-icons-core-android",
+            "artifactVersion": "1.7.8",
+            "name": "Compose Material Icons Core",
+            "description": "Compose Material Design core icons. This module contains the most commonly used set of Material icons.",
+            "website": "https://developer.android.com/jetpack/androidx/releases/compose-material#1.7.8",
+            "developers": [
+                {
+                    "name": "The Android Open Source Project"
+                }
+            ],
+            "organization": {
+                "name": "The Android Open Source Project"
+            },
+            "scm": {
+                "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
+                "url": "https://cs.android.com/androidx/platform/frameworks/support"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "androidx.compose.material:material-ripple-android",
+            "artifactVersion": "1.11.2",
+            "name": "Compose Material Ripple",
+            "description": "Material ripple used to build interactive components",
+            "website": "https://developer.android.com/jetpack/androidx/releases/compose-material#1.11.2",
+            "developers": [
+                {
+                    "name": "The Android Open Source Project"
+                }
+            ],
+            "organization": {
+                "name": "The Android Open Source Project"
+            },
+            "scm": {
+                "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
+                "url": "https://cs.android.com/androidx/platform/frameworks/support"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "androidx.compose.runtime:runtime-android",
+            "artifactVersion": "1.11.2",
+            "name": "Compose Runtime",
+            "description": "Tree composition support for code generated by the Compose compiler plugin and corresponding public API",
+            "website": "https://developer.android.com/jetpack/androidx/releases/compose-runtime#1.11.2",
+            "developers": [
+                {
+                    "name": "The Android Open Source Project"
+                }
+            ],
+            "organization": {
+                "name": "The Android Open Source Project"
+            },
+            "scm": {
+                "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
+                "url": "https://cs.android.com/androidx/platform/frameworks/support"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "androidx.compose.runtime:runtime-annotation-android",
+            "artifactVersion": "1.11.2",
+            "name": "Compose Runtime Annotation",
+            "description": "Provides Compose-specific annotations used by the compiler and tooling",
+            "website": "https://developer.android.com/jetpack/androidx/releases/compose-runtime#1.11.2",
+            "developers": [
+                {
+                    "name": "The Android Open Source Project"
+                }
+            ],
+            "organization": {
+                "name": "The Android Open Source Project"
+            },
+            "scm": {
+                "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
+                "url": "https://cs.android.com/androidx/platform/frameworks/support"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "androidx.compose.runtime:runtime-retain-android",
+            "artifactVersion": "1.11.2",
+            "name": "Compose Runtime Retain",
+            "description": "Preserve state in composable methods across configuration changes and other transient content destruction scenarios",
+            "website": "https://developer.android.com/jetpack/androidx/releases/compose-runtime#1.11.2",
+            "developers": [
+                {
+                    "name": "The Android Open Source Project"
+                }
+            ],
+            "organization": {
+                "name": "The Android Open Source Project"
+            },
+            "scm": {
+                "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
+                "url": "https://cs.android.com/androidx/platform/frameworks/support"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "androidx.compose.runtime:runtime-saveable-android",
+            "artifactVersion": "1.11.2",
+            "name": "Compose Saveable",
+            "description": "Compose components that allow saving and restoring the local ui state",
+            "website": "https://developer.android.com/jetpack/androidx/releases/compose-runtime#1.11.2",
+            "developers": [
+                {
+                    "name": "The Android Open Source Project"
+                }
+            ],
+            "organization": {
+                "name": "The Android Open Source Project"
+            },
+            "scm": {
+                "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
+                "url": "https://cs.android.com/androidx/platform/frameworks/support"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "androidx.compose.ui:ui-android",
+            "artifactVersion": "1.11.2",
+            "name": "Compose UI",
+            "description": "Compose UI primitives. This library contains the primitives that form the Compose UI Toolkit, such as drawing, measurement and layout.",
+            "website": "https://developer.android.com/jetpack/androidx/releases/compose-ui#1.11.2",
+            "developers": [
+                {
+                    "name": "The Android Open Source Project"
+                }
+            ],
+            "organization": {
+                "name": "The Android Open Source Project"
+            },
+            "scm": {
+                "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
+                "url": "https://cs.android.com/androidx/platform/frameworks/support"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "androidx.compose.ui:ui-geometry-android",
+            "artifactVersion": "1.11.2",
+            "name": "Compose Geometry",
+            "description": "Compose classes related to dimensions without units",
+            "website": "https://developer.android.com/jetpack/androidx/releases/compose-ui#1.11.2",
+            "developers": [
+                {
+                    "name": "The Android Open Source Project"
+                }
+            ],
+            "organization": {
+                "name": "The Android Open Source Project"
+            },
+            "scm": {
+                "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
+                "url": "https://cs.android.com/androidx/platform/frameworks/support"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "androidx.compose.ui:ui-graphics-android",
+            "artifactVersion": "1.11.2",
+            "name": "Compose Graphics",
+            "description": "Compose graphics",
+            "website": "https://developer.android.com/jetpack/androidx/releases/compose-ui#1.11.2",
+            "developers": [
+                {
+                    "name": "The Android Open Source Project"
+                }
+            ],
+            "organization": {
+                "name": "The Android Open Source Project"
+            },
+            "scm": {
+                "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
+                "url": "https://cs.android.com/androidx/platform/frameworks/support"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "androidx.compose.ui:ui-text-android",
+            "artifactVersion": "1.11.2",
+            "name": "Compose UI Text",
+            "description": "Compose Text primitives and utilities",
+            "website": "https://developer.android.com/jetpack/androidx/releases/compose-ui#1.11.2",
+            "developers": [
+                {
+                    "name": "The Android Open Source Project"
+                }
+            ],
+            "organization": {
+                "name": "The Android Open Source Project"
+            },
+            "scm": {
+                "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
+                "url": "https://cs.android.com/androidx/platform/frameworks/support"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "androidx.compose.ui:ui-tooling-preview-android",
+            "artifactVersion": "1.11.2",
+            "name": "Compose UI Preview Tooling",
+            "description": "Compose tooling library API. This library provides the API required to declare @Preview composables in user apps.",
+            "website": "https://developer.android.com/jetpack/androidx/releases/compose-ui#1.11.2",
+            "developers": [
+                {
+                    "name": "The Android Open Source Project"
+                }
+            ],
+            "organization": {
+                "name": "The Android Open Source Project"
+            },
+            "scm": {
+                "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
+                "url": "https://cs.android.com/androidx/platform/frameworks/support"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "androidx.compose.ui:ui-unit-android",
+            "artifactVersion": "1.11.2",
+            "name": "Compose Unit",
+            "description": "Compose classes for simple units",
+            "website": "https://developer.android.com/jetpack/androidx/releases/compose-ui#1.11.2",
+            "developers": [
+                {
+                    "name": "The Android Open Source Project"
+                }
+            ],
+            "organization": {
+                "name": "The Android Open Source Project"
+            },
+            "scm": {
+                "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
+                "url": "https://cs.android.com/androidx/platform/frameworks/support"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "androidx.compose.ui:ui-util-android",
+            "artifactVersion": "1.11.2",
+            "name": "Compose Util",
+            "description": "Internal Compose utilities used by other modules",
+            "website": "https://developer.android.com/jetpack/androidx/releases/compose-ui#1.11.2",
+            "developers": [
+                {
+                    "name": "The Android Open Source Project"
+                }
+            ],
+            "organization": {
+                "name": "The Android Open Source Project"
+            },
+            "scm": {
+                "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
+                "url": "https://cs.android.com/androidx/platform/frameworks/support"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "androidx.concurrent:concurrent-futures",
+            "artifactVersion": "1.1.0",
+            "name": "AndroidX Futures",
+            "description": "Androidx implementation of Guava's ListenableFuture",
+            "website": "https://developer.android.com/topic/libraries/architecture/index.html",
+            "developers": [
+                {
+                    "name": "The Android Open Source Project"
+                }
+            ],
+            "scm": {
+                "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
+                "url": "http://source.android.com"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "androidx.core:core",
+            "artifactVersion": "1.18.0",
+            "name": "Core",
+            "description": "Provides backward-compatible implementations of Android platform APIs and features.",
+            "website": "https://developer.android.com/jetpack/androidx/releases/core#1.18.0",
+            "developers": [
+                {
+                    "name": "The Android Open Source Project"
+                }
+            ],
+            "organization": {
+                "name": "The Android Open Source Project"
+            },
+            "scm": {
+                "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
+                "url": "https://cs.android.com/androidx/platform/frameworks/support"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "androidx.core:core-ktx",
+            "artifactVersion": "1.18.0",
+            "name": "Core Kotlin Extensions",
+            "description": "Kotlin extensions for 'core' artifact",
+            "website": "https://developer.android.com/jetpack/androidx/releases/core#1.18.0",
+            "developers": [
+                {
+                    "name": "The Android Open Source Project"
+                }
+            ],
+            "organization": {
+                "name": "The Android Open Source Project"
+            },
+            "scm": {
+                "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
+                "url": "https://cs.android.com/androidx/platform/frameworks/support"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "androidx.core:core-viewtree",
+            "artifactVersion": "1.0.0",
+            "name": "androidx.core:core-viewtree",
+            "description": "Provides ViewTree extensions packaged for use by other core androidx libraries",
+            "website": "https://developer.android.com/jetpack/androidx/releases/core#1.0.0",
+            "developers": [
+                {
+                    "name": "The Android Open Source Project"
+                }
+            ],
+            "organization": {
+                "name": "The Android Open Source Project"
+            },
+            "scm": {
+                "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
+                "url": "https://cs.android.com/androidx/platform/frameworks/support"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "androidx.customview:customview",
+            "artifactVersion": "1.0.0",
+            "name": "Support Custom View",
+            "description": "The Support Library is a static library that you can add to your Android application in order to use APIs that are either not available for older platform versions or utility APIs that aren't a part of the framework APIs. Compatible on devices running API 14 or later.",
+            "website": "http://developer.android.com/tools/extras/support-library.html",
+            "developers": [
+                {
+                    "name": "The Android Open Source Project"
+                }
+            ],
+            "scm": {
+                "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
+                "url": "http://source.android.com"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "androidx.customview:customview-poolingcontainer",
+            "artifactVersion": "1.0.0",
+            "name": "androidx.customview:poolingcontainer",
+            "description": "Utilities for listening to the lifecycle of containers that manage their child Views' lifecycle, such as RecyclerView",
+            "website": "https://developer.android.com/jetpack/androidx/releases/customview#1.0.0",
+            "developers": [
+                {
+                    "name": "The Android Open Source Project"
+                }
+            ],
+            "scm": {
+                "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
+                "url": "https://cs.android.com/androidx/platform/frameworks/support"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "androidx.datastore:datastore-android",
+            "artifactVersion": "1.2.1",
+            "name": "DataStore",
+            "description": "Android DataStore - contains the underlying store used by each serialization method along with components that require an Android dependency",
+            "website": "https://developer.android.com/jetpack/androidx/releases/datastore#1.2.1",
+            "developers": [
+                {
+                    "name": "The Android Open Source Project"
+                }
+            ],
+            "organization": {
+                "name": "The Android Open Source Project"
+            },
+            "scm": {
+                "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
+                "url": "https://cs.android.com/androidx/platform/frameworks/support"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "androidx.datastore:datastore-core-android",
+            "artifactVersion": "1.2.1",
+            "name": "DataStore Core",
+            "description": "Android DataStore Core - contains the underlying store used by each serialization method",
+            "website": "https://developer.android.com/jetpack/androidx/releases/datastore#1.2.1",
+            "developers": [
+                {
+                    "name": "The Android Open Source Project"
+                }
+            ],
+            "organization": {
+                "name": "The Android Open Source Project"
+            },
+            "scm": {
+                "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
+                "url": "https://cs.android.com/androidx/platform/frameworks/support"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "androidx.datastore:datastore-core-okio-jvm",
+            "artifactVersion": "1.2.1",
+            "name": "DataStore Core Okio",
+            "description": "Android DataStore Core Okio- contains APIs to use datastore-core in multiplatform via okio",
+            "website": "https://developer.android.com/jetpack/androidx/releases/datastore#1.2.1",
+            "developers": [
+                {
+                    "name": "The Android Open Source Project"
+                }
+            ],
+            "organization": {
+                "name": "The Android Open Source Project"
+            },
+            "scm": {
+                "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
+                "url": "https://cs.android.com/androidx/platform/frameworks/support"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "androidx.datastore:datastore-preferences-android",
+            "artifactVersion": "1.2.1",
+            "name": "Preferences DataStore",
+            "description": "Android Preferences DataStore",
+            "website": "https://developer.android.com/jetpack/androidx/releases/datastore#1.2.1",
+            "developers": [
+                {
+                    "name": "The Android Open Source Project"
+                }
+            ],
+            "organization": {
+                "name": "The Android Open Source Project"
+            },
+            "scm": {
+                "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
+                "url": "https://cs.android.com/androidx/platform/frameworks/support"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "androidx.datastore:datastore-preferences-core-android",
+            "artifactVersion": "1.2.1",
+            "name": "Preferences DataStore Core",
+            "description": "Android Preferences DataStore without the Android Dependencies",
+            "website": "https://developer.android.com/jetpack/androidx/releases/datastore#1.2.1",
+            "developers": [
+                {
+                    "name": "The Android Open Source Project"
+                }
+            ],
+            "organization": {
+                "name": "The Android Open Source Project"
+            },
+            "scm": {
+                "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
+                "url": "https://cs.android.com/androidx/platform/frameworks/support"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "androidx.datastore:datastore-preferences-external-protobuf",
+            "artifactVersion": "1.2.1",
+            "name": "Preferences External Protobuf",
+            "description": "Repackaged proto-lite dependency for use by datastore preferences",
+            "website": "https://developer.android.com/jetpack/androidx/releases/datastore#1.2.1",
+            "developers": [
+                {
+                    "name": "The Android Open Source Project"
+                }
+            ],
+            "organization": {
+                "name": "The Android Open Source Project"
+            },
+            "scm": {
+                "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
+                "url": "https://cs.android.com/androidx/platform/frameworks/support"
+            },
+            "licenses": [
+                "BSD-3-Clause"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "androidx.datastore:datastore-preferences-proto",
+            "artifactVersion": "1.2.1",
+            "name": "Preferences DataStore Proto",
+            "description": "Jarjar the generated proto for use by datastore-preferences.",
+            "website": "https://developer.android.com/jetpack/androidx/releases/datastore#1.2.1",
+            "developers": [
+                {
+                    "name": "The Android Open Source Project"
+                }
+            ],
+            "organization": {
+                "name": "The Android Open Source Project"
+            },
+            "scm": {
+                "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
+                "url": "https://cs.android.com/androidx/platform/frameworks/support"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "androidx.documentfile:documentfile",
+            "artifactVersion": "1.0.0",
+            "name": "Support Document File",
+            "description": "The Support Library is a static library that you can add to your Android application in order to use APIs that are either not available for older platform versions or utility APIs that aren't a part of the framework APIs. Compatible on devices running API 14 or later.",
+            "website": "http://developer.android.com/tools/extras/support-library.html",
+            "developers": [
+                {
+                    "name": "The Android Open Source Project"
+                }
+            ],
+            "scm": {
+                "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
+                "url": "http://source.android.com"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "androidx.dynamicanimation:dynamicanimation",
+            "artifactVersion": "1.0.0",
+            "name": "Support DynamicAnimation",
+            "description": "Physics-based animation in support library, where the animations are driven by physics force. You can use this Animation library to create smooth and realistic animations.",
+            "website": "http://developer.android.com/tools/extras/support-library.html",
+            "developers": [
+                {
+                    "name": "The Android Open Source Project"
+                }
+            ],
+            "scm": {
+                "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
+                "url": "http://source.android.com"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "androidx.emoji2:emoji2",
+            "artifactVersion": "1.4.0",
+            "name": "Emoji2",
+            "description": "Core library to enable emoji compatibility in Kitkat and newer devices to avoid the empty emoji characters.",
+            "website": "https://developer.android.com/jetpack/androidx/releases/emoji2#1.4.0",
+            "developers": [
+                {
+                    "name": "The Android Open Source Project"
+                }
+            ],
+            "scm": {
+                "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
+                "url": "https://cs.android.com/androidx/platform/frameworks/support"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "androidx.fragment:fragment",
+            "artifactVersion": "1.1.0",
+            "name": "Support fragment",
+            "description": "The Support Library is a static library that you can add to your Android application in order to use APIs that are either not available for older platform versions or utility APIs that aren't a part of the framework APIs. Compatible on devices running API 14 or later.",
+            "website": "https://developer.android.com/jetpack/androidx",
+            "developers": [
+                {
+                    "name": "The Android Open Source Project"
+                }
+            ],
+            "scm": {
+                "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
+                "url": "http://source.android.com"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "androidx.graphics:graphics-path",
+            "artifactVersion": "1.0.1",
+            "name": "Android Graphics Path",
+            "description": "Query segment data for android.graphics.Path objects",
+            "website": "https://developer.android.com/jetpack/androidx/releases/graphics#1.0.1",
+            "developers": [
+                {
+                    "name": "The Android Open Source Project"
+                }
+            ],
+            "organization": {
+                "name": "The Android Open Source Project"
+            },
+            "scm": {
+                "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
+                "url": "https://cs.android.com/androidx/platform/frameworks/support"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "androidx.interpolator:interpolator",
+            "artifactVersion": "1.0.0",
+            "name": "Support Interpolators",
+            "description": "The Support Library is a static library that you can add to your Android application in order to use APIs that are either not available for older platform versions or utility APIs that aren't a part of the framework APIs. Compatible on devices running API 14 or later.",
+            "website": "http://developer.android.com/tools/extras/support-library.html",
+            "developers": [
+                {
+                    "name": "The Android Open Source Project"
+                }
+            ],
+            "scm": {
+                "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
+                "url": "http://source.android.com"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "androidx.legacy:legacy-support-core-utils",
+            "artifactVersion": "1.0.0",
+            "name": "Support core utils",
+            "description": "The Support Library is a static library that you can add to your Android application in order to use APIs that are either not available for older platform versions or utility APIs that aren't a part of the framework APIs. Compatible on devices running API 14 or later.",
+            "website": "http://developer.android.com/tools/extras/support-library.html",
+            "developers": [
+                {
+                    "name": "The Android Open Source Project"
+                }
+            ],
+            "scm": {
+                "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
+                "url": "http://source.android.com"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "androidx.lifecycle:lifecycle-common-java8",
+            "artifactVersion": "2.10.0",
+            "name": "Lifecycle-Common for Java 8",
+            "description": "Android Lifecycle-Common for Java 8 Language",
+            "website": "https://developer.android.com/jetpack/androidx/releases/lifecycle#2.10.0",
+            "developers": [
+                {
+                    "name": "The Android Open Source Project"
+                }
+            ],
+            "organization": {
+                "name": "The Android Open Source Project"
+            },
+            "scm": {
+                "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
+                "url": "https://cs.android.com/androidx/platform/frameworks/support"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "androidx.lifecycle:lifecycle-common-jvm",
+            "artifactVersion": "2.10.0",
+            "name": "Lifecycle-Common",
+            "description": "Android Lifecycle-Common",
+            "website": "https://developer.android.com/jetpack/androidx/releases/lifecycle#2.10.0",
+            "developers": [
+                {
+                    "name": "The Android Open Source Project"
+                }
+            ],
+            "organization": {
+                "name": "The Android Open Source Project"
+            },
+            "scm": {
+                "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
+                "url": "https://cs.android.com/androidx/platform/frameworks/support"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "androidx.lifecycle:lifecycle-livedata",
+            "artifactVersion": "2.10.0",
+            "name": "Lifecycle LiveData",
+            "description": "Android Lifecycle LiveData",
+            "website": "https://developer.android.com/jetpack/androidx/releases/lifecycle#2.10.0",
+            "developers": [
+                {
+                    "name": "The Android Open Source Project"
+                }
+            ],
+            "organization": {
+                "name": "The Android Open Source Project"
+            },
+            "scm": {
+                "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
+                "url": "https://cs.android.com/androidx/platform/frameworks/support"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "androidx.lifecycle:lifecycle-livedata-core",
+            "artifactVersion": "2.10.0",
+            "name": "Lifecycle LiveData Core",
+            "description": "Android Lifecycle LiveData Core",
+            "website": "https://developer.android.com/jetpack/androidx/releases/lifecycle#2.10.0",
+            "developers": [
+                {
+                    "name": "The Android Open Source Project"
+                }
+            ],
+            "organization": {
+                "name": "The Android Open Source Project"
+            },
+            "scm": {
+                "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
+                "url": "https://cs.android.com/androidx/platform/frameworks/support"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "androidx.lifecycle:lifecycle-livedata-core-ktx",
+            "artifactVersion": "2.10.0",
+            "name": "LiveData Core Kotlin Extensions",
+            "description": "Kotlin extensions for 'livedata-core' artifact",
+            "website": "https://developer.android.com/jetpack/androidx/releases/lifecycle#2.10.0",
+            "developers": [
+                {
+                    "name": "The Android Open Source Project"
+                }
+            ],
+            "organization": {
+                "name": "The Android Open Source Project"
+            },
+            "scm": {
+                "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
+                "url": "https://cs.android.com/androidx/platform/frameworks/support"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "androidx.lifecycle:lifecycle-process",
+            "artifactVersion": "2.10.0",
+            "name": "Lifecycle Process",
+            "description": "Android Lifecycle Process",
+            "website": "https://developer.android.com/jetpack/androidx/releases/lifecycle#2.10.0",
+            "developers": [
+                {
+                    "name": "The Android Open Source Project"
+                }
+            ],
+            "organization": {
+                "name": "The Android Open Source Project"
+            },
+            "scm": {
+                "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
+                "url": "https://cs.android.com/androidx/platform/frameworks/support"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "androidx.lifecycle:lifecycle-runtime-android",
+            "artifactVersion": "2.10.0",
+            "name": "Lifecycle Runtime",
+            "description": "Android Lifecycle Runtime",
+            "website": "https://developer.android.com/jetpack/androidx/releases/lifecycle#2.10.0",
+            "developers": [
+                {
+                    "name": "The Android Open Source Project"
+                }
+            ],
+            "organization": {
+                "name": "The Android Open Source Project"
+            },
+            "scm": {
+                "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
+                "url": "https://cs.android.com/androidx/platform/frameworks/support"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "androidx.lifecycle:lifecycle-runtime-compose-android",
+            "artifactVersion": "2.10.0",
+            "name": "Lifecycle Runtime Compose",
+            "description": "Compose integration with Lifecycle",
+            "website": "https://developer.android.com/jetpack/androidx/releases/lifecycle#2.10.0",
+            "developers": [
+                {
+                    "name": "The Android Open Source Project"
+                }
+            ],
+            "organization": {
+                "name": "The Android Open Source Project"
+            },
+            "scm": {
+                "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
+                "url": "https://cs.android.com/androidx/platform/frameworks/support"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "androidx.lifecycle:lifecycle-runtime-ktx-android",
+            "artifactVersion": "2.10.0",
+            "name": "Lifecycle Kotlin Extensions",
+            "description": "Kotlin extensions for 'lifecycle' artifact",
+            "website": "https://developer.android.com/jetpack/androidx/releases/lifecycle#2.10.0",
+            "developers": [
+                {
+                    "name": "The Android Open Source Project"
+                }
+            ],
+            "organization": {
+                "name": "The Android Open Source Project"
+            },
+            "scm": {
+                "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
+                "url": "https://cs.android.com/androidx/platform/frameworks/support"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "androidx.lifecycle:lifecycle-viewmodel",
+            "artifactVersion": "2.10.0",
+            "name": "Lifecycle ViewModel",
+            "description": "Android Lifecycle ViewModel",
+            "website": "https://developer.android.com/jetpack/androidx/releases/lifecycle#2.10.0",
+            "developers": [
+                {
+                    "name": "The Android Open Source Project"
+                }
+            ],
+            "organization": {
+                "name": "The Android Open Source Project"
+            },
+            "scm": {
+                "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
+                "url": "https://cs.android.com/androidx/platform/frameworks/support"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "androidx.lifecycle:lifecycle-viewmodel-android",
+            "artifactVersion": "2.10.0",
+            "name": "Lifecycle ViewModel",
+            "description": "Android Lifecycle ViewModel",
+            "website": "https://developer.android.com/jetpack/androidx/releases/lifecycle#2.10.0",
+            "developers": [
+                {
+                    "name": "The Android Open Source Project"
+                }
+            ],
+            "organization": {
+                "name": "The Android Open Source Project"
+            },
+            "scm": {
+                "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
+                "url": "https://cs.android.com/androidx/platform/frameworks/support"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "androidx.lifecycle:lifecycle-viewmodel-compose-android",
+            "artifactVersion": "2.10.0",
+            "name": "Lifecycle ViewModel Compose",
+            "description": "Compose integration with Lifecycle ViewModel",
+            "website": "https://developer.android.com/jetpack/androidx/releases/lifecycle#2.10.0",
+            "developers": [
+                {
+                    "name": "The Android Open Source Project"
+                }
+            ],
+            "organization": {
+                "name": "The Android Open Source Project"
+            },
+            "scm": {
+                "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
+                "url": "https://cs.android.com/androidx/platform/frameworks/support"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "androidx.lifecycle:lifecycle-viewmodel-ktx",
+            "artifactVersion": "2.10.0",
+            "name": "Lifecycle ViewModel Kotlin Extensions",
+            "description": "Kotlin extensions for 'viewmodel' artifact",
+            "website": "https://developer.android.com/jetpack/androidx/releases/lifecycle#2.10.0",
+            "developers": [
+                {
+                    "name": "The Android Open Source Project"
+                }
+            ],
+            "organization": {
+                "name": "The Android Open Source Project"
+            },
+            "scm": {
+                "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
+                "url": "https://cs.android.com/androidx/platform/frameworks/support"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "androidx.lifecycle:lifecycle-viewmodel-savedstate-android",
+            "artifactVersion": "2.10.0",
+            "name": "Lifecycle ViewModel with SavedState",
+            "description": "Android Lifecycle ViewModel",
+            "website": "https://developer.android.com/jetpack/androidx/releases/lifecycle#2.10.0",
+            "developers": [
+                {
+                    "name": "The Android Open Source Project"
+                }
+            ],
+            "organization": {
+                "name": "The Android Open Source Project"
+            },
+            "scm": {
+                "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
+                "url": "https://cs.android.com/androidx/platform/frameworks/support"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "androidx.loader:loader",
+            "artifactVersion": "1.0.0",
+            "name": "Support loader",
+            "description": "The Support Library is a static library that you can add to your Android application in order to use APIs that are either not available for older platform versions or utility APIs that aren't a part of the framework APIs. Compatible on devices running API 14 or later.",
+            "website": "http://developer.android.com/tools/extras/support-library.html",
+            "developers": [
+                {
+                    "name": "The Android Open Source Project"
+                }
+            ],
+            "scm": {
+                "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
+                "url": "http://source.android.com"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "androidx.localbroadcastmanager:localbroadcastmanager",
+            "artifactVersion": "1.0.0",
+            "name": "Support Local Broadcast Manager",
+            "description": "The Support Library is a static library that you can add to your Android application in order to use APIs that are either not available for older platform versions or utility APIs that aren't a part of the framework APIs. Compatible on devices running API 14 or later.",
+            "website": "http://developer.android.com/tools/extras/support-library.html",
+            "developers": [
+                {
+                    "name": "The Android Open Source Project"
+                }
+            ],
+            "scm": {
+                "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
+                "url": "http://source.android.com"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "androidx.navigationevent:navigationevent-android",
+            "artifactVersion": "1.0.0",
+            "name": "Navigation Event",
+            "description": "Provides APIs to easily intercept platform navigation events, including swipes and clicks, to provide a consistent API surface for handling these events.",
+            "website": "https://developer.android.com/jetpack/androidx/releases/navigationevent#1.0.0",
+            "developers": [
+                {
+                    "name": "The Android Open Source Project"
+                }
+            ],
+            "organization": {
+                "name": "The Android Open Source Project"
+            },
+            "scm": {
+                "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
+                "url": "https://cs.android.com/androidx/platform/frameworks/support"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "androidx.navigationevent:navigationevent-compose-android",
+            "artifactVersion": "1.0.0",
+            "name": "NavigationEvent Compose",
+            "description": "Compose integration with NavigationEvent",
+            "website": "https://developer.android.com/jetpack/androidx/releases/navigationevent#1.0.0",
+            "developers": [
+                {
+                    "name": "The Android Open Source Project"
+                }
+            ],
+            "organization": {
+                "name": "The Android Open Source Project"
+            },
+            "scm": {
+                "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
+                "url": "https://cs.android.com/androidx/platform/frameworks/support"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "androidx.print:print",
+            "artifactVersion": "1.0.0",
+            "name": "Support Print",
+            "description": "The Support Library is a static library that you can add to your Android application in order to use APIs that are either not available for older platform versions or utility APIs that aren't a part of the framework APIs. Compatible on devices running API 14 or later.",
+            "website": "http://developer.android.com/tools/extras/support-library.html",
+            "developers": [
+                {
+                    "name": "The Android Open Source Project"
+                }
+            ],
+            "scm": {
+                "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
+                "url": "http://source.android.com"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "androidx.privacysandbox.ads:ads-adservices",
+            "artifactVersion": "1.1.0-beta11",
+            "name": "Privacy Sandbox for Ad Services",
+            "description": "This library enables integration with Privacy Preserving APIs, which are part of Privacy Sandbox on Android.",
+            "website": "https://developer.android.com/jetpack/androidx/releases/privacysandbox-ads#1.1.0-beta11",
+            "developers": [
+                {
+                    "name": "The Android Open Source Project"
+                }
+            ],
+            "organization": {
+                "name": "The Android Open Source Project"
+            },
+            "scm": {
+                "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
+                "url": "https://cs.android.com/androidx/platform/frameworks/support"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "androidx.privacysandbox.ads:ads-adservices-java",
+            "artifactVersion": "1.1.0-beta11",
+            "name": "androidx.privacysandbox.ads:ads-adservices-java",
+            "description": "write Java code to call PP APIs.",
+            "website": "https://developer.android.com/jetpack/androidx/releases/privacysandbox-ads#1.1.0-beta11",
+            "developers": [
+                {
+                    "name": "The Android Open Source Project"
+                }
+            ],
+            "organization": {
+                "name": "The Android Open Source Project"
+            },
+            "scm": {
+                "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
+                "url": "https://cs.android.com/androidx/platform/frameworks/support"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "androidx.profileinstaller:profileinstaller",
+            "artifactVersion": "1.4.0",
+            "name": "Profile Installer",
+            "description": "Allows libraries to prepopulate ahead of time compilation traces to be read by ART",
+            "website": "https://developer.android.com/jetpack/androidx/releases/profileinstaller#1.4.0",
+            "developers": [
+                {
+                    "name": "The Android Open Source Project"
+                }
+            ],
+            "organization": {
+                "name": "The Android Open Source Project"
+            },
+            "scm": {
+                "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
+                "url": "https://cs.android.com/androidx/platform/frameworks/support"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "androidx.savedstate:savedstate-android",
+            "artifactVersion": "1.4.0",
+            "name": "Saved State",
+            "description": "Android Lifecycle Saved State",
+            "website": "https://developer.android.com/jetpack/androidx/releases/savedstate#1.4.0",
+            "developers": [
+                {
+                    "name": "The Android Open Source Project"
+                }
+            ],
+            "organization": {
+                "name": "The Android Open Source Project"
+            },
+            "scm": {
+                "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
+                "url": "https://cs.android.com/androidx/platform/frameworks/support"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "androidx.savedstate:savedstate-compose-android",
+            "artifactVersion": "1.4.0",
+            "name": "Saved State Compose",
+            "description": "Compose integration with Saved State",
+            "website": "https://developer.android.com/jetpack/androidx/releases/savedstate#1.4.0",
+            "developers": [
+                {
+                    "name": "The Android Open Source Project"
+                }
+            ],
+            "organization": {
+                "name": "The Android Open Source Project"
+            },
+            "scm": {
+                "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
+                "url": "https://cs.android.com/androidx/platform/frameworks/support"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "androidx.savedstate:savedstate-ktx",
+            "artifactVersion": "1.4.0",
+            "name": "SavedState Kotlin Extensions",
+            "description": "Kotlin extensions for 'savedstate' artifact",
+            "website": "https://developer.android.com/jetpack/androidx/releases/savedstate#1.4.0",
+            "developers": [
+                {
+                    "name": "The Android Open Source Project"
+                }
+            ],
+            "organization": {
+                "name": "The Android Open Source Project"
+            },
+            "scm": {
+                "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
+                "url": "https://cs.android.com/androidx/platform/frameworks/support"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "androidx.startup:startup-runtime",
+            "artifactVersion": "1.1.1",
+            "name": "Android App Startup Runtime",
+            "description": "Android App Startup Runtime",
+            "website": "https://developer.android.com/jetpack/androidx/releases/startup#1.1.1",
+            "developers": [
+                {
+                    "name": "The Android Open Source Project"
+                }
+            ],
+            "scm": {
+                "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
+                "url": "https://cs.android.com/androidx/platform/frameworks/support"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "androidx.tracing:tracing",
+            "artifactVersion": "1.2.0",
+            "name": "Android Tracing",
+            "description": "Android Tracing",
+            "website": "https://developer.android.com/jetpack/androidx/releases/tracing#1.2.0",
+            "developers": [
+                {
+                    "name": "The Android Open Source Project"
+                }
+            ],
+            "scm": {
+                "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
+                "url": "https://cs.android.com/androidx/platform/frameworks/support"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "androidx.transition:transition",
+            "artifactVersion": "1.6.0",
+            "name": "Transition",
+            "description": "Android Transition Support Library",
+            "website": "https://developer.android.com/jetpack/androidx/releases/transition#1.6.0",
+            "developers": [
+                {
+                    "name": "The Android Open Source Project"
+                }
+            ],
+            "organization": {
+                "name": "The Android Open Source Project"
+            },
+            "scm": {
+                "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
+                "url": "https://cs.android.com/androidx/platform/frameworks/support"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "androidx.versionedparcelable:versionedparcelable",
+            "artifactVersion": "1.1.1",
+            "name": "VersionedParcelable",
+            "description": "Provides a stable but relatively compact binary serialization format that can be passed across processes or persisted safely.",
+            "website": "http://developer.android.com/tools/extras/support-library.html",
+            "developers": [
+                {
+                    "name": "The Android Open Source Project"
+                }
+            ],
+            "scm": {
+                "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
+                "url": "http://source.android.com"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "androidx.viewpager:viewpager",
+            "artifactVersion": "1.0.0",
+            "name": "Support View Pager",
+            "description": "The Support Library is a static library that you can add to your Android application in order to use APIs that are either not available for older platform versions or utility APIs that aren't a part of the framework APIs. Compatible on devices running API 14 or later.",
+            "website": "http://developer.android.com/tools/extras/support-library.html",
+            "developers": [
+                {
+                    "name": "The Android Open Source Project"
+                }
+            ],
+            "scm": {
+                "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
+                "url": "http://source.android.com"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "androidx.window:window",
+            "artifactVersion": "1.5.0",
+            "name": "WindowManager",
+            "description": "WindowManager Jetpack library. Currently only provides additional functionality on foldable devices.",
+            "website": "https://developer.android.com/jetpack/androidx/releases/window#1.5.0",
+            "developers": [
+                {
+                    "name": "The Android Open Source Project"
+                }
+            ],
+            "organization": {
+                "name": "The Android Open Source Project"
+            },
+            "scm": {
+                "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
+                "url": "https://cs.android.com/androidx/platform/frameworks/support"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "androidx.window:window-core-android",
+            "artifactVersion": "1.5.0",
+            "name": "WindowManager Core",
+            "description": "WindowManager Core Library.",
+            "website": "https://developer.android.com/jetpack/androidx/releases/window#1.5.0",
+            "developers": [
+                {
+                    "name": "The Android Open Source Project"
+                }
+            ],
+            "organization": {
+                "name": "The Android Open Source Project"
+            },
+            "scm": {
+                "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
+                "url": "https://cs.android.com/androidx/platform/frameworks/support"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "com.google.android.datatransport:transport-api",
+            "artifactVersion": "3.2.0",
+            "name": "com.google.android.datatransport:transport-api",
+            "description": "",
+            "developers": [
+                
+            ],
+            "scm": {
+                "connection": "scm:git:https://github.com/firebase/firebase-android-sdk.git",
+                "url": "https://github.com/firebase/firebase-android-sdk"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "com.google.android.datatransport:transport-backend-cct",
+            "artifactVersion": "3.3.0",
+            "name": "com.google.android.datatransport:transport-backend-cct",
+            "description": "",
+            "developers": [
+                
+            ],
+            "scm": {
+                "connection": "scm:git:https://github.com/firebase/firebase-android-sdk.git",
+                "url": "https://github.com/firebase/firebase-android-sdk"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "com.google.android.datatransport:transport-runtime",
+            "artifactVersion": "3.3.0",
+            "name": "com.google.android.datatransport:transport-runtime",
+            "description": "",
+            "developers": [
+                
+            ],
+            "scm": {
+                "connection": "scm:git:https://github.com/firebase/firebase-android-sdk.git",
+                "url": "https://github.com/firebase/firebase-android-sdk"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "com.google.android.gms:play-services-ads-identifier",
+            "artifactVersion": "18.0.0",
+            "name": "play-services-ads-identifier",
+            "description": "",
+            "developers": [
+                
+            ],
+            "licenses": [
+                "ASDKL"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "com.google.android.gms:play-services-base",
+            "artifactVersion": "18.5.0",
+            "name": "play-services-base",
+            "description": "",
+            "developers": [
+                
+            ],
+            "licenses": [
+                "ASDKL"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "com.google.android.gms:play-services-basement",
+            "artifactVersion": "18.9.0",
+            "name": "play-services-basement",
+            "description": "",
+            "developers": [
+                
+            ],
+            "licenses": [
+                "ASDKL"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "com.google.android.gms:play-services-measurement",
+            "artifactVersion": "23.2.0",
+            "name": "play-services-measurement",
+            "description": "",
+            "developers": [
+                
+            ],
+            "licenses": [
+                "ASDKL"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "com.google.android.gms:play-services-measurement-api",
+            "artifactVersion": "23.2.0",
+            "name": "play-services-measurement-api",
+            "description": "",
+            "developers": [
+                
+            ],
+            "licenses": [
+                "ASDKL"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "com.google.android.gms:play-services-measurement-base",
+            "artifactVersion": "23.2.0",
+            "name": "play-services-measurement-base",
+            "description": "",
+            "developers": [
+                
+            ],
+            "licenses": [
+                "ASDKL"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "com.google.android.gms:play-services-measurement-impl",
+            "artifactVersion": "23.2.0",
+            "name": "play-services-measurement-impl",
+            "description": "",
+            "developers": [
+                
+            ],
+            "licenses": [
+                "ASDKL"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "com.google.android.gms:play-services-measurement-sdk",
+            "artifactVersion": "23.2.0",
+            "name": "play-services-measurement-sdk",
+            "description": "",
+            "developers": [
+                
+            ],
+            "licenses": [
+                "ASDKL"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "com.google.android.gms:play-services-measurement-sdk-api",
+            "artifactVersion": "23.2.0",
+            "name": "play-services-measurement-sdk-api",
+            "description": "",
+            "developers": [
+                
+            ],
+            "licenses": [
+                "ASDKL"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "com.google.android.gms:play-services-stats",
+            "artifactVersion": "17.0.2",
+            "name": "play-services-stats",
+            "description": "",
+            "developers": [
+                
+            ],
+            "licenses": [
+                "ASDKL"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "com.google.android.gms:play-services-tasks",
+            "artifactVersion": "18.4.0",
+            "name": "play-services-tasks",
+            "description": "",
+            "developers": [
+                
+            ],
+            "licenses": [
+                "ASDKL"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "com.google.code.findbugs:jsr305",
+            "artifactVersion": "3.0.2",
+            "name": "FindBugs-jsr305",
+            "description": "JSR305 Annotations for Findbugs",
+            "website": "http://findbugs.sourceforge.net/",
+            "developers": [
+                
+            ],
+            "scm": {
+                "connection": "scm:git:https://code.google.com/p/jsr-305/",
+                "developerConnection": "scm:git:https://code.google.com/p/jsr-305/",
+                "url": "https://code.google.com/p/jsr-305/"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "com.google.errorprone:error_prone_annotations",
+            "artifactVersion": "2.11.0",
+            "name": "error-prone annotations",
+            "description": "Error Prone is a static analysis tool for Java that catches common programming mistakes at compile-time.",
+            "website": "https://errorprone.info/error_prone_annotations",
+            "developers": [
+                {
+                    "name": "Eddie Aftandilian"
+                }
+            ],
+            "organization": {
+                "name": "Google LLC",
+                "url": "http://www.google.com"
+            },
+            "scm": {
+                "connection": "scm:git:https://github.com/google/error-prone.git/error_prone_annotations",
+                "developerConnection": "scm:git:git@github.com:google/error-prone.git/error_prone_annotations",
+                "url": "https://github.com/google/error-prone/error_prone_annotations"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "com.google.firebase:firebase-analytics",
+            "artifactVersion": "23.2.0",
+            "name": "firebase-analytics",
+            "description": "",
+            "developers": [
+                
+            ],
+            "licenses": [
+                "ASDKL"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "com.google.firebase:firebase-annotations",
+            "artifactVersion": "17.0.0",
+            "name": "com.google.firebase:firebase-annotations",
+            "description": "",
+            "developers": [
+                
+            ],
+            "scm": {
+                "connection": "scm:git:https://github.com/firebase/firebase-android-sdk.git",
+                "url": "https://github.com/firebase/firebase-android-sdk"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "com.google.firebase:firebase-common",
+            "artifactVersion": "22.1.0",
+            "name": "com.google.firebase:firebase-common",
+            "description": "",
+            "developers": [
+                
+            ],
+            "scm": {
+                "connection": "scm:git:https://github.com/firebase/firebase-android-sdk.git",
+                "url": "https://github.com/firebase/firebase-android-sdk"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "com.google.firebase:firebase-components",
+            "artifactVersion": "19.0.0",
+            "name": "com.google.firebase:firebase-components",
+            "description": "",
+            "developers": [
+                
+            ],
+            "scm": {
+                "connection": "scm:git:https://github.com/firebase/firebase-android-sdk.git",
+                "url": "https://github.com/firebase/firebase-android-sdk"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "com.google.firebase:firebase-config-interop",
+            "artifactVersion": "16.0.1",
+            "name": "com.google.firebase:firebase-config-interop",
+            "description": "",
+            "developers": [
+                
+            ],
+            "scm": {
+                "connection": "scm:git:https://github.com/firebase/firebase-android-sdk.git",
+                "url": "https://github.com/firebase/firebase-android-sdk"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "com.google.firebase:firebase-crashlytics",
+            "artifactVersion": "20.1.0",
+            "name": "com.google.firebase:firebase-crashlytics",
+            "description": "",
+            "developers": [
+                
+            ],
+            "scm": {
+                "connection": "scm:git:https://github.com/firebase/firebase-android-sdk.git",
+                "url": "https://github.com/firebase/firebase-android-sdk"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "com.google.firebase:firebase-datatransport",
+            "artifactVersion": "19.0.0",
+            "name": "com.google.firebase:firebase-datatransport",
+            "description": "",
+            "developers": [
+                
+            ],
+            "scm": {
+                "connection": "scm:git:https://github.com/firebase/firebase-android-sdk.git",
+                "url": "https://github.com/firebase/firebase-android-sdk"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "com.google.firebase:firebase-encoders",
+            "artifactVersion": "17.0.0",
+            "name": "firebase-encoders",
+            "description": "",
+            "developers": [
+                
+            ],
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "com.google.firebase:firebase-encoders-json",
+            "artifactVersion": "18.0.1",
+            "name": "com.google.firebase:firebase-encoders-json",
+            "description": "",
+            "developers": [
+                
+            ],
+            "scm": {
+                "connection": "scm:git:https://github.com/firebase/firebase-android-sdk.git",
+                "url": "https://github.com/firebase/firebase-android-sdk"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "com.google.firebase:firebase-encoders-proto",
+            "artifactVersion": "16.0.0",
+            "name": "firebase-encoders-proto",
+            "description": "",
+            "developers": [
+                
+            ],
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "com.google.firebase:firebase-installations",
+            "artifactVersion": "19.1.2",
+            "name": "com.google.firebase:firebase-installations",
+            "description": "",
+            "developers": [
+                
+            ],
+            "scm": {
+                "connection": "scm:git:https://github.com/firebase/firebase-android-sdk.git",
+                "url": "https://github.com/firebase/firebase-android-sdk"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "com.google.firebase:firebase-installations-interop",
+            "artifactVersion": "17.3.0",
+            "name": "com.google.firebase:firebase-installations-interop",
+            "description": "",
+            "developers": [
+                
+            ],
+            "scm": {
+                "connection": "scm:git:https://github.com/firebase/firebase-android-sdk.git",
+                "url": "https://github.com/firebase/firebase-android-sdk"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "com.google.firebase:firebase-measurement-connector",
+            "artifactVersion": "20.0.1",
+            "name": "firebase-measurement-connector",
+            "description": "",
+            "developers": [
+                
+            ],
+            "licenses": [
+                "ASDKL"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "com.google.firebase:firebase-sessions",
+            "artifactVersion": "3.0.7",
+            "name": "com.google.firebase:firebase-sessions",
+            "description": "",
+            "developers": [
+                
+            ],
+            "scm": {
+                "connection": "scm:git:https://github.com/firebase/firebase-android-sdk.git",
+                "url": "https://github.com/firebase/firebase-android-sdk"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "com.google.guava:failureaccess",
+            "artifactVersion": "1.0.1",
+            "name": "Guava InternalFutureFailureAccess and InternalFutures",
+            "description": "Contains\n    com.google.common.util.concurrent.internal.InternalFutureFailureAccess and\n    InternalFutures. Most users will never need to use this artifact. Its\n    classes is conceptually a part of Guava, but they're in this separate\n    artifact so that Android libraries can use them without pulling in all of\n    Guava (just as they can use ListenableFuture by depending on the\n    listenablefuture artifact).",
+            "website": "https://github.com/google/guava/failureaccess",
+            "developers": [
+                {
+                    "name": "Kevin Bourrillion",
+                    "organisationUrl": "http://www.google.com"
+                }
+            ],
+            "scm": {
+                "connection": "scm:git:https://github.com/google/guava.git/failureaccess",
+                "developerConnection": "scm:git:git@github.com:google/guava.git/failureaccess",
+                "url": "https://github.com/google/guava/failureaccess"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "com.google.guava:guava",
+            "artifactVersion": "31.1-android",
+            "name": "Guava: Google Core Libraries for Java",
+            "description": "Guava is a suite of core and expanded libraries that include\n    utility classes, Google's collections, I/O classes, and\n    much more.",
+            "website": "https://github.com/google/guava",
+            "developers": [
+                {
+                    "name": "Kevin Bourrillion",
+                    "organisationUrl": "http://www.google.com"
+                }
+            ],
+            "scm": {
+                "connection": "scm:git:https://github.com/google/guava.git/guava",
+                "developerConnection": "scm:git:git@github.com:google/guava.git/guava",
+                "url": "https://github.com/google/guava/guava"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "com.google.guava:listenablefuture",
+            "artifactVersion": "9999.0-empty-to-avoid-conflict-with-guava",
+            "name": "Guava ListenableFuture only",
+            "description": "An empty artifact that Guava depends on to signal that it is providing\n    ListenableFuture -- but is also available in a second \"version\" that\n    contains com.google.common.util.concurrent.ListenableFuture class, without\n    any other Guava classes. The idea is:\n\n    - If users want only ListenableFuture, they depend on listenablefuture-1.0.\n\n    - If users want all of Guava, they depend on guava, which, as of Guava\n    27.0, depends on\n    listenablefuture-9999.0-empty-to-avoid-conflict-with-guava. The 9999.0-...\n    version number is enough for some build systems (notably, Gradle) to select\n    that empty artifact over the \"real\" listenablefuture-1.0 -- avoiding a\n    conflict with the copy of ListenableFuture in guava itself. If users are\n    using an older version of Guava or a build system other than Gradle, they\n    may see class conflicts. If so, they can solve them by manually excluding\n    the listenablefuture artifact or manually forcing their build systems to\n    use 9999.0-....",
+            "website": "https://github.com/google/guava/listenablefuture",
+            "developers": [
+                {
+                    "name": "Kevin Bourrillion",
+                    "organisationUrl": "http://www.google.com"
+                }
+            ],
+            "scm": {
+                "connection": "scm:git:https://github.com/google/guava.git/listenablefuture",
+                "developerConnection": "scm:git:git@github.com:google/guava.git/listenablefuture",
+                "url": "https://github.com/google/guava/listenablefuture"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "com.google.j2objc:j2objc-annotations",
+            "artifactVersion": "1.3",
+            "name": "J2ObjC Annotations",
+            "description": "A set of annotations that provide additional information to the J2ObjC\n    translator to modify the result of translation.",
+            "website": "https://github.com/google/j2objc/",
+            "developers": [
+                
+            ],
+            "scm": {
+                "connection": "scm:svn:http://svn.sonatype.org/spice/tags/oss-parent-7/j2objc-annotations",
+                "developerConnection": "scm:svn:https://svn.sonatype.org/spice/tags/oss-parent-7/j2objc-annotations",
+                "url": "http://svn.sonatype.org/spice/tags/oss-parent-7/j2objc-annotations"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "com.googlecode.libphonenumber:libphonenumber",
+            "artifactVersion": "9.0.32",
+            "name": "libphonenumber",
+            "description": "Google's common Java library for parsing, formatting, storing and validating\n    international phone numbers.\n    Optimized for running on smartphones.",
+            "website": "https://github.com/google/libphonenumber/",
+            "developers": [
+                {
+                    "name": "Shaopeng Jia"
+                },
+                {
+                    "name": "Lara Rennie"
+                }
+            ],
+            "organization": {
+                "name": "Google",
+                "url": "http://www.google.com/"
+            },
+            "scm": {
+                "connection": "scm:git:https://github.com/google/libphonenumber.git/libphonenumber",
+                "developerConnection": "scm:git:git@github.com:googlei18n/libphonenumber.git/libphonenumber",
+                "url": "https://github.com/google/libphonenumber/libphonenumber/"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "com.mikepenz:aboutlibraries-compose-core-android",
+            "artifactVersion": "12.2.4",
+            "name": "AboutLibraries Compose UI Library",
+            "description": "AboutLibraries automatically detects all dependencies of a project and collects their information including the license. Optionally visualising it via the provided ui components.",
+            "website": "https://github.com/mikepenz/AboutLibraries",
+            "developers": [
+                {
+                    "name": "Mike Penz"
+                }
+            ],
+            "scm": {
+                "connection": "scm:git@github.com:mikepenz/AboutLibraries.git",
+                "developerConnection": "scm:git@github.com:mikepenz/AboutLibraries.git",
+                "url": "https://github.com/mikepenz/AboutLibraries"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "com.mikepenz:aboutlibraries-compose-m3-android",
+            "artifactVersion": "12.2.4",
+            "name": "AboutLibraries Compose Material 3 Library",
+            "description": "AboutLibraries automatically detects all dependencies of a project and collects their information including the license. Optionally visualising it via the provided ui components.",
+            "website": "https://github.com/mikepenz/AboutLibraries",
+            "developers": [
+                {
+                    "name": "Mike Penz"
+                }
+            ],
+            "scm": {
+                "connection": "scm:git@github.com:mikepenz/AboutLibraries.git",
+                "developerConnection": "scm:git@github.com:mikepenz/AboutLibraries.git",
+                "url": "https://github.com/mikepenz/AboutLibraries"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "com.mikepenz:aboutlibraries-core-android",
+            "artifactVersion": "12.2.4",
+            "name": "AboutLibraries Core Library",
+            "description": "AboutLibraries automatically detects all dependencies of a project and collects their information including the license. Optionally visualising it via the provided ui components.",
+            "website": "https://github.com/mikepenz/AboutLibraries",
+            "developers": [
+                {
+                    "name": "Mike Penz"
+                }
+            ],
+            "scm": {
+                "connection": "scm:git@github.com:mikepenz/AboutLibraries.git",
+                "developerConnection": "scm:git@github.com:mikepenz/AboutLibraries.git",
+                "url": "https://github.com/mikepenz/AboutLibraries"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "com.squareup.okio:okio-jvm",
+            "artifactVersion": "3.9.1",
+            "name": "okio",
+            "description": "A modern I/O library for Android, Java, and Kotlin Multiplatform.",
+            "website": "https://github.com/square/okio/",
+            "developers": [
+                {
+                    "name": "Square, Inc."
+                }
+            ],
+            "scm": {
+                "connection": "scm:git:git://github.com/square/okio.git",
+                "developerConnection": "scm:git:ssh://git@github.com/square/okio.git",
+                "url": "https://github.com/square/okio/"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "javax.inject:javax.inject",
+            "artifactVersion": "1",
+            "name": "javax.inject",
+            "description": "The javax.inject API",
+            "website": "http://code.google.com/p/atinject/",
+            "developers": [
+                
+            ],
+            "scm": {
+                "url": "http://code.google.com/p/atinject/source/checkout"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "org.checkerframework:checker-qual",
+            "artifactVersion": "3.12.0",
+            "name": "Checker Qual",
+            "description": "checker-qual contains annotations (type qualifiers) that a programmer\nwrites to specify Java code for type-checking by the Checker Framework.",
+            "website": "https://checkerframework.org",
+            "developers": [
+                {
+                    "name": "Michael Ernst",
+                    "organisationUrl": "https://www.cs.washington.edu/"
+                },
+                {
+                    "name": "Suzanne Millstein",
+                    "organisationUrl": "https://www.cs.washington.edu/"
+                }
+            ],
+            "scm": {
+                "connection": "scm:git:git://github.com/typetools/checker-framework.git",
+                "developerConnection": "scm:git:ssh://git@github.com/typetools/checker-framework.git",
+                "url": "https://github.com/typetools/checker-framework.git"
+            },
+            "licenses": [
+                "MIT"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "org.jetbrains.compose.ui:ui-backhandler-android",
+            "artifactVersion": "1.8.1",
+            "name": "Compose Multiplatform BackHandler",
+            "description": "Provides BackHandler in Compose Multiplatform projects",
+            "website": "https://github.com/JetBrains/compose-jb",
+            "developers": [
+                {
+                    "name": "Compose Multiplatform Team",
+                    "organisationUrl": "https://www.jetbrains.com"
+                }
+            ],
+            "scm": {
+                "connection": "scm:git:https://github.com/JetBrains/compose-jb.git",
+                "developerConnection": "scm:git:https://github.com/JetBrains/compose-jb.git",
+                "url": "https://github.com/JetBrains/compose-jb"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "org.jetbrains.kotlin:kotlin-stdlib",
+            "artifactVersion": "2.2.10",
+            "name": "Kotlin Stdlib",
+            "description": "Kotlin Standard Library",
+            "website": "https://kotlinlang.org/",
+            "developers": [
+                {
+                    "name": "Kotlin Team",
+                    "organisationUrl": "https://www.jetbrains.com"
+                }
+            ],
+            "scm": {
+                "connection": "scm:git:https://github.com/JetBrains/kotlin.git",
+                "developerConnection": "scm:git:https://github.com/JetBrains/kotlin.git",
+                "url": "https://github.com/JetBrains/kotlin"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "org.jetbrains.kotlin:kotlin-stdlib-jdk7",
+            "artifactVersion": "1.8.0",
+            "name": "Kotlin Stdlib Jdk7",
+            "description": "Kotlin Standard Library JDK 7 extension",
+            "website": "https://kotlinlang.org/",
+            "developers": [
+                {
+                    "name": "Kotlin Team",
+                    "organisationUrl": "https://www.jetbrains.com"
+                }
+            ],
+            "scm": {
+                "connection": "scm:git:https://github.com/JetBrains/kotlin.git",
+                "developerConnection": "scm:git:https://github.com/JetBrains/kotlin.git",
+                "url": "https://github.com/JetBrains/kotlin"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "org.jetbrains.kotlin:kotlin-stdlib-jdk8",
+            "artifactVersion": "1.8.0",
+            "name": "Kotlin Stdlib Jdk8",
+            "description": "Kotlin Standard Library JDK 8 extension",
+            "website": "https://kotlinlang.org/",
+            "developers": [
+                {
+                    "name": "Kotlin Team",
+                    "organisationUrl": "https://www.jetbrains.com"
+                }
+            ],
+            "scm": {
+                "connection": "scm:git:https://github.com/JetBrains/kotlin.git",
+                "developerConnection": "scm:git:https://github.com/JetBrains/kotlin.git",
+                "url": "https://github.com/JetBrains/kotlin"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "org.jetbrains.kotlinx:kotlinx-collections-immutable-jvm",
+            "artifactVersion": "0.4.0",
+            "name": "kotlinx-collections-immutable",
+            "description": "Kotlin Immutable Collections multiplatform library",
+            "website": "https://github.com/Kotlin/kotlinx.collections.immutable",
+            "developers": [
+                {
+                    "name": "JetBrains Team",
+                    "organisationUrl": "https://www.jetbrains.com"
+                }
+            ],
+            "scm": {
+                "url": "https://github.com/Kotlin/kotlinx.collections.immutable"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "org.jetbrains.kotlinx:kotlinx-coroutines-android",
+            "artifactVersion": "1.9.0",
+            "name": "kotlinx-coroutines-android",
+            "description": "Coroutines support libraries for Kotlin",
+            "website": "https://github.com/Kotlin/kotlinx.coroutines",
+            "developers": [
+                {
+                    "name": "JetBrains Team",
+                    "organisationUrl": "https://www.jetbrains.com"
+                }
+            ],
+            "scm": {
+                "url": "https://github.com/Kotlin/kotlinx.coroutines"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm",
+            "artifactVersion": "1.9.0",
+            "name": "kotlinx-coroutines-core",
+            "description": "Coroutines support libraries for Kotlin",
+            "website": "https://github.com/Kotlin/kotlinx.coroutines",
+            "developers": [
+                {
+                    "name": "JetBrains Team",
+                    "organisationUrl": "https://www.jetbrains.com"
+                }
+            ],
+            "scm": {
+                "url": "https://github.com/Kotlin/kotlinx.coroutines"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "org.jetbrains.kotlinx:kotlinx-coroutines-play-services",
+            "artifactVersion": "1.9.0",
+            "name": "kotlinx-coroutines-play-services",
+            "description": "Coroutines support libraries for Kotlin",
+            "website": "https://github.com/Kotlin/kotlinx.coroutines",
+            "developers": [
+                {
+                    "name": "JetBrains Team",
+                    "organisationUrl": "https://www.jetbrains.com"
+                }
+            ],
+            "scm": {
+                "url": "https://github.com/Kotlin/kotlinx.coroutines"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "org.jetbrains.kotlinx:kotlinx-serialization-core-jvm",
+            "artifactVersion": "1.9.0",
+            "name": "kotlinx-serialization-core",
+            "description": "Kotlin multiplatform serialization runtime library",
+            "website": "https://github.com/Kotlin/kotlinx.serialization",
+            "developers": [
+                {
+                    "name": "JetBrains Team",
+                    "organisationUrl": "https://www.jetbrains.com"
+                }
+            ],
+            "scm": {
+                "url": "https://github.com/Kotlin/kotlinx.serialization"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "org.jetbrains.kotlinx:kotlinx-serialization-json-jvm",
+            "artifactVersion": "1.9.0",
+            "name": "kotlinx-serialization-json",
+            "description": "Kotlin multiplatform serialization runtime library",
+            "website": "https://github.com/Kotlin/kotlinx.serialization",
+            "developers": [
+                {
+                    "name": "JetBrains Team",
+                    "organisationUrl": "https://www.jetbrains.com"
+                }
+            ],
+            "scm": {
+                "url": "https://github.com/Kotlin/kotlinx.serialization"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "org.jetbrains:annotations",
+            "artifactVersion": "23.0.0",
+            "name": "JetBrains Java Annotations",
+            "description": "A set of annotations used for code inspection support and code documentation.",
+            "website": "https://github.com/JetBrains/java-annotations",
+            "developers": [
+                {
+                    "name": "JetBrains Team",
+                    "organisationUrl": "https://www.jetbrains.com"
+                }
+            ],
+            "scm": {
+                "connection": "scm:git:git://github.com/JetBrains/java-annotations.git",
+                "developerConnection": "scm:git:ssh://github.com:JetBrains/java-annotations.git",
+                "url": "https://github.com/JetBrains/java-annotations"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "org.jspecify:jspecify",
+            "artifactVersion": "1.0.0",
+            "name": "JSpecify annotations",
+            "description": "An artifact of well-named and well-specified annotations to power static analysis checks",
+            "website": "http://jspecify.org/",
+            "developers": [
+                {
+                    "name": "Kevin Bourrillion"
+                }
+            ],
+            "scm": {
+                "connection": "scm:git:git@github.com:jspecify/jspecify.git",
+                "developerConnection": "scm:git:git@github.com:jspecify/jspecify.git",
+                "url": "https://github.com/jspecify/jspecify/"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        }
+    ],
+    "licenses": {
+        "ASDKL": {
+            "name": "Android Software Development Kit License",
+            "url": "https://developer.android.com/studio/terms.html",
+            "internalHash": "ASDKL",
+            "spdxId": "ASDKL",
+            "hash": "ASDKL"
+        },
+        "Apache-2.0": {
+            "name": "Apache License 2.0",
+            "url": "https://spdx.org/licenses/Apache-2.0.html",
+            "internalHash": "Apache-2.0",
+            "spdxId": "Apache-2.0",
+            "hash": "Apache-2.0"
+        },
+        "BSD-3-Clause": {
+            "name": "BSD 3-Clause \"New\" or \"Revised\" License",
+            "url": "https://spdx.org/licenses/BSD-3-Clause.html",
+            "internalHash": "BSD-3-Clause",
+            "spdxId": "BSD-3-Clause",
+            "hash": "BSD-3-Clause"
+        },
+        "MIT": {
+            "name": "MIT License",
+            "url": "https://spdx.org/licenses/MIT.html",
+            "internalHash": "MIT",
+            "spdxId": "MIT",
+            "hash": "MIT"
+        }
+    }
+}

@@ -52,6 +52,7 @@ import kotlinx.coroutines.flow.first
 import app.simmo.ui.DataRuleEditorScreen
 import app.simmo.ui.EditorTarget
 import app.simmo.ui.GroupsScreen
+import app.simmo.ui.LicensesScreen
 import app.simmo.ui.RuleEditorScreen
 import app.simmo.ui.RulesScreen
 import app.simmo.ui.RulesViewModel
@@ -166,6 +167,7 @@ class MainActivity : ComponentActivity() {
                     val registryOpen by vm.registryOpen.collectAsStateWithLifecycle()
                     val groupsOpen by vm.groupsOpen.collectAsStateWithLifecycle()
                     val settingsOpen by vm.settingsOpen.collectAsStateWithLifecycle()
+                    val licensesOpen by vm.licensesOpen.collectAsStateWithLifecycle()
                     // Same deal as the chooser's SIM-settings jump: it's the
                     // moment the held-call offer becomes relevant — this
                     // registry can sit directly above a chooser holding a
@@ -246,6 +248,10 @@ class MainActivity : ComponentActivity() {
                             onDone = { activity?.finish() },
                         )
 
+                        // Above Settings, like the SIMs screen: opened from it,
+                        // so Back lands back on Settings.
+                        licensesOpen -> LicensesScreen(onBack = vm::closeLicenses)
+
                         settingsOpen -> SettingsScreen(
                             viewModel = vm,
                             contactsGranted = contactsGranted,
@@ -258,6 +264,7 @@ class MainActivity : ComponentActivity() {
                             },
                             onOpenSims = vm::openSimRegistry,
                             onOpenGroups = vm::openGroups,
+                            onOpenLicenses = vm::openLicenses,
                             onBack = vm::closeSettings,
                         )
 

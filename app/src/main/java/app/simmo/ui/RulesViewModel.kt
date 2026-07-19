@@ -744,6 +744,19 @@ class RulesViewModel(
         savedState[KEY_GROUPS_OPEN] = open
     }
 
+    /** Whether the open-source licenses screen is open; saved like [settingsOpen]. */
+    private val _licensesOpen = MutableStateFlow(savedState.get<Boolean>(KEY_LICENSES_OPEN) ?: false)
+    val licensesOpen: StateFlow<Boolean> = _licensesOpen
+
+    fun openLicenses() = setLicensesOpen(true)
+
+    fun closeLicenses() = setLicensesOpen(false)
+
+    private fun setLicensesOpen(open: Boolean) {
+        _licensesOpen.value = open
+        savedState[KEY_LICENSES_OPEN] = open
+    }
+
     /**
      * Add a new custom group (when [id] is null) or edit the existing one.
      * Membership is stored uppercased. A blank name or empty membership is the
@@ -905,6 +918,7 @@ class RulesViewModel(
         setRegistryOpen(false)
         setGroupsOpen(false)
         setSettingsOpen(false)
+        setLicensesOpen(false)
     }
 
     /** The data editor's route, held like [editorTarget] for the same reasons. */
@@ -1002,6 +1016,7 @@ class RulesViewModel(
         const val KEY_REGISTRY_OPEN = "registry_open"
         const val KEY_GROUPS_OPEN = "groups_open"
         const val KEY_SETTINGS_OPEN = "settings_open"
+        const val KEY_LICENSES_OPEN = "licenses_open"
 
         /** How many contact-derived countries the "Suggested" bucket shows. */
         const val SUGGESTED_COUNTRY_LIMIT = 5
