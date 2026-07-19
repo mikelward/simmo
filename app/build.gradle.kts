@@ -99,6 +99,9 @@ android {
 
     buildFeatures {
         compose = true
+        // VERSION_NAME for the About dialog — a compile-time constant, so the
+        // version never needs a PackageManager IPC on the composition path.
+        buildConfig = true
     }
 
     testOptions {

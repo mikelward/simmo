@@ -198,6 +198,12 @@
     <!-- TODO: translate -->
     <string name="settings_groups_description" tools:ignore="MissingTranslation">Custom sets of countries a rule can match</string>
     <!-- TODO: translate -->
+    <string name="settings_privacy_policy" tools:ignore="MissingTranslation">Privacy policy</string>
+    <!-- TODO: translate -->
+    <string name="settings_version" tools:ignore="MissingTranslation">Version %1$s</string>
+    <!-- A URL, not translatable copy. -->
+    <string name="settings_privacy_url" translatable="false">https://mikelward.github.io/simmo/PRIVACY.html</string>
+    <!-- TODO: translate -->
     <string name="settings_call_toast_label" tools:ignore="MissingTranslation">Show which SIM or app is used</string>
     <!-- TODO: translate -->
     <string name="settings_call_toast_description" tools:ignore="MissingTranslation">A \"Calling using…\" message appears when a rule routes a call</string>

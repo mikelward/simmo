@@ -1,6 +1,7 @@
 package app.simmo.ui
 
 import android.Manifest
+import android.content.Intent
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -28,11 +29,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
+import androidx.core.net.toUri
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import app.simmo.BuildConfig
 import app.simmo.R
 import app.simmo.store.SimmoState
 import kotlin.math.roundToInt
@@ -67,6 +71,11 @@ fun SettingsScreen(
     onBack: () -> Unit,
 ) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    // A compile-time constant — no PackageManager IPC on the composition path
+    // (Codex on PR #68).
+    val versionName = BuildConfig.VERSION_NAME
+    val privacyUrl = stringResource(R.string.settings_privacy_url)
     val contactsLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
     ) { granted ->
@@ -75,6 +84,11 @@ fun SettingsScreen(
     SettingsContent(
         settings = settings,
         contactsGranted = contactsGranted,
+        versionName = versionName,
+        onOpenPrivacyPolicy = {
+            // No browser (or a stripped device) shouldn't crash Settings.
+            runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, privacyUrl.toUri())) }
+        },
         onShowCallToastChange = viewModel::setShowCallToast,
         onCallDelayChange = viewModel::setCallDelaySeconds,
         onCorrectContactNumbersChange = { enabled ->
@@ -101,6 +115,8 @@ fun SettingsScreen(
 internal fun SettingsContent(
     settings: SettingsUi = SettingsUi(),
     contactsGranted: Boolean = true,
+    versionName: String = "",
+    onOpenPrivacyPolicy: () -> Unit = {},
     onShowCallToastChange: (Boolean) -> Unit = {},
     onCallDelayChange: (Int) -> Unit = {},
     onCorrectContactNumbersChange: (Boolean) -> Unit = {},
@@ -376,6 +392,27 @@ internal fun SettingsContent(
                     onCheckedChange = null,
                 )
             }
+            // At the foot of the page: the privacy policy link (opens in the
+            // browser), then the app version below it.
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(onClick = onOpenPrivacyPolicy)
+                    .padding(vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = stringResource(R.string.settings_privacy_policy),
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+            Text(
+                text = stringResource(R.string.settings_version, versionName),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(vertical = 8.dp),
+            )
         }
     }
 }
