@@ -1218,7 +1218,8 @@ private fun groupDescriptionRes(groupId: String): Int = when (groupId) {
 /** The localized country name alone, e.g. "Australia". */
 internal fun countryDisplayName(regionCode: String): String {
     val region = regionCode.uppercase()
-    return Locale("", region).displayCountry.ifBlank { region }
+    val locale = runCatching { Locale.Builder().setRegion(region).build() }.getOrNull()
+    return locale?.displayCountry?.ifBlank { region } ?: region
 }
 
 internal fun CallingRule.toRow(
