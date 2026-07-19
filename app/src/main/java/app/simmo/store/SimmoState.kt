@@ -6,7 +6,7 @@ import app.simmo.domain.DataRuleBook
 import app.simmo.domain.DataSimScope
 import app.simmo.domain.RegisteredSim
 import app.simmo.domain.RuleAction
-import app.simmo.domain.RuleBook
+import app.simmo.domain.CallingRuleBook
 import app.simmo.domain.SimRef
 import kotlinx.serialization.Serializable
 
@@ -19,7 +19,7 @@ import kotlinx.serialization.Serializable
  */
 @Serializable
 data class SimmoState(
-    val rules: RuleBook = RuleBook(),
+    val rules: CallingRuleBook = CallingRuleBook(),
     val simRegistry: List<RegisteredSim> = emptyList(),
     /** User-defined country groups a rule can match by id (SPEC "Calling rules"). */
     val customGroups: List<CustomGroup> = emptyList(),

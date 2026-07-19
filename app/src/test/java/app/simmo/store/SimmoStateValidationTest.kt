@@ -6,9 +6,9 @@ import app.simmo.domain.DataRuleBook
 import app.simmo.domain.DataSimScope
 import app.simmo.domain.PhoneAccountRef
 import app.simmo.domain.RegisteredSim
-import app.simmo.domain.Rule
+import app.simmo.domain.CallingRule
 import app.simmo.domain.RuleAction
-import app.simmo.domain.RuleBook
+import app.simmo.domain.CallingRuleBook
 import app.simmo.domain.RuleMatcher
 import app.simmo.domain.SimRef
 import org.junit.Assert.assertEquals
@@ -18,12 +18,12 @@ import org.junit.Test
 class SimmoStateValidationTest {
 
     private val state = SimmoState(
-        rules = RuleBook(
+        rules = CallingRuleBook(
             rules = listOf(
-                Rule(RuleMatcher.Country("AU"), RuleAction.UseSim(SimRef(1, "Telstra", "Telstra personal"))),
-                Rule(RuleMatcher.Country("US"), RuleAction.HandOff.ViaPhoneAccount(PhoneAccountRef("acct-gv"))),
-                Rule(RuleMatcher.Country("NZ"), RuleAction.Ask),
-                Rule(RuleMatcher.AnyDestination, RuleAction.UseSim(SimRef(2, "T-Mobile", "T-Mobile US"))),
+                CallingRule(RuleMatcher.Country("AU"), RuleAction.UseSim(SimRef(1, "Telstra", "Telstra personal"))),
+                CallingRule(RuleMatcher.Country("US"), RuleAction.HandOff.ViaPhoneAccount(PhoneAccountRef("acct-gv"))),
+                CallingRule(RuleMatcher.Country("NZ"), RuleAction.Ask),
+                CallingRule(RuleMatcher.AnyDestination, RuleAction.UseSim(SimRef(2, "T-Mobile", "T-Mobile US"))),
             ),
         ),
         simRegistry = listOf(

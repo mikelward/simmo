@@ -25,7 +25,7 @@ import app.simmo.SimmoApp
 import app.simmo.domain.CountryVerdict
 import app.simmo.domain.HeldCall
 import app.simmo.domain.NumberCorrection
-import app.simmo.domain.Rule
+import app.simmo.domain.CallingRule
 import app.simmo.domain.RuleAction
 import app.simmo.domain.SimRef
 import app.simmo.domain.countryMatcher
@@ -196,7 +196,7 @@ class ChooserActivity : ComponentActivity() {
             app.appScope.launch {
                 retryUntilDone("Remember rule") {
                     app.stateHolders().filterNotNull().first().updateRules {
-                        it.withRuleAdded(Rule(countryMatcher(listOf(rememberRegion)), action))
+                        it.withRuleAdded(CallingRule(countryMatcher(listOf(rememberRegion)), action))
                     }
                 }
             }

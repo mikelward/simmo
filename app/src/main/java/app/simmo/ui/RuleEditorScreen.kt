@@ -61,7 +61,7 @@ import app.simmo.domain.ContactCallApp
 import app.simmo.domain.CustomGroup
 import app.simmo.domain.DialHandoffApp
 import app.simmo.domain.PhoneAccountRef
-import app.simmo.domain.Rule
+import app.simmo.domain.CallingRule
 import app.simmo.domain.RuleAction
 import app.simmo.domain.RuleMatcher
 import app.simmo.domain.SimRef
@@ -93,7 +93,7 @@ sealed interface EditorTarget {
     ) : EditorTarget
 
     /**
-     * Editing an existing rule, addressed by its stable [Rule.id] rather than
+     * Editing an existing rule, addressed by its stable [CallingRule.id] rather than
      * its list position: the editor route can outlive process death and
      * concurrent list changes (a delete-and-undo elsewhere), and an id lands
      * the save on the intended rule where a stale index would not. [rule] is
@@ -101,7 +101,7 @@ sealed interface EditorTarget {
      */
     @Serializable
     @SerialName("existing")
-    data class Existing(val id: String, val rule: Rule) : EditorTarget
+    data class Existing(val id: String, val rule: CallingRule) : EditorTarget
 }
 
 /** The editor's current choices; drives which action needs a SIM selection. */
@@ -971,13 +971,13 @@ internal enum class ActionChoice {
 
 /**
  * The rule the editor's Save produces from [draft]. Editing an existing rule
- * carries its [Rule.enabled] state through — the editor only changes the matcher
+ * carries its [CallingRule.enabled] state through — the editor only changes the matcher
  * and action, so a disabled rule must stay disabled rather than silently turning
  * back on (enable/disable is a separate control, the row menu). A new rule starts
  * enabled.
  */
-internal fun ruleFromDraft(draft: EditorDraft, target: EditorTarget): Rule =
-    Rule(
+internal fun ruleFromDraft(draft: EditorDraft, target: EditorTarget): CallingRule =
+    CallingRule(
         draft.matcher,
         draft.action,
         enabled = (target as? EditorTarget.Existing)?.rule?.enabled ?: true,
@@ -998,7 +998,7 @@ internal fun resolveEditorAction(
 ): RuleAction =
     choice?.toAction(simRef, account)
         ?: keepAction
-        ?: error("Rule editor produced no action")
+        ?: error("CallingRule editor produced no action")
 
 /**
  * The account rows the editor offers: the live non-SIM calling accounts, plus

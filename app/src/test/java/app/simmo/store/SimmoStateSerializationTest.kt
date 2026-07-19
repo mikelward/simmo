@@ -9,9 +9,9 @@ import app.simmo.domain.DataSimScope
 import app.simmo.domain.DialHandoffApp
 import app.simmo.domain.PhoneAccountRef
 import app.simmo.domain.RegisteredSim
-import app.simmo.domain.Rule
+import app.simmo.domain.CallingRule
 import app.simmo.domain.RuleAction
-import app.simmo.domain.RuleBook
+import app.simmo.domain.CallingRuleBook
 import app.simmo.domain.RuleMatcher
 import app.simmo.domain.SimRef
 import java.io.ByteArrayInputStream
@@ -25,23 +25,23 @@ import org.junit.Test
 class SimmoStateSerializationTest {
 
     private val fullState = SimmoState(
-        rules = RuleBook(
+        rules = CallingRuleBook(
             rules = listOf(
-                Rule(RuleMatcher.Country("AU"), RuleAction.UseSim(SimRef(1, "Telstra", "Telstra personal"))),
-                Rule(
+                CallingRule(RuleMatcher.Country("AU"), RuleAction.UseSim(SimRef(1, "Telstra", "Telstra personal"))),
+                CallingRule(
                     RuleMatcher.Country("US"),
                     // Non-default label so the round trip proves it is written.
                     RuleAction.HandOff.ViaPhoneAccount(PhoneAccountRef("acct-sip"), "SIP work"),
                 ),
-                Rule(RuleMatcher.Country("GB"), RuleAction.HandOff.ViaDialIntent(DialHandoffApp.GOOGLE_VOICE)),
-                Rule(RuleMatcher.Country("NZ"), RuleAction.Ask),
-                Rule(RuleMatcher.Countries(listOf("FR", "DE")), RuleAction.Ask),
-                Rule(
+                CallingRule(RuleMatcher.Country("GB"), RuleAction.HandOff.ViaDialIntent(DialHandoffApp.GOOGLE_VOICE)),
+                CallingRule(RuleMatcher.Country("NZ"), RuleAction.Ask),
+                CallingRule(RuleMatcher.Countries(listOf("FR", "DE")), RuleAction.Ask),
+                CallingRule(
                     RuleMatcher.Countries(listOf("GB"), listOf("eu_eea")),
                     RuleAction.UseSim(SimRef(1, "Telstra", "Telstra personal")),
                 ),
-                Rule(RuleMatcher.AnyDestination, RuleAction.UseMatchingCountrySim),
-                Rule(RuleMatcher.AnyDestination, RuleAction.SystemDefault),
+                CallingRule(RuleMatcher.AnyDestination, RuleAction.UseMatchingCountrySim),
+                CallingRule(RuleMatcher.AnyDestination, RuleAction.SystemDefault),
             ),
         ),
         simRegistry = listOf(
@@ -124,7 +124,7 @@ class SimmoStateSerializationTest {
         """.trimIndent()
         val read = SimmoStateSerializer.readFrom(ByteArrayInputStream(json.encodeToByteArray()))
         assertEquals(
-            listOf(Rule(RuleMatcher.Country("AU"), RuleAction.SystemDefault)),
+            listOf(CallingRule(RuleMatcher.Country("AU"), RuleAction.SystemDefault)),
             read.rules.rules,
         )
     }
@@ -140,7 +140,7 @@ class SimmoStateSerializationTest {
         """.trimIndent()
         val read = SimmoStateSerializer.readFrom(ByteArrayInputStream(json.encodeToByteArray()))
         assertEquals(
-            listOf(Rule(RuleMatcher.Countries(listOf("FR", "DE")), RuleAction.SystemDefault)),
+            listOf(CallingRule(RuleMatcher.Countries(listOf("FR", "DE")), RuleAction.SystemDefault)),
             read.rules.rules,
         )
     }
@@ -165,8 +165,8 @@ class SimmoStateSerializationTest {
     @Test
     fun `a disabled rule survives a round trip`() = runTest {
         val state = SimmoState(
-            rules = RuleBook(
-                listOf(Rule(RuleMatcher.Country("AU"), RuleAction.SystemDefault, enabled = false)),
+            rules = CallingRuleBook(
+                listOf(CallingRule(RuleMatcher.Country("AU"), RuleAction.SystemDefault, enabled = false)),
             ),
         )
         assertEquals(state, roundTrip(state))

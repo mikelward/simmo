@@ -7,9 +7,9 @@ import app.simmo.domain.DataExpectation
 import app.simmo.domain.DataRule
 import app.simmo.domain.PhoneAccountRef
 import app.simmo.domain.RegisteredSim
-import app.simmo.domain.Rule
+import app.simmo.domain.CallingRule
 import app.simmo.domain.RuleAction
-import app.simmo.domain.RuleBook
+import app.simmo.domain.CallingRuleBook
 import app.simmo.domain.RuleMatcher
 import app.simmo.domain.SimRef
 import kotlinx.coroutines.awaitCancellation
@@ -100,9 +100,9 @@ class SimmoStateHolderTest {
         // The chooser's "remember" persists directly via updateRules, bypassing
         // the view-model's creation path — the boundary must still mint an id so
         // the rule stays editable by id (Codex on PR #60).
-        val store = FakeDataStore(SimmoState(rules = RuleBook(emptyList()), installId = "install-1"))
+        val store = FakeDataStore(SimmoState(rules = CallingRuleBook(emptyList()), installId = "install-1"))
         val holder = SimmoStateHolder(store, backgroundScope, installId = "install-1")
-        holder.updateRules { it.withRuleAdded(Rule(RuleMatcher.Country("US"), RuleAction.Ask)) }
+        holder.updateRules { it.withRuleAdded(CallingRule(RuleMatcher.Country("US"), RuleAction.Ask)) }
         assertTrue(store.data.first().rules.rules.single().id.isNotBlank())
     }
 
@@ -110,10 +110,10 @@ class SimmoStateHolderTest {
     fun `purge drops every soft-deleted rule, data rule, and group in one write`() = runTest {
         val store = FakeDataStore(
             SimmoState(
-                rules = RuleBook(
+                rules = CallingRuleBook(
                     listOf(
-                        Rule(RuleMatcher.Country("AU"), RuleAction.Ask, id = "keep-r"),
-                        Rule(RuleMatcher.Country("US"), RuleAction.Ask, id = "gone-r", pendingRemoval = true),
+                        CallingRule(RuleMatcher.Country("AU"), RuleAction.Ask, id = "keep-r"),
+                        CallingRule(RuleMatcher.Country("US"), RuleAction.Ask, id = "gone-r", pendingRemoval = true),
                     ),
                 ),
                 dataRules = app.simmo.domain.DataRuleBook(
@@ -160,8 +160,8 @@ class SimmoStateHolderTest {
     @Test
     fun `state from another install gets its subscription ids invalidated`() = runTest {
         val restored = SimmoState(
-            rules = RuleBook(
-                listOf(Rule(RuleMatcher.Country("AU"), RuleAction.UseSim(SimRef(1, "Telstra", "Telstra personal")))),
+            rules = CallingRuleBook(
+                listOf(CallingRule(RuleMatcher.Country("AU"), RuleAction.UseSim(SimRef(1, "Telstra", "Telstra personal")))),
             ),
             simRegistry = listOf(RegisteredSim(1, "Telstra", "Telstra personal", 100L)),
             installId = "old-phone",
@@ -185,8 +185,8 @@ class SimmoStateHolderTest {
         // state ahead of the migration write. This store never completes
         // writes at all — published state must still come out validated.
         val restored = SimmoState(
-            rules = RuleBook(
-                listOf(Rule(RuleMatcher.Country("AU"), RuleAction.UseSim(SimRef(1, "Telstra", "Telstra personal")))),
+            rules = CallingRuleBook(
+                listOf(CallingRule(RuleMatcher.Country("AU"), RuleAction.UseSim(SimRef(1, "Telstra", "Telstra personal")))),
             ),
             installId = "old-phone",
         )
@@ -274,7 +274,7 @@ class SimmoStateHolderTest {
         // same transaction as the rule, so the state can never hold a rule
         // pointing at a group that isn't there.
         var writes = 0
-        val start = SimmoState(rules = RuleBook(emptyList()), installId = "install-1")
+        val start = SimmoState(rules = CallingRuleBook(emptyList()), installId = "install-1")
         val store = object : DataStore<SimmoState> {
             private val flow = MutableStateFlow(start)
             override val data: Flow<SimmoState> = flow
@@ -288,7 +288,7 @@ class SimmoStateHolderTest {
         val writesBefore = writes
 
         val group = app.simmo.domain.CustomGroup("custom:z", "Zone 1", listOf("GB", "FR"))
-        val rule = Rule(RuleMatcher.Countries(groupIds = listOf("custom:z")), RuleAction.SystemDefault)
+        val rule = CallingRule(RuleMatcher.Countries(groupIds = listOf("custom:z")), RuleAction.SystemDefault)
         holder.updateGroupsAndRules(listOf(group)) { it.withRuleAdded(rule) }
 
         val state = holder.state.filterNotNull().first { it.rules.rules.isNotEmpty() }
@@ -307,7 +307,7 @@ class SimmoStateHolderTest {
         val holder = SimmoStateHolder(store, backgroundScope, installId = "install-1")
 
         val rule = RuleAction.UseSim(SimRef(1, "Telstra", "Telstra personal"))
-        holder.updateRules { it.copy(rules = listOf(Rule(RuleMatcher.Country("AU"), rule))) }
+        holder.updateRules { it.copy(rules = listOf(CallingRule(RuleMatcher.Country("AU"), rule))) }
         holder.recordSeenSims(
             listOf(ActiveSim(1, "Telstra", "Telstra personal", PhoneAccountRef("a1"))),
             nowMillis = 700L,

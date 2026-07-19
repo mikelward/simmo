@@ -18,11 +18,11 @@ import kotlinx.serialization.Serializable
 data class DataRule(
     val matcher: RuleMatcher,
     val expectation: DataExpectation,
-    /** User toggle, same semantics as [Rule.enabled]. */
+    /** User toggle, same semantics as [CallingRule.enabled]. */
     val enabled: Boolean = true,
-    /** Stable identity, same semantics as [Rule.id]. */
+    /** Stable identity, same semantics as [CallingRule.id]. */
     val id: String = "",
-    /** Soft-deleted awaiting purge; struck-through and skipped in evaluation. See [Rule.pendingRemoval]. */
+    /** Soft-deleted awaiting purge; struck-through and skipped in evaluation. See [CallingRule.pendingRemoval]. */
     val pendingRemoval: Boolean = false,
 )
 
@@ -100,7 +100,7 @@ sealed interface DataSimScope {
 data class DataRuleBook(
     val rules: List<DataRule> = defaultDataRules(),
 ) {
-    // The same editing surface as [RuleBook]: list + editor share the code
+    // The same editing surface as [CallingRuleBook]: list + editor share the code
     // paths (SPEC "Data rules"), so the book edits mirror the calling ones.
 
     fun withRuleAdded(rule: DataRule): DataRuleBook =
@@ -123,7 +123,7 @@ data class DataRuleBook(
     fun withRuleReplaced(id: String, rule: DataRule): DataRuleBook =
         if (id.isBlank()) this else copy(rules = rules.map { if (it.id == id) rule else it })
 
-    /** Soft-delete the rule with [id]: mark it pending purge; see [RuleBook.withRuleMarkedForRemoval]. */
+    /** Soft-delete the rule with [id]: mark it pending purge; see [CallingRuleBook.withRuleMarkedForRemoval]. */
     fun withRuleMarkedForRemoval(id: String): DataRuleBook =
         if (id.isBlank()) this else copy(rules = rules.map { if (it.id == id) it.copy(pendingRemoval = true) else it })
 
@@ -135,7 +135,7 @@ data class DataRuleBook(
     fun withPendingRemovalsPurged(): DataRuleBook =
         if (rules.none { it.pendingRemoval }) this else copy(rules = rules.filterNot { it.pendingRemoval })
 
-    /** Insert a copy of the rule at [index] below it under [newId]; see [RuleBook.withRuleDuplicated]. */
+    /** Insert a copy of the rule at [index] below it under [newId]; see [CallingRuleBook.withRuleDuplicated]. */
     fun withRuleDuplicated(index: Int, newId: String): DataRuleBook =
         rules.getOrNull(index)?.let { withRuleInserted(index + 1, it.copy(id = newId)) } ?: this
 

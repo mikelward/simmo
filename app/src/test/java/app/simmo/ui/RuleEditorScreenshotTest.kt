@@ -9,7 +9,7 @@ import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import app.simmo.domain.DialHandoffApp
 import app.simmo.domain.PhoneAccountRef
-import app.simmo.domain.Rule as SimmoRule
+import app.simmo.domain.CallingRule as SimmoRule
 import app.simmo.domain.RuleAction
 import app.simmo.domain.RuleMatcher
 import app.simmo.domain.SimRef

@@ -12,7 +12,7 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.test.core.app.ApplicationProvider
 import app.simmo.domain.ContactCallApp
 import app.simmo.domain.DialHandoffApp
-import app.simmo.domain.Rule as SimmoRule
+import app.simmo.domain.CallingRule as SimmoRule
 import app.simmo.domain.RuleAction
 import app.simmo.domain.RuleMatcher
 import app.simmo.domain.SimRef
