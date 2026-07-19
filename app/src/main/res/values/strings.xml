@@ -54,6 +54,26 @@
     <!-- TODO: translate -->
     <string name="data_editor_expect_label" tools:ignore="MissingTranslation">Expect</string>
     <!-- TODO: translate -->
+    <string name="triage_roaming_title" tools:ignore="MissingTranslation">Data roaming in %1$s</string>
+    <!-- TODO: translate -->
+    <string name="triage_roaming_body" tools:ignore="MissingTranslation">Currently using %1$s for data</string>
+    <!-- TODO: translate -->
+    <string name="triage_roaming_body_local" tools:ignore="MissingTranslation">Currently using %1$s for data; %2$s is preferred</string>
+    <!-- TODO: translate -->
+    <string name="triage_no_data_title" tools:ignore="MissingTranslation">No data in %1$s</string>
+    <!-- TODO: translate -->
+    <string name="triage_no_data_body" tools:ignore="MissingTranslation">%1$s has no data here</string>
+    <!-- TODO: translate -->
+    <string name="triage_no_data_body_switch" tools:ignore="MissingTranslation">%1$s has no data here; %2$s is preferred</string>
+    <!-- TODO: translate -->
+    <string name="triage_wrong_sim_title" tools:ignore="MissingTranslation">Wrong SIM for data in %1$s</string>
+    <!-- TODO: translate -->
+    <string name="triage_wrong_sim_body" tools:ignore="MissingTranslation">Your rule wants %1$s, but data is using %2$s</string>
+    <!-- TODO: translate -->
+    <string name="triage_use" tools:ignore="MissingTranslation">Use in %1$s</string>
+    <!-- TODO: translate -->
+    <string name="triage_pick_sim" tools:ignore="MissingTranslation">Change SIM</string>
+    <!-- TODO: translate -->
     <string name="rule_matcher_any" tools:ignore="MissingTranslation">Any country</string>
     <!-- TODO: translate -->
     <string name="rule_action_use_sim" tools:ignore="MissingTranslation">Call with %1$s</string>

@@ -506,11 +506,53 @@ System settings.
       screenshot tests + their CI steps. Multi-SIM Roaming OK scopes are kept
       verbatim by the editor (single-SIM scopes are editable); revisit if
       multi-SIM editing is ever needed.
-- [ ] Triage card at the top of the data rules screen: which SIM carries data,
-      where, roaming or not, which active SIM is local; "This is OK" creates the
-      prefilled Roaming OK rule with group-widening suggestions, "System settings"
-      jumps out, and the subscription-change confirmation on return offers to save
-      "Use <SIM> for data" for this country.
+- [x] Triage card at the top of the data rules screen: the live situation (which
+      SIM carries data, where, roaming/no-data/wrong-SIM, which active SIM is
+      local), recomputed from the snapshot — not the once-per-arrival mark — so
+      it shows whenever the screen is open. A roaming situation offers "Use in
+      <country>" (records the Roaming OK rule scoped to the data SIM) plus a
+      "Use in <group>" button per shipped/custom group containing the country;
+      every situation offers "Pick a different SIM" (the system-settings jump).
+      Landed as `domain/DataTriage.kt` (`triageFor`, `roamingOkRule`) +
+      `RulesViewModel.triage` + `DataTriageCard`.
+- [ ] Triage "This is OK" — dismiss for the trip, no rule (maintainer,
+      2026-07-19). A button on every triage card that acknowledges the current
+      arrival and suppresses the card (and notification) for the rest of the
+      trip *without* creating a data rule — the rule-free opt-out the no-data
+      situation needs (there is no "no data is fine" expectation to record).
+      Needs its own persisted "acknowledged arrival" marker, SEPARATE from the
+      notification's `dataWatchMark` (the notification claiming its mark on post
+      must not pre-dismiss the card), cleared on the same country/SIM change
+      that ends the arrival so the card returns next trip. Subsumes the
+      deferred "claim the arrival mark when the card is displayed" (Codex on
+      PR #62): an explicit user acknowledge replaces auto-claim-on-display.
+- [ ] Triage card overflow (Codex on PR #62, maintainer accepts the bound for
+      now): the "Use in <group>" buttons stack roughly one per row, so a country
+      in *many custom groups* could grow the card past the fold — the country and
+      shipped groups are bounded (≤3), so only heavy custom-group use hits it, and
+      the rule list below scrolls regardless. Folding the card into the rules
+      LazyColumn as a header would fix it but breaks the drag-reorder index math;
+      revisit with a header-offset in `DragReorderState`, or cap the widen
+      buttons, if this ever bites.
+- [ ] Triage widen offers a soft-deleted group (Codex on PR #62, maintainer:
+      not reachable in practice): the widen candidates come from `groupsContaining`
+      over `snapshot.customGroups`, which keeps a pending-removal group so its rules
+      still resolve, so a group tombstoned on the Groups screen and not yet purged
+      could be offered as "Use in <group>" on the Data tab (same-activity nav, no
+      purge between). Tapping it would create a rule the leave-time purge then
+      strands. Purge is activity-level (`MainActivity.onStop`), and reaching the
+      roaming triage card mid-tombstone is not a real flow, so deferred; the fix if
+      it ever bites is to drop pending-removal group ids from `widenGroups` in
+      `buildTriage`, mirroring `customGroupOption`'s `selectable = !pendingRemoval`.
+- [ ] Negative data rules — decided against for now (maintainer, 2026-07-19):
+      lean on the existing once-per-arrival suppression (the "This is OK" per-trip
+      dismiss above) rather than a persisted "no-data is fine here" expectation.
+      Revisit only if a durable-across-trips opt-out is wanted.
+- [ ] Triage follow-up: the subscription-change confirmation on *return* from
+      System settings — Simmo sees the data SIM change via the subscription
+      callback and offers to save "Use <SIM> for data" for this country. Needs a
+      launched-from-triage marker plus a data-SIM-change watch; distinct from the
+      card above.
 - [x] One label for leaving Simmo: the chooser's and SIM registry's jump is
       labeled "System settings" so the same words mark every jump out (landed
       with the terminology rename on PR #47).

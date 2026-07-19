@@ -14,11 +14,15 @@ import app.simmo.domain.withGroupSaved
 import app.simmo.domain.withGroupMarkedForRemoval
 import app.simmo.domain.withGroupRemovalUndone
 import app.simmo.telecom.TelephonyReader
+import app.simmo.telecom.buildDataSnapshot
 import app.simmo.telecom.installedDialHandoffApps
 import app.simmo.domain.DataExpectation
 import app.simmo.domain.DataRule
 import app.simmo.domain.DataRuleBook
 import app.simmo.domain.DataSimScope
+import app.simmo.domain.DataTriage
+import app.simmo.domain.roamingOkRule
+import app.simmo.domain.triageFor
 import app.simmo.domain.PhoneAccountRef
 import app.simmo.domain.RegisteredSim
 import app.simmo.domain.Rule
@@ -41,6 +45,7 @@ import java.util.Locale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -133,6 +138,33 @@ sealed interface DataExpectationUi {
     data object AlwaysWarn : DataExpectationUi
 }
 
+/** Which shape of situation the triage card shows (SPEC "Data rules" → Triage). */
+enum class DataTriageKind { ROAMING, NO_DATA, WRONG_SIM }
+
+/** A shipped or custom group offered as a one-tap "widen This is OK to…" chip. */
+data class TriageGroupUi(val id: String, val label: String)
+
+/**
+ * The triage card atop the Data tab: the live data situation, ready to render.
+ * [country] and [dataSimRef] are the non-display payload the "This is OK"
+ * action reads back to build the Roaming OK rule.
+ */
+data class DataTriageUi(
+    val kind: DataTriageKind,
+    val dataSimName: String,
+    val countryLabel: String,
+    /**
+     * The other SIM named in the body: the local SIM to prefer (roaming and
+     * no-data — active or a disabled local profile alike; "Change SIM" is the
+     * one action for both) or the wanted SIM (wrong-SIM).
+     */
+    val otherSimName: String?,
+    val country: String,
+    val dataSimRef: SimRef,
+    /** Widen-to-group chips; empty except for the roaming situation. */
+    val widenGroups: List<TriageGroupUi> = emptyList(),
+)
+
 @OptIn(ExperimentalCoroutinesApi::class)
 class RulesViewModel(
     application: Application,
@@ -219,6 +251,123 @@ class RulesViewModel(
     ): List<ActiveSim> {
         val callIds = sims.activeSims.mapTo(HashSet()) { it.subscriptionId }
         return sims.activeSims + dataState.subscriptions.filterNot { it.subscriptionId in callIds }
+    }
+
+    /**
+     * The triage card atop the Data tab (SPEC "Data rules" → Triage): the live
+     * data situation while one exists, recomputed off the main thread from the
+     * data rules and the current data snapshot. Unlike the notification it is
+     * NOT gated by the once-per-arrival mark, so it shows the current state
+     * every time the screen is open; null (no card) when a rule already covers
+     * the situation, the data SIM is home, or the country is unknown. Adding a
+     * "This is OK" rule makes the verdict Silent, so the card clears itself.
+     */
+    val triage: StateFlow<DataTriageUi?> =
+        app.stateHolders()
+            .flatMapLatest { holder -> holder?.state ?: flowOf(null) }
+            .combine(app.assembler.dataStates()) { state, dataState ->
+                state?.let { buildTriage(it, dataState) }
+            }
+            .flowOn(Dispatchers.Default)
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    private fun buildTriage(state: SimmoState, dataState: TelephonyReader.DataState): DataTriageUi? {
+        val triage = triageFor(state.dataRules, buildDataSnapshot(dataState, state)) ?: return null
+        val labels = builtInGroupLabels + state.customGroups.associate { it.id to it.name }
+        return triage.toUi(groupLabel = { id -> labels[id] ?: id })
+    }
+
+    private fun DataTriage.toUi(groupLabel: (String) -> String): DataTriageUi = when (this) {
+        is DataTriage.Roaming -> DataTriageUi(
+            kind = DataTriageKind.ROAMING,
+            dataSimName = dataSim.name(),
+            countryLabel = countryDisplayName(country),
+            otherSimName = localSims.firstOrNull()?.name(),
+            country = country.trim().uppercase(),
+            dataSimRef = dataSim.simRef(),
+            widenGroups = widenGroupIds.map { TriageGroupUi(it, groupLabel(it)) },
+        )
+        is DataTriage.NoData -> DataTriageUi(
+            kind = DataTriageKind.NO_DATA,
+            dataSimName = dataSim.name(),
+            countryLabel = countryDisplayName(country),
+            // The local SIM to prefer: an active one to switch to, or a
+            // disabled local profile — "Change SIM" covers enabling it too.
+            otherSimName = switchTo.firstOrNull()?.name()
+                ?: enableFirst.firstOrNull()?.let { it.displayName.ifBlank { it.carrierName } },
+            country = country.trim().uppercase(),
+            dataSimRef = dataSim.simRef(),
+        )
+        is DataTriage.WrongSim -> DataTriageUi(
+            kind = DataTriageKind.WRONG_SIM,
+            dataSimName = dataSim.name(),
+            countryLabel = countryDisplayName(country),
+            otherSimName = wantedSim.name(),
+            country = country.trim().uppercase(),
+            dataSimRef = dataSim.simRef(),
+        )
+    }
+
+    private fun ActiveSim.name() = displayName.ifBlank { carrierName }
+    private fun ActiveSim.simRef() = SimRef(subscriptionId, carrierName, displayName)
+
+    // True while a triage "Use in" write is in flight, so a double-tap — or a
+    // country and a group tapped before the first write lands — mints exactly
+    // one rule, not several (Codex on PR #62). Touched only on the main thread
+    // (taps and viewModelScope's default dispatcher), so a plain flag suffices.
+    private var confirmingTriage = false
+
+    /**
+     * "Use in ⟨place⟩" (SPEC "Data rules" → Triage): record that roaming here is
+     * expected, on the SIM the card named — for [country], or for [groupId] when
+     * widening to a group that contains it. [country] and [dataSimRef] are the
+     * identity the tapped card *rendered*; the write only lands if the live
+     * situation still matches it (same country, same data SIM, still roaming,
+     * and — for a widen — the group still applies), so a tap left stale by a
+     * country or SIM change between render and tap is a no-op rather than
+     * silently approving a situation the user never saw (Codex on PR #62).
+     * Adding the rule makes the situation covered, so the card clears.
+     */
+    fun confirmDataRoamingOk(country: String, dataSimRef: SimRef, groupId: String? = null) {
+        val card = triage.value ?: return
+        if (card.kind != DataTriageKind.ROAMING) return
+        if (card.country != country || card.dataSimRef != dataSimRef) return
+        if (groupId != null && card.widenGroups.none { it.id == groupId }) return
+        // The in-flight guard, not a duplicate search, is what stops a
+        // double-tap stacking rules: a second tap while a confirm is pending is
+        // dropped. A duplicate search would wrongly no-op when an equivalent
+        // rule exists but is disabled or shadowed below an AlwaysWarn — the
+        // card legitimately shows there, and the tap must add a fresh,
+        // effective rule on top (Codex on PR #62).
+        if (confirmingTriage) return
+        confirmingTriage = true
+        val rule = roamingOkRule(country, groupId, dataSimRef)
+        viewModelScope.launch {
+            try {
+                app.stateHolders().filterNotNull().first().updateDataRules { it.withRuleAdded(rule) }
+                // Hold the guard until the card actually clears, not just until
+                // the write returns: the state flow and triage recompute lag the
+                // commit, and a tap in that gap would otherwise prepend a second
+                // rule (Codex on PR #62). Released once triage no longer shows
+                // this arrival (the rule covered it, or the situation changed),
+                // with a backstop so a write that never clears the card can't
+                // wedge the button forever.
+                withTimeoutOrNull(GUARD_RELEASE_TIMEOUT_MILLIS) {
+                    triage.first { it?.country != country || it?.dataSimRef != dataSimRef }
+                }
+                // Retire any notification already posted for the accepted
+                // arrival — otherwise it lingers for the rest of the trip (the
+                // mark only clears on a country/SIM change, and the now-covered
+                // verdict never re-posts). Only when the situation resolved to
+                // nothing: if a different arrival appeared while the write was
+                // suspended, triage is non-null and its own (newer) warning
+                // must not be cancelled by our shared-tag cancel (Codex on
+                // PR #62).
+                if (triage.value == null) app.notifications.cancelDataWatch()
+            } finally {
+                confirmingTriage = false
+            }
+        }
     }
 
     /** SIMs the user can target: every registered SIM, active or not. */
@@ -802,6 +951,9 @@ class RulesViewModel(
 
         /** How many contact-derived countries the "Suggested" bucket shows. */
         const val SUGGESTED_COUNTRY_LIMIT = 5
+
+        /** Backstop so a triage confirm can never wedge the "Use in" button. */
+        const val GUARD_RELEASE_TIMEOUT_MILLIS = 5_000L
     }
 }
 

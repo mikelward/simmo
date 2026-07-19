@@ -27,7 +27,11 @@ power behind them. **Calling rules** match the *destination* of an outgoing call
 warns with a guided fix. The third place is Android's own **System settings**, where
 every switch that actually changes phone state lives; Simmo reaches it by buttons
 labeled exactly that — one consistent term, so it is always obvious what Simmo does
-itself versus what only Android can do.
+itself versus what only Android can do. One deliberate exception (maintainer,
+2026-07-19): the data triage card labels its jump **"Change SIM"** rather than
+"System settings," because on that card naming the actual goal reads clearer than
+the generic term — the card is already framed as a data-SIM problem, so the jump's
+purpose isn't ambiguous.
 
 ### Calling rules
 
@@ -323,8 +327,11 @@ billing one — so Simmo nudges without requiring any rule (maintainer, 2026-07)
 *enable first* when the local SIM is a registered-but-disabled profile (the SIM
 registry keeps each SIM's last-known home country precisely so a disabled eSIM can
 still be recognized as local). The nudge only fires when there is such a SIM to
-offer, follows the same Settings-into-triage flow, and "This is OK" records the
-opt-out for that country like any other data rule.
+offer, follows the same Settings-into-triage flow. Unlike the roaming case there is
+no rule to record — "no mobile data here is fine" isn't a data-rule expectation — so
+the card's only action is **Change SIM**; a rule-free per-trip dismiss (leaning on
+the existing once-per-arrival suppression, not a negative rule) is the planned way to
+quiet it deliberately (TODO).
 
 **Watched, not enforced.** Changing the default data SIM or a SIM's data-roaming
 toggle needs carrier privileges or `MODIFY_PHONE_STATE` (the same wall the Quick
