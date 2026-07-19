@@ -95,6 +95,55 @@ class RulesScreenScreenshotTest {
     }
 
     @Test
+    fun rulesList_showsATombstonedRuleStruckThroughWithUndo() {
+        composeRule.setContent {
+            MaterialTheme {
+                RulesScreenContent(
+                    rows = listOf(
+                        RuleRowUi("+61 Australia", ActionUi.UseSim("Telstra"), id = "r0"),
+                        // Soft-deleted: dimmed, struck-through, inert, Undo in
+                        // place of the ⋮ menu.
+                        RuleRowUi("+1 United States", ActionUi.UseSim("T-Mobile"), id = "r1", pendingRemoval = true),
+                        RuleRowUi(null, ActionUi.SystemDefault),
+                    ),
+                )
+            }
+        }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithText("+1 United States").assertExists()
+        composeRule.onNodeWithText("Undo").assertExists()
+        captureSnapshot("rules_list_pending_removal.png")
+    }
+
+    @Test
+    fun dataRulesTab_showsATombstonedRuleStruckThroughWithUndo() {
+        composeRule.setContent {
+            MaterialTheme {
+                RulesScreenContent(
+                    rows = emptyList(),
+                    dataRows = listOf(
+                        DataRuleRowUi("EU/EEA", DataExpectationUi.RoamingOkHomedInMatched),
+                        DataRuleRowUi(
+                            "United States",
+                            DataExpectationUi.RoamingOkAnySim,
+                            id = "d1",
+                            pendingRemoval = true,
+                        ),
+                        DataRuleRowUi(null, DataExpectationUi.AlwaysWarn),
+                    ),
+                    tab = RulesTab.DATA,
+                )
+            }
+        }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithText("United States").assertExists()
+        composeRule.onNodeWithText("Undo").assertExists()
+        captureSnapshot("data_rules_list_pending_removal.png")
+    }
+
+    @Test
     fun switchingTabs_invokesTheCallback() {
         var selected: RulesTab? = null
         composeRule.setContent {

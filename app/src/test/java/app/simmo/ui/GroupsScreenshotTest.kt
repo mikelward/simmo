@@ -50,6 +50,27 @@ class GroupsScreenshotTest {
     }
 
     @Test
+    fun groups_showATombstonedGroupStruckThroughWithUndo() {
+        composeRule.setContent {
+            MaterialTheme {
+                GroupsContent(
+                    groups = listOf(
+                        CustomGroup("custom:1", "Vodafone Zone 1", listOf("GB", "FR", "DE")),
+                        // Soft-deleted: dimmed, struck-through, inert, with Undo.
+                        CustomGroup("custom:2", "Work trips", listOf("US", "JP"), pendingRemoval = true),
+                    ),
+                    countryOptions = emptyList(),
+                )
+            }
+        }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithText("Work trips").assertExists()
+        composeRule.onNodeWithText("Undo").assertExists()
+        captureSnapshot("groups_list_pending_removal.png")
+    }
+
+    @Test
     fun theAddButtonOpensAnEmptyEditor() {
         composeRule.setContent {
             MaterialTheme { GroupsContent(groups = emptyList(), countryOptions = emptyList()) }
