@@ -3,7 +3,8 @@ package app.simmo
 import android.Manifest
 import android.app.Application
 import android.app.role.RoleManager
-import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import android.os.Process
+import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.test.core.app.ApplicationProvider
 import org.junit.Rule
@@ -12,6 +13,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
+import org.robolectric.shadows.ShadowRoleManager
 
 /**
  * Onboarding's Continue button must stay the only exit across recreation:
@@ -34,8 +36,11 @@ class MainActivityRecreationTest {
         // The user works through the system dialogs...
         val app = ApplicationProvider.getApplicationContext<Application>()
         shadowOf(app).grantPermissions(Manifest.permission.READ_PHONE_STATE)
-        shadowOf(app.getSystemService(RoleManager::class.java))
-            .addHeldRole(RoleManager.ROLE_CALL_REDIRECTION)
+        ShadowRoleManager.addRoleHolder(
+            RoleManager.ROLE_CALL_REDIRECTION,
+            app.packageName,
+            Process.myUserHandle(),
+        )
 
         // ...then the activity is recreated (rotation). The saved in-progress
         // state must win over recomputing from the now-held grants, so the
