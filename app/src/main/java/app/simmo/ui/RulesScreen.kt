@@ -31,9 +31,9 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SecondaryTabRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -184,7 +184,7 @@ internal fun RulesScreenContent(
                         TextButton(onClick = onDone) { Text(stringResource(R.string.action_done)) }
                     }
                 }
-                TabRow(
+                SecondaryTabRow(
                     selectedTabIndex = tab.ordinal,
                     modifier = Modifier.padding(bottom = 16.dp),
                 ) {
