@@ -564,7 +564,8 @@ supports:
    degrading to the providing app's name when that grant is missing.
 2. **Cancel-and-forward**: otherwise, Simmo cancels the carrier call and launches the
    target app at the dialed number via the app's number-carrying deep link (the MVP
-   targets are **Google Voice**, **Microsoft Teams**, **Viber**, and **Yolla**). The number is normalized to
+   targets are **Google Voice**, **Microsoft Teams**, **Viber**, **Yolla**, and
+   **Roamless**). The number is normalized to
    E.164 off the fast path (the same warm parse country detection uses) before it is
    placed in the deep link. The launch intent is **resolved before Simmo responds to
    Telecom** (that check runs while the deadline watchdog is still armed): if the app
@@ -585,7 +586,7 @@ supports:
    no E.164 form (short code, undetermined) skips the rule. The
    receiving app takes over; whether it auto-dials or pre-fills is its behavior, not
    ours. Requires interactive context. (Readiness beyond "installed" — Google Voice's
-   linked number, a Teams Phone plan, Viber Out or Yolla credit — isn't detectable from
+   linked number, a Teams Phone plan, Viber Out or Yolla/Roamless credit — isn't detectable from
    the intent, so an installed-but-unprovisioned target can still *open* to a setup
    screen; Simmo can't detect that. A silently blocked background launch likewise can't
    be detected; both are owed a device-QA pass, and the full-screen-intent launch is the

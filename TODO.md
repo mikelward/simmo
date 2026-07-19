@@ -241,8 +241,8 @@ small stack), fully unit-tested, with `./gradlew test` and `./gradlew lint` gree
 Per-app launch intents, what's in/out of scope, and the on-device checklist live in
 `docs/handoff-intents.md`. Grounded finding: the popular targets don't register a
 call-capable phone account (Google Voice included), so the MVP is **cancel-and-forward**
-to **Google Voice, Microsoft Teams, Viber, and Yolla**; app-to-app apps (WhatsApp, Signal, …)
-can't dial an arbitrary number and are out of scope.
+to **Google Voice, Microsoft Teams, Viber, Yolla, and Roamless**; app-to-app apps
+(WhatsApp, Signal, …) can't dial an arbitrary number and are out of scope.
 
 - [ ] Verify the MVP intents on a real device (the `docs/handoff-intents.md` checklist)
       before building — auto-dial vs pre-fill vs browser is unconfirmed in the sandbox.
@@ -262,7 +262,8 @@ can't dial an arbitrary number and are out of scope.
         `startActivity` from the redirection service.
   - [ ] Extend to other app-to-app apps if/when a comparable by-contact call intent is
         found (Signal/Telegram had none last checked — see docs/handoff-intents.md).
-- [x] Cancel-and-forward hand-off to Google Voice, Microsoft Teams, Viber, and Yolla, end to
+- [x] Cancel-and-forward hand-off to Google Voice, Microsoft Teams, Viber, Yolla, and
+      Roamless, end to
       end: a "<app>" rule action (`RuleAction.HandOff.ViaDialIntent(DialHandoffApp)`)
       that normalizes the dialed number to E.164 off the fast path and launches the app's
       number-carrying deep link, resolving the intent **before** cancelling so an
@@ -273,9 +274,11 @@ can't dial an arbitrary number and are out of scope.
   - [ ] **Device QA owed** (docs/handoff-intents.md checklist): confirm the Google Voice,
         Teams, and Viber deep links open the app (not a browser) at the number, auto-dial
         vs pre-fill, and the installed-but-unprovisioned (no linked number / no Teams
-        Phone plan / no Viber Out or Yolla credit) behavior; that Yolla receives the
-        generic `tel:` launch at all (no public deep link — if it doesn't resolve, a
-        probed custom scheme is the follow-up); and that background-activity-launch
+        Phone plan / no Viber Out or Yolla/Roamless credit) behavior; that Yolla and
+        Roamless receive the
+        generic `tel:` launch at all (neither has a public deep link — if it doesn't
+        resolve, a probed custom scheme is the follow-up); and that
+        background-activity-launch
         rules don't swallow the `startActivity` from the redirection service.
   - [x] Surface hand-off launch failure: the service resolves the target **before**
         responding, so an unreachable target (uninstalled, deep link unhandled) proceeds

@@ -46,8 +46,9 @@ class HandOffAppReaderTest {
     fun `apps whose launch intent resolves are offered`() {
         install(DialHandoffApp.VIBER, "viber")
         install(DialHandoffApp.YOLLA, "tel")
+        install(DialHandoffApp.ROAMLESS, "tel")
         assertEquals(
-            setOf(DialHandoffApp.VIBER, DialHandoffApp.YOLLA),
+            setOf(DialHandoffApp.VIBER, DialHandoffApp.YOLLA, DialHandoffApp.ROAMLESS),
             installedDialHandoffApps(packageManager),
         )
     }

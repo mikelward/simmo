@@ -61,6 +61,7 @@
         <package android:name="com.microsoft.teams" />
         <package android:name="com.viber.voip" />
         <package android:name="com.yollacalls" />
+        <package android:name="com.roamless.roamless" />
         <!-- See the apps behind non-SIM calling accounts (SIP providers, VoIP
              apps) — anyone with a ConnectionService — to label their accounts
              by app name when the account's own label isn't readable. -->
