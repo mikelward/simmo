@@ -5,6 +5,8 @@ import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -22,6 +24,8 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FloatingActionButton
@@ -45,6 +49,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
@@ -69,11 +74,14 @@ fun RulesScreen(
 ) {
     val rows by viewModel.rows.collectAsStateWithLifecycle()
     val dataRows by viewModel.dataRows.collectAsStateWithLifecycle()
+    val triage by viewModel.triage.collectAsStateWithLifecycle()
     val newSimPrompts by viewModel.newSimPrompts.collectAsStateWithLifecycle()
     val tab by viewModel.rulesTab.collectAsStateWithLifecycle()
+    val context = LocalContext.current
     RulesScreenContent(
         rows = rows,
         dataRows = dataRows,
+        triage = triage,
         tab = tab,
         onSelectTab = viewModel::selectRulesTab,
         newSimPrompts = newSimPrompts,
@@ -91,6 +99,9 @@ fun RulesScreen(
         onUndoDeleteDataRule = viewModel::undoDataRuleRemoval,
         onSetDataRuleEnabled = viewModel::setDataRuleEnabled,
         onMoveDataRule = viewModel::moveDataRule,
+        onTriageThisIsOk = { country, sim -> viewModel.confirmDataRoamingOk(country, sim) },
+        onTriageWiden = { country, sim, groupId -> viewModel.confirmDataRoamingOk(country, sim, groupId) },
+        onTriageOpenSimSettings = { context.openSimSettings() },
         onAddRuleForSim = viewModel::openNewRuleForSim,
         onDismissNewSimPrompt = viewModel::dismissNewSimPrompt,
         onOpenSettings = viewModel::openSettings,
@@ -102,6 +113,7 @@ fun RulesScreen(
 internal fun RulesScreenContent(
     rows: List<RuleRowUi>,
     dataRows: List<DataRuleRowUi> = emptyList(),
+    triage: DataTriageUi? = null,
     tab: RulesTab = RulesTab.CALLING,
     onSelectTab: (RulesTab) -> Unit = {},
     newSimPrompts: List<NewSimPromptUi> = emptyList(),
@@ -119,6 +131,9 @@ internal fun RulesScreenContent(
     onUndoDeleteDataRule: (String) -> Unit = {},
     onSetDataRuleEnabled: (String, Boolean) -> Unit = { _, _ -> },
     onMoveDataRule: (Int, Int) -> Unit = { _, _ -> },
+    onTriageThisIsOk: (country: String, sim: SimRef) -> Unit = { _, _ -> },
+    onTriageWiden: (country: String, sim: SimRef, groupId: String) -> Unit = { _, _, _ -> },
+    onTriageOpenSimSettings: () -> Unit = {},
     onAddRuleForSim: (NewSimPromptUi) -> Unit = {},
     onDismissNewSimPrompt: (SimRef) -> Unit = {},
     onOpenSettings: () -> Unit = {},
@@ -174,6 +189,19 @@ internal fun RulesScreenContent(
                         onClick = { onSelectTab(RulesTab.DATA) },
                         text = { Text(stringResource(R.string.rules_tab_data)) },
                     )
+                }
+                // The triage card leads the Data tab while a live situation
+                // exists (SPEC "Data rules" → Triage) — above the explainer, as
+                // the thing to act on before reading the list.
+                if (tab == RulesTab.DATA) {
+                    triage?.let { situation ->
+                        DataTriageCard(
+                            triage = situation,
+                            onThisIsOk = onTriageThisIsOk,
+                            onWiden = onTriageWiden,
+                            onOpenSimSettings = onTriageOpenSimSettings,
+                        )
+                    }
                 }
                 Text(
                     text = stringResource(
@@ -264,6 +292,89 @@ internal fun dataExpectationLabel(expectation: DataExpectationUi): String = when
     is DataExpectationUi.RoamingOkSims ->
         stringResource(R.string.data_rule_roaming_ok_sims, expectation.simNames)
     DataExpectationUi.AlwaysWarn -> stringResource(R.string.data_rule_warn)
+}
+
+/**
+ * The triage card (SPEC "Data rules" → Triage): leads the Data tab while a
+ * live data situation exists, with the resolutions one tap away. For a roaming
+ * situation, **Use in ⟨country⟩** records a Roaming OK rule for here — scoped
+ * to the SIM now carrying data — and each **Use in ⟨group⟩** records it for a
+ * whole group that contains the country instead; **Change SIM** jumps to
+ * system settings to switch the data SIM (or enable a local one). The no-data
+ * and wrong-SIM situations have no rule to make, so they offer only Change
+ * SIM. The buttons wrap ([FlowRow]) so a country in a few groups doesn't grow
+ * the card past the screen; the pathological many-custom-groups case is a
+ * known bound (TODO), the rule list below scrolls regardless.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun DataTriageCard(
+    triage: DataTriageUi,
+    onThisIsOk: (country: String, sim: SimRef) -> Unit,
+    onWiden: (country: String, sim: SimRef, groupId: String) -> Unit,
+    onOpenSimSettings: () -> Unit,
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+        ),
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(triageTitle(triage), style = MaterialTheme.typography.titleMedium)
+            Text(
+                text = triageBody(triage),
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+            FlowRow(
+                modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                // One uniform, bordered style for every choice. A roaming
+                // situation can be accepted here (a rule for the country, or
+                // widened to a group that contains it); every situation can be
+                // resolved by picking a different SIM in system settings.
+                if (triage.kind == DataTriageKind.ROAMING) {
+                    // Pass the identity this card rendered, so the write acts on
+                    // exactly the situation shown, never a later replacement.
+                    OutlinedButton(onClick = { onThisIsOk(triage.country, triage.dataSimRef) }) {
+                        Text(stringResource(R.string.triage_use, triage.countryLabel))
+                    }
+                    triage.widenGroups.forEach { group ->
+                        OutlinedButton(onClick = { onWiden(triage.country, triage.dataSimRef, group.id) }) {
+                            Text(stringResource(R.string.triage_use, group.label))
+                        }
+                    }
+                }
+                OutlinedButton(onClick = onOpenSimSettings) {
+                    Text(stringResource(R.string.triage_pick_sim))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun triageTitle(triage: DataTriageUi): String = when (triage.kind) {
+    DataTriageKind.ROAMING -> stringResource(R.string.triage_roaming_title, triage.countryLabel)
+    DataTriageKind.NO_DATA -> stringResource(R.string.triage_no_data_title, triage.countryLabel)
+    DataTriageKind.WRONG_SIM -> stringResource(R.string.triage_wrong_sim_title, triage.countryLabel)
+}
+
+@Composable
+private fun triageBody(triage: DataTriageUi): String = when (triage.kind) {
+    // Name the local SIM the user should prefer, when there is one (SPEC:
+    // "which active SIM is local").
+    DataTriageKind.ROAMING -> triage.otherSimName
+        ?.let { stringResource(R.string.triage_roaming_body_local, triage.dataSimName, it) }
+        ?: stringResource(R.string.triage_roaming_body, triage.dataSimName)
+    DataTriageKind.NO_DATA -> triage.otherSimName
+        ?.let { stringResource(R.string.triage_no_data_body_switch, triage.dataSimName, it) }
+        ?: stringResource(R.string.triage_no_data_body, triage.dataSimName)
+    DataTriageKind.WRONG_SIM ->
+        stringResource(R.string.triage_wrong_sim_body, triage.otherSimName.orEmpty(), triage.dataSimName)
 }
 
 /**

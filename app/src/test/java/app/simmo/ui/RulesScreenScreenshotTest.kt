@@ -102,7 +102,7 @@ class RulesScreenScreenshotTest {
                     rows = listOf(
                         RuleRowUi("+61 Australia", ActionUi.UseSim("Telstra"), id = "r0"),
                         // Soft-deleted: dimmed, struck-through, inert, Undo in
-                        // place of the ⋮ menu.
+                        // place of the row menu.
                         RuleRowUi("+1 United States", ActionUi.UseSim("T-Mobile"), id = "r1", pendingRemoval = true),
                         RuleRowUi(null, ActionUi.SystemDefault),
                     ),
@@ -141,6 +141,129 @@ class RulesScreenScreenshotTest {
         composeRule.onNodeWithText("United States").assertExists()
         composeRule.onNodeWithText("Undo").assertExists()
         captureSnapshot("data_rules_list_pending_removal.png")
+    }
+
+    @Test
+    fun dataTab_leadsWithTheTriageCard() {
+        composeRule.setContent {
+            MaterialTheme {
+                RulesScreenContent(
+                    rows = emptyList(),
+                    dataRows = listOf(
+                        DataRuleRowUi("EU/EEA", DataExpectationUi.RoamingOkHomedInMatched, id = "d0"),
+                    ),
+                    triage = DataTriageUi(
+                        kind = DataTriageKind.ROAMING,
+                        // A foreign SIM actually roaming in the US (a US SIM wouldn't).
+                        dataSimName = "Vodafone",
+                        countryLabel = "United States",
+                        otherSimName = null,
+                        country = "US",
+                        dataSimRef = SimRef(2, "Vodafone", "Vodafone"),
+                        // The real shipped groups that contain the US.
+                        widenGroups = listOf(
+                            TriageGroupUi("usa_territories", "USA + territories"),
+                            TriageGroupUi("north_america", "North America"),
+                        ),
+                    ),
+                    tab = RulesTab.DATA,
+                )
+            }
+        }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithText("Data roaming in United States").assertExists()
+        composeRule.onNodeWithText("Currently using Vodafone for data").assertExists()
+        composeRule.onNodeWithText("Use in United States").assertExists()
+        composeRule.onNodeWithText("Use in USA + territories").assertExists()
+        composeRule.onNodeWithText("Use in North America").assertExists()
+        composeRule.onNodeWithText("Change SIM").assertExists()
+        captureSnapshot("data_triage.png")
+    }
+
+    @Test
+    fun triageUseCountryAndGroup_passTheRenderedCardIdentity() {
+        val ref = SimRef(2, "T-Mobile", "T-Mobile US")
+        var useCountry: Pair<String, SimRef>? = null
+        var usedGroup: Triple<String, SimRef, String>? = null
+        composeRule.setContent {
+            MaterialTheme {
+                RulesScreenContent(
+                    rows = emptyList(),
+                    triage = DataTriageUi(
+                        kind = DataTriageKind.ROAMING,
+                        dataSimName = "T-Mobile US",
+                        countryLabel = "France",
+                        otherSimName = null,
+                        country = "FR",
+                        dataSimRef = ref,
+                        widenGroups = listOf(TriageGroupUi("eu_eea", "EU/EEA")),
+                    ),
+                    tab = RulesTab.DATA,
+                    onTriageThisIsOk = { country, sim -> useCountry = country to sim },
+                    onTriageWiden = { country, sim, groupId -> usedGroup = Triple(country, sim, groupId) },
+                )
+            }
+        }
+
+        // The tap carries the identity the card rendered, so the write can act
+        // on exactly the shown situation (Codex on PR #62).
+        composeRule.onNodeWithText("Use in France").performClick()
+        composeRule.runOnIdle { assertEquals("FR" to ref, useCountry) }
+        composeRule.onNodeWithText("Use in EU/EEA").performClick()
+        composeRule.runOnIdle { assertEquals(Triple("FR", ref, "eu_eea"), usedGroup) }
+    }
+
+    @Test
+    fun triageNoData_offersOnlySystemSettings() {
+        composeRule.setContent {
+            MaterialTheme {
+                RulesScreenContent(
+                    rows = emptyList(),
+                    triage = DataTriageUi(
+                        kind = DataTriageKind.NO_DATA,
+                        dataSimName = "T-Mobile US",
+                        countryLabel = "Australia",
+                        otherSimName = "Telstra AU",
+                        country = "AU",
+                        dataSimRef = SimRef(2, "T-Mobile", "T-Mobile US"),
+                    ),
+                    tab = RulesTab.DATA,
+                )
+            }
+        }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithText("No data in Australia").assertExists()
+        composeRule.onNodeWithText("T-Mobile US has no data here; Telstra AU is preferred").assertExists()
+        // No rule to make here - only the change-SIM resolution.
+        composeRule.onNodeWithText("Use in Australia").assertDoesNotExist()
+        composeRule.onNodeWithText("Change SIM").assertExists()
+    }
+
+    @Test
+    fun triageRoaming_namesTheLocalSimToPrefer() {
+        composeRule.setContent {
+            MaterialTheme {
+                RulesScreenContent(
+                    rows = emptyList(),
+                    triage = DataTriageUi(
+                        kind = DataTriageKind.ROAMING,
+                        dataSimName = "T-Mobile US",
+                        countryLabel = "Australia",
+                        otherSimName = "Telstra AU",
+                        country = "AU",
+                        dataSimRef = SimRef(2, "T-Mobile", "T-Mobile US"),
+                    ),
+                    tab = RulesTab.DATA,
+                )
+            }
+        }
+        composeRule.waitForIdle()
+
+        // SPEC: the roaming card names which active SIM is local (Codex on PR #62).
+        composeRule.onNodeWithText("Currently using T-Mobile US for data; Telstra AU is preferred")
+            .assertExists()
     }
 
     @Test
