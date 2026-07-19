@@ -68,6 +68,7 @@ fun SettingsScreen(
     onContactsGranted: () -> Unit,
     onOpenSims: () -> Unit,
     onOpenGroups: () -> Unit,
+    onOpenLicenses: () -> Unit,
     onBack: () -> Unit,
 ) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
@@ -107,6 +108,7 @@ fun SettingsScreen(
         onAnalyticsOptInChange = viewModel::setAnalyticsOptIn,
         onOpenSims = onOpenSims,
         onOpenGroups = onOpenGroups,
+        onOpenLicenses = onOpenLicenses,
         onBack = onBack,
     )
 }
@@ -126,6 +128,7 @@ internal fun SettingsContent(
     onAnalyticsOptInChange: (Boolean) -> Unit = {},
     onOpenSims: () -> Unit = {},
     onOpenGroups: () -> Unit = {},
+    onOpenLicenses: () -> Unit = {},
     onBack: () -> Unit = {},
 ) {
     BackHandler(onBack = onBack)
@@ -393,7 +396,7 @@ internal fun SettingsContent(
                 )
             }
             // At the foot of the page: the privacy policy link (opens in the
-            // browser), then the app version below it.
+            // browser), the open-source licenses screen, then the app version.
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -403,6 +406,19 @@ internal fun SettingsContent(
             ) {
                 Text(
                     text = stringResource(R.string.settings_privacy_policy),
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(onClick = onOpenLicenses)
+                    .padding(vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = stringResource(R.string.settings_licenses),
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.weight(1f),
                 )

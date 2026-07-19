@@ -1,5 +1,6 @@
 plugins {
     alias(libs.plugins.android.application)
+    alias(libs.plugins.aboutlibraries)
     id("org.jetbrains.kotlin.plugin.compose") version "2.2.20"
     id("org.jetbrains.kotlin.plugin.serialization") version "2.2.20"
 }
@@ -131,6 +132,63 @@ kotlin {
     }
 }
 
+// AboutLibraries' Android auto-integration needs the legacy AppExtension that
+// AGP 9 removed, so the plugin can't generate res/raw for us at build time.
+// Instead we commit the export as a resource and regenerate it on demand with
+// `./gradlew :app:exportBundledLicenses` (see below). The Licenses screen reads
+// the committed R.raw.aboutlibraries at runtime.
+aboutLibraries {
+    // filterVariants scopes the export to the release variant, dropping
+    // test/debug-only artifacts (JUnit, Robolectric, Roborazzi, Compose
+    // tooling); includePlatform = false drops BOM/platform POMs (Compose,
+    // Firebase, coroutines, serialization) that carry no runtime artifact.
+    collect {
+        filterVariants.add("release")
+        includePlatform = false
+    }
+    export {
+        outputFile = file("src/main/res/raw/aboutlibraries.json")
+        prettyPrint = true
+        // Drop the full SPDX license text: it's resolved from a network-fetched
+        // SPDX list whose exact wording varies by environment, so committing it
+        // would make the regenerate-and-diff CI check non-deterministic. The
+        // screen still shows each license's name, SPDX id, and URL.
+        excludeFields.add("License.content")
+    }
+}
+
+// The plugin walks the dependency *graph*, so its export still lists nodes that
+// resolve to no bundled artifact: Kotlin-Multiplatform metadata coordinates
+// (e.g. androidx.compose.ui:ui, which selects …:ui-android) and the
+// org.jetbrains.compose redirect modules that alias to the androidx artifacts on
+// Android. Both would render as duplicate rows. This task regenerates the export
+// and then keeps only the coordinates that resolve to an actual artifact on the
+// release runtime classpath — i.e. what's really bundled in the APK. Regenerate
+// with `./gradlew :app:exportBundledLicenses`; CI reruns it and fails on drift.
+@Suppress("UNCHECKED_CAST")
+val exportBundledLicenses = tasks.register("exportBundledLicenses") {
+    description = "Exports open-source attributions filtered to the release APK's bundled artifacts."
+    group = "build"
+    dependsOn("exportLibraryDefinitions")
+    val licensesFile = file("src/main/res/raw/aboutlibraries.json")
+    val runtimeClasspath = configurations.named("releaseRuntimeClasspath")
+    doLast {
+        val bundled = runtimeClasspath.get().incoming
+            .artifactView { lenient(true) }.artifacts.artifacts
+            .mapNotNull { it.id.componentIdentifier as? org.gradle.api.artifacts.component.ModuleComponentIdentifier }
+            .map { "${it.moduleIdentifier.group}:${it.moduleIdentifier.name}" }
+            .toSet()
+        val root = groovy.json.JsonSlurper().parse(licensesFile) as MutableMap<String, Any?>
+        val libraries = root["libraries"] as List<Map<String, Any?>>
+        val kept = libraries.filter { (it["uniqueId"] as String) in bundled }
+        root["libraries"] = kept
+        // Prune any license no longer referenced by a kept library.
+        val used = kept.flatMap { (it["licenses"] as? List<String>).orEmpty() }.toSet()
+        (root["licenses"] as? MutableMap<String, Any?>)?.keys?.retainAll(used)
+        licensesFile.writeText(groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(root)) + "\n")
+    }
+}
+
 dependencies {
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)
@@ -150,6 +208,7 @@ dependencies {
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.libphonenumber)
+    implementation(libs.aboutlibraries.compose.m3)
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
     testImplementation(libs.junit)

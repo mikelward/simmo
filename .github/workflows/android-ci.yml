@@ -74,6 +74,15 @@ jobs:
       - name: Build debug APK
         run: ./gradlew assembleDebug
 
+      - name: Check licenses export is up to date
+        # The open-source attribution list is committed to res/raw (AGP 9 can't
+        # auto-generate it into the app, see app/build.gradle.kts). Regenerate
+        # and fail on drift so a dependency bump can't ship a stale or inaccurate
+        # list while CI stays green.
+        run: |
+          ./gradlew :app:exportBundledLicenses --rerun
+          git diff --exit-code app/src/main/res/raw/aboutlibraries.json
+
       - name: Run unit tests
         run: ./gradlew test
 
@@ -191,6 +200,9 @@ jobs:
 
       - name: Run settings screenshot tests
         run: ./gradlew :app:testDebugUnitTest --tests "app.simmo.ui.SettingsScreenshotTest" -Proborazzi.test.record=true
+
+      - name: Run licenses screenshot tests
+        run: ./gradlew :app:testDebugUnitTest --tests "app.simmo.ui.LicensesScreenshotTest" -Proborazzi.test.record=true
 
       - name: Run delayed call screenshot tests
         run: ./gradlew :app:testDebugUnitTest --tests "app.simmo.ui.DelayedCallScreenshotTest" -Proborazzi.test.record=true
