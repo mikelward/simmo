@@ -437,9 +437,10 @@ Android Auto safeguards").
       listing"; consider wiring metadata sync, e.g. `fastlane supply`, into the
       deploy job later). The current description covers data rules — do not
       publish it before Phase 9 ships.
-- [x] Privacy policy (`docs/PRIVACY.md`) — short thanks to the no-INTERNET-permission
-      commitment; served by stock branch-based GitHub Pages (Jekyll) at
-      https://mikelward.github.io/simmo/PRIVACY.html once Pages is enabled.
+- [x] Privacy policy (`docs/PRIVACY.md`) — covers on-device processing and the
+      opt-in Firebase crash/usage collection; served by stock branch-based GitHub
+      Pages (Jekyll) at https://mikelward.github.io/simmo/PRIVACY.html once Pages
+      is enabled.
 - [x] Enable GitHub Pages: Settings → Pages → Deploy from a branch → `main`,
       `/docs` folder (done by the maintainer in the GitHub UI, 2026-07-17).
 - [ ] Link the privacy policy from the Play listing (App content → Privacy policy)
