@@ -207,6 +207,25 @@ class RulesViewModel(
             .flowOn(Dispatchers.Default)
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
+    /**
+     * True when any list — calling rules, data rules, or custom groups — holds a
+     * soft-deleted entry awaiting purge. The header's Apply button (which commits
+     * all three at once) shows across every screen while this is true, so a
+     * pending group delete surfaces Apply on the rules screen too, not just where
+     * the struck-through row happens to be visible.
+     */
+    val hasPendingRemovals: StateFlow<Boolean> =
+        app.stateHolders()
+            .flatMapLatest { holder -> holder?.state ?: flowOf(null) }
+            .map { state ->
+                state != null && (
+                    state.rules.rules.any { it.pendingRemoval } ||
+                        state.dataRules.rules.any { it.pendingRemoval } ||
+                        state.customGroups.any { it.pendingRemoval }
+                    )
+            }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
     private fun buildRows(state: SimmoState?, sims: TelephonyReader.SimsAndAccounts): List<RuleRowUi> {
         // Built-in labels are static; a custom group's label is its user-typed
         // name from the state. An id neither knows still shows (as its raw id).

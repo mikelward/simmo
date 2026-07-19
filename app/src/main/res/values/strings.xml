@@ -22,11 +22,7 @@
     <!-- TODO: translate -->
     <string name="onboarding_continue" tools:ignore="MissingTranslation">Continue</string>
     <!-- TODO: translate -->
-    <string name="rules_title" tools:ignore="MissingTranslation">Calling rules</string>
-    <!-- TODO: translate -->
     <string name="rules_explainer" tools:ignore="MissingTranslation">Checked top to bottom for every call; the first rule that can act wins.</string>
-    <!-- TODO: translate -->
-    <string name="data_rules_title" tools:ignore="MissingTranslation">Data rules</string>
     <!-- TODO: translate -->
     <string name="rules_tab_calling" tools:ignore="MissingTranslation">Calling</string>
     <!-- TODO: translate -->
@@ -139,6 +135,10 @@
     <string name="rule_disabled" tools:ignore="MissingTranslation">Disabled</string>
     <!-- TODO: translate -->
     <string name="action_undo" tools:ignore="MissingTranslation">Undo</string>
+    <!-- TODO: translate -->
+    <string name="action_apply" tools:ignore="MissingTranslation">Apply</string>
+    <!-- TODO: translate -->
+    <string name="action_done" tools:ignore="MissingTranslation">Done</string>
     <!-- TODO: translate -->
     <string name="groups_open" tools:ignore="MissingTranslation">Country groups</string>
     <!-- TODO: translate -->

@@ -86,7 +86,7 @@ class RulesScreenScreenshotTest {
         }
         composeRule.waitForIdle()
 
-        composeRule.onNodeWithText("Data rules").assertExists()
+        composeRule.onNodeWithText("Simmo").assertExists()
         composeRule.onNodeWithText("Roaming OK on SIMs homed in these countries").assertExists()
         composeRule.onNodeWithText("Use Telstra for data").assertExists()
         composeRule.onNodeWithText("SIM disabled — rule paused").assertExists()
@@ -106,6 +106,7 @@ class RulesScreenScreenshotTest {
                         RuleRowUi("+1 United States", ActionUi.UseSim("T-Mobile"), id = "r1", pendingRemoval = true),
                         RuleRowUi(null, ActionUi.SystemDefault),
                     ),
+                    pendingRemovals = true,
                 )
             }
         }
@@ -132,6 +133,7 @@ class RulesScreenScreenshotTest {
                         ),
                         DataRuleRowUi(null, DataExpectationUi.AlwaysWarn),
                     ),
+                    pendingRemovals = true,
                     tab = RulesTab.DATA,
                 )
             }
@@ -264,6 +266,46 @@ class RulesScreenScreenshotTest {
         // SPEC: the roaming card names which active SIM is local (Codex on PR #62).
         composeRule.onNodeWithText("Currently using T-Mobile US for data; Telstra AU is preferred")
             .assertExists()
+    }
+
+    @Test
+    fun applyReplacesDoneWhileADeletionIsPending() {
+        var applied = false
+        composeRule.setContent {
+            MaterialTheme {
+                RulesScreenContent(
+                    rows = listOf(
+                        RuleRowUi("+61 Australia", ActionUi.UseSim("Telstra"), id = "r0"),
+                        RuleRowUi("+1 United States", ActionUi.UseSim("T-Mobile"), id = "r1", pendingRemoval = true),
+                    ),
+                    pendingRemovals = true,
+                    onApply = { applied = true },
+                )
+            }
+        }
+
+        // Something is pending, so the header shows Apply, not Done.
+        composeRule.onNodeWithText("Done").assertDoesNotExist()
+        composeRule.onNodeWithText("Apply").performClick()
+        composeRule.runOnIdle { assertEquals(true, applied) }
+    }
+
+    @Test
+    fun doneShowsWhenNothingIsPending() {
+        var done = false
+        composeRule.setContent {
+            MaterialTheme {
+                RulesScreenContent(
+                    rows = listOf(RuleRowUi("+61 Australia", ActionUi.UseSim("Telstra"), id = "r0")),
+                    pendingRemovals = false,
+                    onDone = { done = true },
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("Apply").assertDoesNotExist()
+        composeRule.onNodeWithText("Done").performClick()
+        composeRule.runOnIdle { assertEquals(true, done) }
     }
 
     @Test
