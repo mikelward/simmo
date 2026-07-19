@@ -29,6 +29,13 @@ class RuleRowMappingTest {
     }
 
     @Test
+    fun `country display name falls back to the raw region when it is not a valid code`() {
+        // A malformed region must degrade to the raw code, never throw.
+        assertEquals("ZZZ", countryDisplayName("ZZZ"))
+        assertEquals("", countryDisplayName(""))
+    }
+
+    @Test
     fun `rule with an active sim is enabled`() {
         val row = CallingRule(
             RuleMatcher.Country("AU"),

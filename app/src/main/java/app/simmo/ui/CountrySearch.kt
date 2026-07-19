@@ -39,7 +39,7 @@ internal fun countrySearchTerms(
     callingCode: Int,
 ): List<String> {
     val region = regionCode.uppercase()
-    val alpha3 = runCatching { Locale("", region).isO3Country }.getOrDefault("")
+    val alpha3 = runCatching { Locale.Builder().setRegion(region).build().isO3Country }.getOrDefault("")
     return buildList {
         add(displayName)
         add(region)
