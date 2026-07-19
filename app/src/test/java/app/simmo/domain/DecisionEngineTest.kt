@@ -20,11 +20,11 @@ class DecisionEngineTest {
 
     private fun ActiveSim.ref() = SimRef(subscriptionId, carrierName, displayName)
 
-    private fun country(region: String, action: RuleAction) = Rule(RuleMatcher.Country(region), action)
-    private fun any(action: RuleAction) = Rule(RuleMatcher.AnyDestination, action)
+    private fun country(region: String, action: RuleAction) = CallingRule(RuleMatcher.Country(region), action)
+    private fun any(action: RuleAction) = CallingRule(RuleMatcher.AnyDestination, action)
 
     private fun snapshot(
-        rules: List<Rule>,
+        rules: List<CallingRule>,
         activeSims: List<ActiveSim> = listOf(telstra, tmobile),
         passTokens: List<PassToken> = emptyList(),
         customGroups: Map<String, List<String>> = emptyMap(),
@@ -32,7 +32,7 @@ class DecisionEngineTest {
         handOffApps: Set<String> = emptySet(),
         contacts: ContactNumberIndex = ContactNumberIndex.EMPTY,
     ) = DecisionSnapshot(
-        RuleBook(rules),
+        CallingRuleBook(rules),
         activeSims,
         defaultRegion = "AU",
         passTokens = passTokens,
@@ -173,7 +173,7 @@ class DecisionEngineTest {
     @Test
     fun `multi-country rule matches any of its countries`() {
         val rules = listOf(
-            Rule(RuleMatcher.Countries(listOf("AU", "US")), RuleAction.UseSim(telstra.ref())),
+            CallingRule(RuleMatcher.Countries(listOf("AU", "US")), RuleAction.UseSim(telstra.ref())),
             any(RuleAction.SystemDefault),
         )
         assertEquals(
@@ -195,7 +195,7 @@ class DecisionEngineTest {
     fun `country group rule matches members and only members`() {
         val frNumber = "+33 1 42 68 53 00"
         val rules = listOf(
-            Rule(
+            CallingRule(
                 RuleMatcher.Countries(groupIds = listOf(CountryGroups.EU_EEA)),
                 RuleAction.UseSim(telstra.ref()),
             ),
@@ -217,7 +217,7 @@ class DecisionEngineTest {
         // "Vodafone Zone 1": a user-defined group resolved from the snapshot.
         val zone = "custom:1"
         val rules = listOf(
-            Rule(RuleMatcher.Countries(groupIds = listOf(zone)), RuleAction.UseSim(telstra.ref())),
+            CallingRule(RuleMatcher.Countries(groupIds = listOf(zone)), RuleAction.UseSim(telstra.ref())),
             any(RuleAction.SystemDefault),
         )
         val groups = mapOf(zone to listOf("FR", "GB"))
@@ -242,7 +242,7 @@ class DecisionEngineTest {
     fun `countries can sit alongside a group in one rule`() {
         // The "my plan also covers the UK" shape: EU/EEA plus GB.
         val rules = listOf(
-            Rule(
+            CallingRule(
                 RuleMatcher.Countries(regionCodes = listOf("GB"), groupIds = listOf(CountryGroups.EU_EEA)),
                 RuleAction.UseSim(telstra.ref()),
             ),
@@ -258,7 +258,7 @@ class DecisionEngineTest {
         // libphonenumber resolves +1 787 to PR, not US — the group is what
         // keeps a Puerto Rico call on the "domestic" rule.
         val rules = listOf(
-            Rule(
+            CallingRule(
                 RuleMatcher.Countries(groupIds = listOf(CountryGroups.USA_TERRITORIES)),
                 RuleAction.UseSim(tmobile.ref()),
             ),
@@ -279,8 +279,8 @@ class DecisionEngineTest {
         // above the US rule. A Jamaican number dials like a domestic call but
         // hits the guard; a real US call falls through to its own rule.
         val rules = listOf(
-            Rule(RuleMatcher.Countries(groupIds = listOf(CountryGroups.CARIBBEAN_NANP)), RuleAction.Ask),
-            Rule(
+            CallingRule(RuleMatcher.Countries(groupIds = listOf(CountryGroups.CARIBBEAN_NANP)), RuleAction.Ask),
+            CallingRule(
                 RuleMatcher.Countries(groupIds = listOf(CountryGroups.USA_TERRITORIES)),
                 RuleAction.UseSim(tmobile.ref()),
             ),
@@ -298,7 +298,7 @@ class DecisionEngineTest {
     @Test
     fun `unknown group ids contribute nothing and never error`() {
         val rules = listOf(
-            Rule(RuleMatcher.Countries(groupIds = listOf("from_the_future")), RuleAction.UseSim(telstra.ref())),
+            CallingRule(RuleMatcher.Countries(groupIds = listOf("from_the_future")), RuleAction.UseSim(telstra.ref())),
             any(RuleAction.SystemDefault),
         )
         assertEquals(
@@ -310,7 +310,7 @@ class DecisionEngineTest {
     @Test
     fun `multi-country rule matches regions case-insensitively`() {
         val rules = listOf(
-            Rule(RuleMatcher.Countries(listOf("au")), RuleAction.UseSim(telstra.ref())),
+            CallingRule(RuleMatcher.Countries(listOf("au")), RuleAction.UseSim(telstra.ref())),
         )
         assertEquals(
             Verdict.RedirectToAccount(telstra.phoneAccount),
@@ -478,7 +478,7 @@ class DecisionEngineTest {
 
     @Test
     fun `matching country sim default routes to the sim of the destination country`() {
-        val rules = RuleBook.defaultRules()
+        val rules = CallingRuleBook.defaultRules()
         assertEquals(
             Verdict.RedirectToAccount(telstra.phoneAccount),
             engine.decide(call(auNumber, currentAccount = tmobile.phoneAccount), snapshot(rules), now),
@@ -491,7 +491,7 @@ class DecisionEngineTest {
 
     @Test
     fun `matching country sim skips when no sim or several sims match`() {
-        val rules = RuleBook.defaultRules()
+        val rules = CallingRuleBook.defaultRules()
         // No SIM for GB: falls through to the system-default rule.
         assertEquals(
             Verdict.Proceed(ProceedReason.SYSTEM_DEFAULT),
@@ -509,7 +509,7 @@ class DecisionEngineTest {
     fun `preseeded defaults leave undetermined destinations to the system`() {
         assertEquals(
             Verdict.Proceed(ProceedReason.SYSTEM_DEFAULT),
-            engine.decide(call("*#06#"), snapshot(RuleBook.defaultRules()), now),
+            engine.decide(call("*#06#"), snapshot(CallingRuleBook.defaultRules()), now),
         )
     }
 
@@ -862,7 +862,7 @@ class DecisionEngineTest {
     )
 
     private fun correctionSnapshot(
-        rules: List<Rule>,
+        rules: List<CallingRule>,
         contacts: ContactNumberIndex,
         activeSims: List<ActiveSim> = listOf(telstra, tmobile),
     ) = snapshot(rules, activeSims = activeSims, contacts = contacts)
@@ -1139,7 +1139,7 @@ class DecisionEngineTest {
     // --- Hands-free call guard (settings; SPEC "Hands-free…") ---
 
     private fun guardSnapshot(
-        rules: List<Rule>,
+        rules: List<CallingRule>,
         overseas: Boolean = true,
         disabledSim: Boolean = false,
         activeSims: List<ActiveSim> = listOf(telstra, tmobile),

@@ -162,7 +162,7 @@ sealed interface RuleAction {
 }
 
 @Serializable
-data class Rule(
+data class CallingRule(
     val matcher: RuleMatcher,
     val action: RuleAction,
     /**
@@ -201,23 +201,23 @@ data class Rule(
  * user can reorder or delete.
  */
 @Serializable
-data class RuleBook(
-    val rules: List<Rule> = defaultRules(),
+data class CallingRuleBook(
+    val rules: List<CallingRule> = defaultRules(),
 ) {
-    fun withRuleAdded(rule: Rule): RuleBook =
+    fun withRuleAdded(rule: CallingRule): CallingRuleBook =
         // New rules land above the preseeded defaults' natural home: the top.
         copy(rules = listOf(rule) + rules)
 
     /** Insert at [index] (clamped), for placements other than the top. */
-    fun withRuleInserted(index: Int, rule: Rule): RuleBook {
+    fun withRuleInserted(index: Int, rule: CallingRule): CallingRuleBook {
         val at = index.coerceIn(0, rules.size)
         return copy(rules = rules.take(at) + rule + rules.drop(at))
     }
 
-    fun withRuleReplaced(index: Int, rule: Rule): RuleBook =
+    fun withRuleReplaced(index: Int, rule: CallingRule): CallingRuleBook =
         copy(rules = rules.mapIndexed { i, existing -> if (i == index) rule else existing })
 
-    fun withRuleRemoved(index: Int): RuleBook =
+    fun withRuleRemoved(index: Int): CallingRuleBook =
         copy(rules = rules.filterIndexed { i, _ -> i != index })
 
     /**
@@ -228,24 +228,24 @@ data class RuleBook(
      * nothing — a blank id means "unassigned", never a target, so an id-keyed
      * edit can never mass-match rules that share a blank id.
      */
-    fun withRuleReplaced(id: String, rule: Rule): RuleBook =
+    fun withRuleReplaced(id: String, rule: CallingRule): CallingRuleBook =
         if (id.isBlank()) this else copy(rules = rules.map { if (it.id == id) rule else it })
 
     /**
-     * Soft-delete the rule with [id]: mark it [Rule.pendingRemoval] (struck-
+     * Soft-delete the rule with [id]: mark it [CallingRule.pendingRemoval] (struck-
      * through, skipped in evaluation) rather than removing it, so the delete is
      * undoable in place with no re-insertion. A no-op if none matches (a blank
      * [id] matches nothing).
      */
-    fun withRuleMarkedForRemoval(id: String): RuleBook =
+    fun withRuleMarkedForRemoval(id: String): CallingRuleBook =
         if (id.isBlank()) this else copy(rules = rules.map { if (it.id == id) it.copy(pendingRemoval = true) else it })
 
-    /** Undo a soft-delete: clear [Rule.pendingRemoval] on the rule with [id], in place. */
-    fun withRuleRemovalUndone(id: String): RuleBook =
+    /** Undo a soft-delete: clear [CallingRule.pendingRemoval] on the rule with [id], in place. */
+    fun withRuleRemovalUndone(id: String): CallingRuleBook =
         if (id.isBlank()) this else copy(rules = rules.map { if (it.id == id) it.copy(pendingRemoval = false) else it })
 
     /** Purge every soft-deleted rule — the point a delete becomes final (on leaving the screen). */
-    fun withPendingRemovalsPurged(): RuleBook =
+    fun withPendingRemovalsPurged(): CallingRuleBook =
         if (rules.none { it.pendingRemoval }) this else copy(rules = rules.filterNot { it.pendingRemoval })
 
     /**
@@ -253,11 +253,11 @@ data class RuleBook(
      * the duplicate is a distinct rule, so it must not share the original's id.
      * A no-op when [index] is out of range.
      */
-    fun withRuleDuplicated(index: Int, newId: String): RuleBook =
+    fun withRuleDuplicated(index: Int, newId: String): CallingRuleBook =
         rules.getOrNull(index)?.let { withRuleInserted(index + 1, it.copy(id = newId)) } ?: this
 
     /** Reorder for drag-and-drop; out-of-range indices are a no-op. */
-    fun withRuleMoved(fromIndex: Int, toIndex: Int): RuleBook {
+    fun withRuleMoved(fromIndex: Int, toIndex: Int): CallingRuleBook {
         if (fromIndex == toIndex) return this
         if (fromIndex !in rules.indices || toIndex !in rules.indices) return this
         val reordered = rules.toMutableList()
@@ -271,9 +271,9 @@ data class RuleBook(
          * The preseeded low-priority defaults: use the SIM whose home country
          * matches the destination, else leave the call to the system.
          */
-        fun defaultRules(): List<Rule> = listOf(
-            Rule(RuleMatcher.AnyDestination, RuleAction.UseMatchingCountrySim, id = "default-home-country-sim"),
-            Rule(RuleMatcher.AnyDestination, RuleAction.SystemDefault, id = "default-system"),
+        fun defaultRules(): List<CallingRule> = listOf(
+            CallingRule(RuleMatcher.AnyDestination, RuleAction.UseMatchingCountrySim, id = "default-home-country-sim"),
+            CallingRule(RuleMatcher.AnyDestination, RuleAction.SystemDefault, id = "default-system"),
         )
     }
 }
@@ -285,7 +285,7 @@ data class RuleBook(
  * jumping ahead of the rules that are actually working. With no paused rule
  * it goes to the top, same as an ordinary add.
  */
-fun RuleBook.newSimRuleInsertionIndex(activeSims: List<ActiveSim>): Int {
+fun CallingRuleBook.newSimRuleInsertionIndex(activeSims: List<ActiveSim>): Int {
     val firstPaused = rules.indexOfFirst { rule ->
         val action = rule.action
         action is RuleAction.UseSim && resolveSim(action.sim, activeSims) !is SimResolution.Active

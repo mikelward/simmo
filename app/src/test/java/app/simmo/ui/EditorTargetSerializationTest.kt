@@ -1,6 +1,6 @@
 package app.simmo.ui
 
-import app.simmo.domain.Rule
+import app.simmo.domain.CallingRule
 import app.simmo.domain.RuleAction
 import app.simmo.domain.RuleMatcher
 import app.simmo.domain.SimRef
@@ -50,7 +50,7 @@ class EditorTargetSerializationTest {
     fun `an existing-rule target keeps its id and rule`() {
         val target: EditorTarget = EditorTarget.Existing(
             "rule-3",
-            Rule(RuleMatcher.Country("AU"), RuleAction.UseSim(SimRef(1, "Telstra", "Telstra AU")), id = "rule-3"),
+            CallingRule(RuleMatcher.Country("AU"), RuleAction.UseSim(SimRef(1, "Telstra", "Telstra AU")), id = "rule-3"),
         )
         assertEquals(target, roundTrip(target))
     }
@@ -58,7 +58,7 @@ class EditorTargetSerializationTest {
     @Test
     fun `an existing target preserves an unsupported action`() {
         val target: EditorTarget =
-            EditorTarget.Existing("r", Rule(RuleMatcher.AnyDestination, RuleAction.Ask, id = "r"))
+            EditorTarget.Existing("r", CallingRule(RuleMatcher.AnyDestination, RuleAction.Ask, id = "r"))
         assertEquals(target, roundTrip(target))
     }
 }

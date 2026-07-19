@@ -10,9 +10,9 @@ import app.simmo.domain.PhoneNumberCountryDetector
 import app.simmo.domain.PlacedCall
 import app.simmo.domain.ProceedReason
 import app.simmo.domain.RawContactNumber
-import app.simmo.domain.Rule
+import app.simmo.domain.CallingRule
 import app.simmo.domain.RuleAction
-import app.simmo.domain.RuleBook
+import app.simmo.domain.CallingRuleBook
 import app.simmo.domain.RuleMatcher
 import app.simmo.domain.SimRef
 import app.simmo.domain.Verdict
@@ -28,8 +28,8 @@ class RedirectionCoordinatorTest {
     private val call = PlacedCall("+61 412 345 678", currentAccount = null, interactive = true)
 
     private fun snapshot() = DecisionSnapshot(
-        rules = RuleBook(
-            listOf(Rule(RuleMatcher.Country("AU"), RuleAction.UseSim(SimRef(1, "Telstra", "Telstra AU")))),
+        rules = CallingRuleBook(
+            listOf(CallingRule(RuleMatcher.Country("AU"), RuleAction.UseSim(SimRef(1, "Telstra", "Telstra AU")))),
         ),
         activeSims = listOf(telstra),
         defaultRegion = "AU",

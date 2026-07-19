@@ -8,7 +8,7 @@ import app.simmo.domain.DataRuleBook
 import app.simmo.domain.RegisteredSim
 import app.simmo.domain.withGroupSaved
 import app.simmo.domain.withPendingGroupRemovalsPurged
-import app.simmo.domain.RuleBook
+import app.simmo.domain.CallingRuleBook
 import app.simmo.domain.newRuleId
 import app.simmo.domain.SimRef
 import app.simmo.domain.recordSeen
@@ -75,7 +75,7 @@ class SimmoStateHolder(
     // on restored state whose old-device subscription IDs could collide with
     // this device's (e.g. recordSeen ID-overwriting a restored registry row).
 
-    suspend fun updateRules(transform: (RuleBook) -> RuleBook) {
+    suspend fun updateRules(transform: (CallingRuleBook) -> CallingRuleBook) {
         store.updateData {
             val valid = it.withInstallValidated(installId)
             valid.copy(rules = transform(valid.rules).withMintedIds())
@@ -228,7 +228,7 @@ class SimmoStateHolder(
      */
     suspend fun updateGroupsAndRules(
         pendingGroups: List<CustomGroup>,
-        transform: (RuleBook) -> RuleBook,
+        transform: (CallingRuleBook) -> CallingRuleBook,
     ) {
         store.updateData {
             val valid = it.withInstallValidated(installId)
@@ -300,7 +300,7 @@ class SimmoStateHolder(
     // id in stored state — which the id-keyed editor would be unable to address
     // (Codex on PR #60). Cheap no-op once every rule has an id; a duplicate
     // already carries a fresh id, so it is left untouched.
-    private fun RuleBook.withMintedIds(): RuleBook =
+    private fun CallingRuleBook.withMintedIds(): CallingRuleBook =
         if (rules.none { it.id.isBlank() }) this
         else copy(rules = rules.map { if (it.id.isBlank()) it.copy(id = newRuleId()) else it })
 

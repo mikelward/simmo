@@ -25,9 +25,9 @@ import app.simmo.domain.roamingOkRule
 import app.simmo.domain.triageFor
 import app.simmo.domain.PhoneAccountRef
 import app.simmo.domain.RegisteredSim
-import app.simmo.domain.Rule
+import app.simmo.domain.CallingRule
 import app.simmo.domain.RuleAction
-import app.simmo.domain.RuleBook
+import app.simmo.domain.CallingRuleBook
 import app.simmo.domain.SimRef
 import app.simmo.domain.CountryGroups
 import app.simmo.domain.SimResolution
@@ -784,20 +784,20 @@ class RulesViewModel(
         }
 
     /** The current rules, as domain objects, for the editor to read and edit. */
-    fun currentRules(): List<Rule> = app.stateHolder()?.current?.rules?.rules.orEmpty()
+    fun currentRules(): List<CallingRule> = app.stateHolder()?.current?.rules?.rules.orEmpty()
 
     // [pendingGroups] are groups the user built in the picker while making this
     // rule; they're committed in the *same* transaction as the rule so the state
     // never holds a rule pointing at an unsaved group (Codex on PR #35). Empty
     // for every path but the create-group-in-picker one.
-    fun addRule(rule: Rule, pendingGroups: List<CustomGroup> = emptyList()) =
+    fun addRule(rule: CallingRule, pendingGroups: List<CustomGroup> = emptyList()) =
         commit(pendingGroups) { it.withRuleAdded(rule) }
     /** Save an edit from the editor, keyed by the rule's stable id (see [EditorTarget.Existing]). */
-    fun replaceRule(id: String, rule: Rule, pendingGroups: List<CustomGroup> = emptyList()) =
+    fun replaceRule(id: String, rule: CallingRule, pendingGroups: List<CustomGroup> = emptyList()) =
         commit(pendingGroups) { it.withRuleReplaced(id, rule) }
     /**
      * Soft-delete the rule with [id] (SPEC "Calling rules"): no confirm dialog.
-     * It's marked [Rule.pendingRemoval] in place — struck-through and skipped in
+     * It's marked [CallingRule.pendingRemoval] in place — struck-through and skipped in
      * evaluation — rather than removed, so the delete takes effect at once but
      * stays undoable ([undoRuleRemoval]) until the screen is left ([purgePendingRemovals]).
      * Used by both the row menu and the editor's Delete button.
@@ -825,7 +825,7 @@ class RulesViewModel(
      * first paused rule (SPEC "On SIM change") rather than at the very top,
      * and the answered prompt is retired.
      */
-    fun addRuleForNewSim(sim: SimRef, rule: Rule, pendingGroups: List<CustomGroup> = emptyList()) {
+    fun addRuleForNewSim(sim: SimRef, rule: CallingRule, pendingGroups: List<CustomGroup> = emptyList()) {
         viewModelScope.launch {
             val holder = app.stateHolders().filterNotNull().first()
             val activeSims = app.assembler.activeSims()
@@ -941,7 +941,7 @@ class RulesViewModel(
         }
     }
 
-    private fun edit(transform: (RuleBook) -> RuleBook) {
+    private fun edit(transform: (CallingRuleBook) -> CallingRuleBook) {
         // Wait for the holder rather than dropping the edit: on a fast cold
         // start the rules screen can be interactive before SimmoApp finishes
         // building the holder, and a lost add/edit/delete would look saved.
@@ -953,7 +953,7 @@ class RulesViewModel(
     /** Like [edit], but commits [pendingGroups] in the same transaction as the rule. */
     private fun commit(
         pendingGroups: List<CustomGroup>,
-        transform: (RuleBook) -> RuleBook,
+        transform: (CallingRuleBook) -> CallingRuleBook,
     ) {
         viewModelScope.launch {
             app.stateHolders().filterNotNull().first().updateGroupsAndRules(pendingGroups, transform)
@@ -1186,7 +1186,7 @@ internal fun countryDisplayName(regionCode: String): String {
     return Locale("", region).displayCountry.ifBlank { region }
 }
 
-internal fun Rule.toRow(
+internal fun CallingRule.toRow(
     activeSims: List<ActiveSim>,
     groupLabel: (String) -> String = { it },
     /** Refs of the currently registered non-SIM calling accounts. */

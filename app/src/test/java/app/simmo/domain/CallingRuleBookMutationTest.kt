@@ -6,16 +6,16 @@ import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-class RuleBookMutationTest {
+class CallingRuleBookMutationTest {
 
-    private val au = Rule(RuleMatcher.Country("AU"), RuleAction.UseSim(SimRef(1, "Telstra", "Telstra AU")))
-    private val us = Rule(RuleMatcher.Country("US"), RuleAction.UseSim(SimRef(2, "T-Mobile", "T-Mobile US")))
-    private val fallback = Rule(RuleMatcher.AnyDestination, RuleAction.SystemDefault)
-    private val book = RuleBook(listOf(au, us, fallback))
+    private val au = CallingRule(RuleMatcher.Country("AU"), RuleAction.UseSim(SimRef(1, "Telstra", "Telstra AU")))
+    private val us = CallingRule(RuleMatcher.Country("US"), RuleAction.UseSim(SimRef(2, "T-Mobile", "T-Mobile US")))
+    private val fallback = CallingRule(RuleMatcher.AnyDestination, RuleAction.SystemDefault)
+    private val book = CallingRuleBook(listOf(au, us, fallback))
 
     @Test
     fun `new rules are added at the top, above the defaults`() {
-        val nz = Rule(RuleMatcher.Country("NZ"), RuleAction.Ask)
+        val nz = CallingRule(RuleMatcher.Country("NZ"), RuleAction.Ask)
         assertEquals(listOf(nz, au, us, fallback), book.withRuleAdded(nz).rules)
     }
 
@@ -32,7 +32,7 @@ class RuleBookMutationTest {
 
     @Test
     fun `replacing by id edits in place, ignoring an unknown id`() {
-        val idBook = RuleBook(listOf(au.copy(id = "a"), us.copy(id = "b"), fallback.copy(id = "c")))
+        val idBook = CallingRuleBook(listOf(au.copy(id = "a"), us.copy(id = "b"), fallback.copy(id = "c")))
         val edited = us.copy(id = "b", action = RuleAction.Ask)
         assertEquals(
             listOf(au.copy(id = "a"), edited, fallback.copy(id = "c")),
@@ -44,7 +44,7 @@ class RuleBookMutationTest {
 
     @Test
     fun `marking soft-deletes in place, undo clears it, purge drops it`() {
-        val idBook = RuleBook(listOf(au.copy(id = "a"), us.copy(id = "b"), fallback.copy(id = "c")))
+        val idBook = CallingRuleBook(listOf(au.copy(id = "a"), us.copy(id = "b"), fallback.copy(id = "c")))
         val marked = idBook.withRuleMarkedForRemoval("b")
         // The rule stays at its position, just flagged.
         assertEquals(listOf("a", "b", "c"), marked.rules.map { it.id })
@@ -62,14 +62,14 @@ class RuleBookMutationTest {
     fun `a blank id marks nothing, never every rule`() {
         // Rules with blank ids must not all be replaced or marked at once by a
         // blank-keyed edit — a blank id means "unassigned", never a target.
-        val blanks = RuleBook(listOf(au, us, fallback)) // all default to id = ""
+        val blanks = CallingRuleBook(listOf(au, us, fallback)) // all default to id = ""
         assertSame(blanks, blanks.withRuleReplaced("", us.copy(action = RuleAction.Ask)))
         assertSame(blanks, blanks.withRuleMarkedForRemoval(""))
     }
 
     @Test
     fun `duplicating copies the rule below it under a new, distinct id`() {
-        val idBook = RuleBook(listOf(au.copy(id = "a"), us.copy(id = "b")))
+        val idBook = CallingRuleBook(listOf(au.copy(id = "a"), us.copy(id = "b")))
         val dup = idBook.withRuleDuplicated(0, "a-copy")
         assertEquals(
             listOf(au.copy(id = "a"), au.copy(id = "a-copy"), us.copy(id = "b")),
@@ -87,10 +87,10 @@ class RuleBookMutationTest {
         // Ids must be identical across calls, or a fresh SimmoState would never
         // equal its round-trip and the editor could not address a default rule.
         assertEquals(
-            RuleBook.defaultRules().map { it.id },
-            RuleBook.defaultRules().map { it.id },
+            CallingRuleBook.defaultRules().map { it.id },
+            CallingRuleBook.defaultRules().map { it.id },
         )
-        assertEquals(setOf("default-home-country-sim", "default-system"), RuleBook.defaultRules().mapTo(HashSet()) { it.id })
+        assertEquals(setOf("default-home-country-sim", "default-system"), CallingRuleBook.defaultRules().mapTo(HashSet()) { it.id })
     }
 
     @Test
@@ -108,7 +108,7 @@ class RuleBookMutationTest {
 
     @Test
     fun `inserting places the rule exactly there, clamping wild indices`() {
-        val nz = Rule(RuleMatcher.Country("NZ"), RuleAction.Ask)
+        val nz = CallingRule(RuleMatcher.Country("NZ"), RuleAction.Ask)
         assertEquals(listOf(au, nz, us, fallback), book.withRuleInserted(1, nz).rules)
         assertEquals(listOf(nz, au, us, fallback), book.withRuleInserted(-3, nz).rules)
         assertEquals(listOf(au, us, fallback, nz), book.withRuleInserted(99, nz).rules)
@@ -128,7 +128,7 @@ class RuleBookMutationTest {
 
         // The paused rule sits mid-list: the suggestion lands right above it,
         // below the rules that are actually working.
-        val pausedMidList = RuleBook(listOf(us, au, fallback))
+        val pausedMidList = CallingRuleBook(listOf(us, au, fallback))
         assertEquals(1, pausedMidList.newSimRuleInsertionIndex(listOf(tmobileActive)))
     }
 }

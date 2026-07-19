@@ -34,7 +34,7 @@ data class PassToken(
  * accounts come from [activeSims] and need no separate listing.
  */
 data class DecisionSnapshot(
-    val rules: RuleBook,
+    val rules: CallingRuleBook,
     val activeSims: List<ActiveSim>,
     val defaultRegion: String,
     val passTokens: List<PassToken> = emptyList(),

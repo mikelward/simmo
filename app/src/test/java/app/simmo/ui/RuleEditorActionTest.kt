@@ -3,7 +3,7 @@ package app.simmo.ui
 import app.simmo.domain.ContactCallApp
 import app.simmo.domain.DialHandoffApp
 import app.simmo.domain.PhoneAccountRef
-import app.simmo.domain.Rule
+import app.simmo.domain.CallingRule
 import app.simmo.domain.RuleAction
 import app.simmo.domain.RuleMatcher
 import app.simmo.domain.SimRef
@@ -170,13 +170,13 @@ class RuleEditorActionTest {
         val draft = EditorDraft(RuleMatcher.Country("AU"), RuleAction.SystemDefault)
         val disabled = EditorTarget.Existing(
             "r1",
-            Rule(RuleMatcher.Country("US"), RuleAction.Ask, enabled = false, id = "r1"),
+            CallingRule(RuleMatcher.Country("US"), RuleAction.Ask, enabled = false, id = "r1"),
         )
         assertFalse(ruleFromDraft(draft, disabled).enabled)
         // The edit keeps the rule's id, so the save replaces it in place.
         assertEquals("r1", ruleFromDraft(draft, disabled).id)
         // An enabled existing rule stays enabled; a new rule starts enabled.
-        val enabled = EditorTarget.Existing("r2", Rule(RuleMatcher.Country("US"), RuleAction.Ask, id = "r2"))
+        val enabled = EditorTarget.Existing("r2", CallingRule(RuleMatcher.Country("US"), RuleAction.Ask, id = "r2"))
         assertTrue(ruleFromDraft(draft, enabled).enabled)
         assertTrue(ruleFromDraft(draft, EditorTarget.New()).enabled)
     }
