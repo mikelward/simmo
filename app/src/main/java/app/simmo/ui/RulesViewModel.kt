@@ -11,7 +11,8 @@ import app.simmo.domain.ContactCallApp
 import app.simmo.domain.CustomGroup
 import app.simmo.domain.DialHandoffApp
 import app.simmo.domain.withGroupSaved
-import app.simmo.domain.withoutGroup
+import app.simmo.domain.withGroupMarkedForRemoval
+import app.simmo.domain.withGroupRemovalUndone
 import app.simmo.telecom.TelephonyReader
 import app.simmo.telecom.installedDialHandoffApps
 import app.simmo.domain.DataExpectation
@@ -39,12 +40,10 @@ import java.util.Date
 import java.util.Locale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
@@ -91,6 +90,8 @@ data class RuleRowUi(
      * shifts the list — the row menu resolves by this, not by list position.
      */
     val id: String = "",
+    /** Soft-deleted awaiting purge: the row shows struck-through with an Undo affordance. */
+    val pendingRemoval: Boolean = false,
 )
 
 sealed interface ActionUi {
@@ -118,6 +119,8 @@ data class DataRuleRowUi(
     val enabled: Boolean = true,
     /** The rule's stable id; see [RuleRowUi.id]. */
     val id: String = "",
+    /** Soft-deleted awaiting purge; see [RuleRowUi.pendingRemoval]. */
+    val pendingRemoval: Boolean = false,
 )
 
 sealed interface DataExpectationUi {
@@ -139,77 +142,22 @@ class RulesViewModel(
     private val editorJson = Json { ignoreUnknownKeys = true }
 
     /**
-     * The undo offer [DeletionUndoHost] shows. A rule is deleted immediately (no
-     * confirm dialog); this holds what to restore. Kept here, not in the
-     * transient snackbar, so a rotation mid-bar doesn't drop it and commit the
-     * delete for good. A newer deletion supersedes the older offer via
-     * [undoSeq], so only the most recent delete is undoable — one bar at a time,
-     * and never two pending undos whose indices could restore out of order.
+     * Purge every soft-deleted rule, data rule, and custom group — the moment a
+     * delete becomes final. Called when the rules screen stops (SPEC "Calling
+     * rules": deletes are undoable until you leave). A crash doesn't run
+     * `onStop`, so a soft-deleted item survives it and stays undoable. One
+     * atomic write so a leave can't purge some lists but not others.
+     *
+     * Runs on the application scope, not [viewModelScope]: leaving by Back
+     * finishes the activity, and `onDestroy` cancels [viewModelScope] moments
+     * after `onStop` — a purge still suspended in `DataStore.updateData` would
+     * be canceled with it, leaving the items persisted and wrongly undoable on
+     * the next launch (Codex on PR #61). The app scope outlives the activity.
      */
-    private val _pendingUndo = MutableStateFlow(restorePendingUndo())
-    val pendingUndo: StateFlow<PendingUndo?> = _pendingUndo.asStateFlow()
-    // Continues past any restored offer's id so a post-restore delete supersedes it.
-    private var undoSeq = (_pendingUndo.value?.id ?: -1L) + 1
-    // The offer id whose restore is in flight, so a second tap (e.g. the bar
-    // re-shown after a configuration change mid-restore) can't insert twice. Not
-    // persisted: after process death the new instance can retry the restore, and
-    // the restore itself is idempotent by rule id.
-    private var undoInProgress: Long? = null
-    // Bumped by every list mutation ([clearUndo]). A delete captures it before
-    // its async write and only publishes its offer if it hasn't moved — so an
-    // edit that started (and invalidated the offer) mid-write can't have its
-    // invalidation reverted by the delete's late offer.
-    private var mutationEpoch = 0L
-
-    private fun setPendingUndo(pending: PendingUndo?) {
-        _pendingUndo.value = pending
-        // Persisted like [editorTarget]: the delete is already committed, so a
-        // process death mid-bar must still be able to undo it.
-        savedState[KEY_PENDING_UNDO] = pending?.let { editorJson.encodeToString(it) }
-    }
-
-    private fun restorePendingUndo(): PendingUndo? =
-        savedState.get<String?>(KEY_PENDING_UNDO)?.let { encoded ->
-            runCatching { editorJson.decodeFromString<PendingUndo>(encoded) }.getOrNull()
+    fun purgePendingRemovals() {
+        app.appScope.launch {
+            app.stateHolders().filterNotNull().first().purgePendingRemovals()
         }
-
-    private fun offerUndo(undoable: Undoable) {
-        setPendingUndo(PendingUndo(undoSeq++, undoable))
-    }
-
-    /**
-     * Any other list edit while a bar is up clears the offer: once the list has
-     * moved on (an add, edit, duplicate, reorder), the offer's index could
-     * reinsert in the wrong place — so the standard "a new action dismisses the
-     * snackbar" rule keeps the offer from ever going stale.
-     */
-    private fun clearUndo() {
-        mutationEpoch++
-        // While a restore is in flight it owns the offer's durability (clears it
-        // on commit, keeps it on failure to retry); a concurrent edit must not
-        // wipe the persisted payload out from under it. The epoch still advanced
-        // above, so any in-flight *delete* offer is voided.
-        if (undoInProgress != null) return
-        setPendingUndo(null)
-    }
-
-    /** Publish [undoable] as the offer unless a mutation invalidated it since [epoch]. */
-    private fun offerUndoIfCurrent(epoch: Long, undoable: Undoable) {
-        if (mutationEpoch == epoch) offerUndo(undoable)
-    }
-
-    /** The bar timed out or was swiped away: the deletion stands. */
-    fun dismissUndo(pending: PendingUndo) {
-        // A restore already in flight owns the offer's lifecycle — ignore a
-        // dismissal of the bar re-shown after a configuration change, so a later
-        // write failure or process death can still retry it.
-        if (undoInProgress == pending.id) return
-        if (_pendingUndo.value?.id == pending.id) setPendingUndo(null)
-    }
-
-    /** Retire [pending] once its restore has committed, unless a newer offer replaced it. */
-    private fun clearOfferIfStill(pending: PendingUndo) {
-        if (_pendingUndo.value?.id == pending.id) setPendingUndo(null)
     }
 
     /**
@@ -234,7 +182,7 @@ class RulesViewModel(
         val availableAccounts = sims.callingAccounts.mapTo(HashSet()) { it.ref }
         return state?.rules?.rules.orEmpty().map { rule ->
             rule.toRow(sims.activeSims, groupLabel = { id -> labels[id] ?: id }, availableAccounts)
-                .copy(id = rule.id)
+                .copy(id = rule.id, pendingRemoval = rule.pendingRemoval)
         }
     }
 
@@ -259,7 +207,8 @@ class RulesViewModel(
     private fun buildDataRows(state: SimmoState?, activeSims: List<ActiveSim>): List<DataRuleRowUi> {
         val labels = builtInGroupLabels + state?.customGroups.orEmpty().associate { it.id to it.name }
         return state?.dataRules?.rules.orEmpty().map { rule ->
-            rule.toRow(activeSims, groupLabel = { id -> labels[id] ?: id }).copy(id = rule.id)
+            rule.toRow(activeSims, groupLabel = { id -> labels[id] ?: id })
+                .copy(id = rule.id, pendingRemoval = rule.pendingRemoval)
         }
     }
 
@@ -348,7 +297,15 @@ class RulesViewModel(
             .map { it?.customGroups.orEmpty() }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    /** The groups the picker offers: the built-ins plus the user's custom groups. */
+    /**
+     * The built-ins plus the user's custom groups. A soft-deleted group stays in
+     * the list but is marked non-[CountryGroupOptionUi.selectable]: the picker
+     * hides it, so a new rule can't point at a group the imminent purge is about
+     * to drop (which would strand that rule with a matcher that matches nothing),
+     * while an existing rule that already references it still resolves its label
+     * here during the undo window rather than showing the raw id (Codex on PR
+     * #61).
+     */
     val groupOptions: StateFlow<List<CountryGroupOptionUi>> =
         customGroups
             .map { groups -> builtInGroupOptions + groups.map(::customGroupOption) }
@@ -365,6 +322,9 @@ class RulesViewModel(
             description = regions.joinToString { countryDisplayName(it) },
             memberRegions = regions.toSet(),
             searchTerms = countryGroupSearchTerms(group.id, group.name),
+            // A soft-deleted group keeps its label for existing selections but is
+            // not offered as a new pick until the undo window ends (purge).
+            selectable = !group.pendingRemoval,
         )
     }
 
@@ -598,10 +558,23 @@ class RulesViewModel(
         }
     }
 
-    /** Delete a custom group; rules referencing it keep the id but match none of it. */
+    /**
+     * Soft-delete a custom group: mark it [CustomGroup.pendingRemoval] (struck-
+     * through, but still resolvable) rather than removing it, so referencing
+     * rules keep matching its countries until purge. Undoable in place
+     * ([undoGroupRemoval]); the loss of those references only happens when the
+     * group is actually purged on leaving the screen.
+     */
     fun deleteCustomGroup(id: String) {
         viewModelScope.launch {
-            app.stateHolders().filterNotNull().first().updateCustomGroups { it.withoutGroup(id) }
+            app.stateHolders().filterNotNull().first().updateCustomGroups { it.withGroupMarkedForRemoval(id) }
+        }
+    }
+
+    /** Undo a group soft-delete: clear [CustomGroup.pendingRemoval] on the group with [id]. */
+    fun undoGroupRemoval(id: String) {
+        viewModelScope.launch {
+            app.stateHolders().filterNotNull().first().updateCustomGroups { it.withGroupRemovalUndone(id) }
         }
     }
 
@@ -655,37 +628,16 @@ class RulesViewModel(
     fun replaceRule(id: String, rule: Rule, pendingGroups: List<CustomGroup> = emptyList()) =
         commit(pendingGroups) { it.withRuleReplaced(id, rule) }
     /**
-     * Delete the rule with [id] immediately and offer Undo (SPEC "Calling
-     * rules"): no confirm dialog. The rule is located and removed *inside* the
-     * write transaction — keyed by id, so a concurrent restore or reorder can't
-     * make it hit the wrong rule — and the id of its neighbor above is captured
-     * so Undo restores it to the same relative spot. Used by both the row menu
-     * and the editor's Delete button.
+     * Soft-delete the rule with [id] (SPEC "Calling rules"): no confirm dialog.
+     * It's marked [Rule.pendingRemoval] in place — struck-through and skipped in
+     * evaluation — rather than removed, so the delete takes effect at once but
+     * stays undoable ([undoRuleRemoval]) until the screen is left ([purgePendingRemovals]).
+     * Used by both the row menu and the editor's Delete button.
      */
-    fun removeRule(id: String) = deleteRule { book -> book.rules.indexOfFirst { it.id == id } }
+    fun removeRule(id: String) = edit { it.withRuleMarkedForRemoval(id) }
 
-    // Retire any prior offer at once (a stale offer must not be undoable while
-    // this delete's write is in flight), capture the removed rule and its
-    // neighbor-above id inside the transaction, then offer Undo unless a
-    // concurrent edit voided it.
-    private fun deleteRule(locate: (RuleBook) -> Int) {
-        clearUndo()
-        val epoch = mutationEpoch
-        viewModelScope.launch {
-            var offer: Undoable.RuleDeletion? = null
-            app.stateHolders().filterNotNull().first().updateRules { book ->
-                val i = locate(book)
-                val rule = book.rules.getOrNull(i) ?: return@updateRules book
-                offer = Undoable.RuleDeletion(
-                    rule,
-                    afterId = book.rules.getOrNull(i - 1)?.id,
-                    beforeId = book.rules.getOrNull(i + 1)?.id,
-                )
-                book.withRuleRemoved(rule.id)
-            }
-            offer?.let { offerUndoIfCurrent(epoch, it) }
-        }
-    }
+    /** Undo a soft-delete: un-strike the rule with [id], in place. */
+    fun undoRuleRemoval(id: String) = edit { it.withRuleRemovalUndone(id) }
 
     fun moveRule(from: Int, to: Int) = edit { it.withRuleMoved(from, to) }
 
@@ -701,60 +653,11 @@ class RulesViewModel(
     }
 
     /**
-     * Restore whatever the offered undo described, in the spot it held (below
-     * its neighbor-above id, or the top). The offer is cleared only *after* the
-     * restore write lands, not on the tap — so a process death (or a
-     * failed/canceled write) between tapping Undo and the insert persisting
-     * keeps the offer to retry, rather than losing both the rule and the way
-     * back. The restore is idempotent by id ([RuleBook.withRuleRestored]), so a
-     * retry can never double-insert.
-     */
-    fun undo(pending: PendingUndo) {
-        if (_pendingUndo.value?.id != pending.id) return
-        if (undoInProgress == pending.id) return // a restore for this offer is already running
-        undoInProgress = pending.id
-        viewModelScope.launch {
-            try {
-                val holder = app.stateHolders().filterNotNull().first()
-                when (val undoable = pending.undoable) {
-                    is Undoable.RuleDeletion ->
-                        holder.updateRules { it.withRuleRestored(undoable.rule, undoable.afterId, undoable.beforeId) }
-                    is Undoable.DataRuleDeletion ->
-                        holder.updateDataRules {
-                            it.withRuleRestored(undoable.rule, undoable.afterId, undoable.beforeId)
-                        }
-                }
-                // Retire the offer only once the insert has committed, so a
-                // cancel/kill before the write leaves the offer to retry.
-                clearOfferIfStill(pending)
-            } catch (e: CancellationException) {
-                // Scope cancel / process death: the persisted offer survives for
-                // the next process to retry; don't disturb it. Must rethrow so
-                // the coroutine actually cancels.
-                throw e
-            } catch (e: Exception) {
-                // The restore write failed while the screen is alive (e.g. disk
-                // error). The bar's action already dismissed the snackbar, and
-                // its LaunchedEffect won't re-fire for the same offer id — so
-                // re-publish the offer under a fresh id to bring the Undo bar
-                // back, unless a newer deletion has since superseded it.
-                if (_pendingUndo.value?.id == pending.id) offerUndo(pending.undoable)
-            } finally {
-                if (undoInProgress == pending.id) undoInProgress = null
-            }
-        }
-    }
-
-    /**
      * Save from the new-SIM prompt's editor: the rule is suggested above the
      * first paused rule (SPEC "On SIM change") rather than at the very top,
      * and the answered prompt is retired.
      */
     fun addRuleForNewSim(sim: SimRef, rule: Rule, pendingGroups: List<CustomGroup> = emptyList()) {
-        // This writes through the holder directly, not [commit]/[edit], so it
-        // must retire a pending Undo itself — inserting a rule shifts positions
-        // an outstanding offer's index depends on (Codex on PR #46).
-        clearUndo()
         viewModelScope.launch {
             val holder = app.stateHolders().filterNotNull().first()
             val activeSims = app.assembler.activeSims()
@@ -835,27 +738,11 @@ class RulesViewModel(
     /** Save a data-rule edit from the editor, keyed by stable id. */
     fun replaceDataRule(id: String, rule: DataRule, pendingGroups: List<CustomGroup> = emptyList()) =
         commitData(pendingGroups) { it.withRuleReplaced(id, rule) }
-    /** Delete the data rule with [id] immediately and offer Undo; see [removeRule]. */
-    fun removeDataRule(id: String) = deleteDataRule { book -> book.rules.indexOfFirst { it.id == id } }
+    /** Soft-delete the data rule with [id]; struck-through and undoable until purge. See [removeRule]. */
+    fun removeDataRule(id: String) = editData { it.withRuleMarkedForRemoval(id) }
 
-    private fun deleteDataRule(locate: (DataRuleBook) -> Int) {
-        clearUndo()
-        val epoch = mutationEpoch
-        viewModelScope.launch {
-            var offer: Undoable.DataRuleDeletion? = null
-            app.stateHolders().filterNotNull().first().updateDataRules { book ->
-                val i = locate(book)
-                val rule = book.rules.getOrNull(i) ?: return@updateDataRules book
-                offer = Undoable.DataRuleDeletion(
-                    rule,
-                    afterId = book.rules.getOrNull(i - 1)?.id,
-                    beforeId = book.rules.getOrNull(i + 1)?.id,
-                )
-                book.withRuleRemoved(rule.id)
-            }
-            offer?.let { offerUndoIfCurrent(epoch, it) }
-        }
-    }
+    /** Undo a data-rule soft-delete: un-strike the rule with [id], in place. */
+    fun undoDataRuleRemoval(id: String) = editData { it.withRuleRemovalUndone(id) }
 
     fun moveDataRule(from: Int, to: Int) = editData { it.withRuleMoved(from, to) }
 
@@ -871,8 +758,6 @@ class RulesViewModel(
     }
 
     private fun editData(transform: (DataRuleBook) -> DataRuleBook) {
-        // Any other list edit supersedes a pending Undo offer (see [clearUndo]).
-        clearUndo()
         // Wait for the holder rather than dropping the edit, like [edit].
         viewModelScope.launch {
             app.stateHolders().filterNotNull().first().updateDataRules(transform)
@@ -883,14 +768,12 @@ class RulesViewModel(
         pendingGroups: List<CustomGroup>,
         transform: (DataRuleBook) -> DataRuleBook,
     ) {
-        clearUndo()
         viewModelScope.launch {
             app.stateHolders().filterNotNull().first().updateGroupsAndDataRules(pendingGroups, transform)
         }
     }
 
     private fun edit(transform: (RuleBook) -> RuleBook) {
-        clearUndo()
         // Wait for the holder rather than dropping the edit: on a fast cold
         // start the rules screen can be interactive before SimmoApp finishes
         // building the holder, and a lost add/edit/delete would look saved.
@@ -904,7 +787,6 @@ class RulesViewModel(
         pendingGroups: List<CustomGroup>,
         transform: (RuleBook) -> RuleBook,
     ) {
-        clearUndo()
         viewModelScope.launch {
             app.stateHolders().filterNotNull().first().updateGroupsAndRules(pendingGroups, transform)
         }
@@ -913,7 +795,6 @@ class RulesViewModel(
     private companion object {
         const val KEY_EDITOR_TARGET = "editor_target"
         const val KEY_DATA_EDITOR_TARGET = "data_editor_target"
-        const val KEY_PENDING_UNDO = "pending_undo"
         const val KEY_RULES_TAB = "rules_tab"
         const val KEY_REGISTRY_OPEN = "registry_open"
         const val KEY_GROUPS_OPEN = "groups_open"
@@ -1053,6 +934,12 @@ data class CountryGroupOptionUi(
     val memberRegions: Set<String>,
     /** Folded terms the group itself is found by (EU, EEA, Europe, …). */
     val searchTerms: List<String>,
+    /**
+     * False for a soft-deleted group awaiting purge: the picker hides it (no new
+     * rule may select it), but it stays in the option list so an existing rule
+     * that references it still resolves its label during the undo window.
+     */
+    val selectable: Boolean = true,
 )
 
 internal fun buildSimOptions(

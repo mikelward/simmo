@@ -807,7 +807,12 @@ internal fun CountryPickerContent(
     // typed one when it matches the group itself (EU, EEA, Europe, …) OR any
     // member country — searching "France" suggests EU/EEA right where the
     // tap happens.
-    val visibleGroups = remember(groups, query, ranked) { matchingGroups(groups, query, ranked) }
+    // A non-selectable group (soft-deleted, awaiting purge) is kept out of the
+    // picker so a new rule can't select it; it still resolves its label for
+    // rules that already reference it (see CountryGroupOptionUi.selectable).
+    val visibleGroups = remember(groups, query, ranked) {
+        matchingGroups(groups, query, ranked).filter { it.selectable }
+    }
     Surface(modifier = Modifier.fillMaxSize()) {
         Column(
             modifier = Modifier

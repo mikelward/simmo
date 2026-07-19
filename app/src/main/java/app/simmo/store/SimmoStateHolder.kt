@@ -7,6 +7,7 @@ import app.simmo.domain.CustomGroup
 import app.simmo.domain.DataRuleBook
 import app.simmo.domain.RegisteredSim
 import app.simmo.domain.withGroupSaved
+import app.simmo.domain.withPendingGroupRemovalsPurged
 import app.simmo.domain.RuleBook
 import app.simmo.domain.newRuleId
 import app.simmo.domain.SimRef
@@ -199,6 +200,22 @@ class SimmoStateHolder(
         store.updateData {
             val valid = it.withInstallValidated(installId)
             valid.copy(customGroups = transform(valid.customGroups))
+        }
+    }
+
+    /**
+     * Purge every soft-deleted rule, data rule, and custom group at once — the
+     * point a delete becomes final, when the rules screen is left. One atomic
+     * write so a leave can't finalize some lists but not others.
+     */
+    suspend fun purgePendingRemovals() {
+        store.updateData {
+            val valid = it.withInstallValidated(installId)
+            valid.copy(
+                rules = valid.rules.withPendingRemovalsPurged(),
+                dataRules = valid.dataRules.withPendingRemovalsPurged(),
+                customGroups = valid.customGroups.withPendingGroupRemovalsPurged(),
+            )
         }
     }
 

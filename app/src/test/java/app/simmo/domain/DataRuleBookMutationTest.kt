@@ -1,6 +1,9 @@
 package app.simmo.domain
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertSame
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -52,7 +55,7 @@ class DataRuleBookMutationTest {
     }
 
     @Test
-    fun `replace and remove by id match the calling book, no-op on unknown id`() {
+    fun `replace by id matches the calling book, no-op on unknown id`() {
         val book = DataRuleBook(
             rules = listOf(rule("AU").copy(id = "a"), rule("NZ").copy(id = "b"), rule("US").copy(id = "c")),
         )
@@ -62,29 +65,26 @@ class DataRuleBookMutationTest {
             book.withRuleReplaced("b", edited).rules,
         )
         assertEquals(book.rules, book.withRuleReplaced("gone", edited).rules)
-        assertEquals(
-            listOf(rule("AU").copy(id = "a"), rule("US").copy(id = "c")),
-            book.withRuleRemoved("b").rules,
+    }
+
+    @Test
+    fun `marking soft-deletes in place, undo clears it, purge drops it`() {
+        val book = DataRuleBook(
+            rules = listOf(rule("AU").copy(id = "a"), rule("NZ").copy(id = "b"), rule("US").copy(id = "c")),
         )
-        assertEquals(book.rules, book.withRuleRemoved("gone").rules)
+        val marked = book.withRuleMarkedForRemoval("b")
+        assertEquals(listOf("a", "b", "c"), marked.rules.map { it.id })
+        assertTrue(marked.rules.single { it.id == "b" }.pendingRemoval)
+        assertFalse(marked.withRuleRemovalUndone("b").rules.single { it.id == "b" }.pendingRemoval)
+        assertEquals(listOf("a", "c"), marked.withPendingRemovalsPurged().rules.map { it.id })
+        assertSame(book, book.withPendingRemovalsPurged())
     }
 
     @Test
-    fun `restoring re-inserts below its neighbor, idempotent on retry`() {
-        val a = rule("AU").copy(id = "a")
-        val c = rule("US").copy(id = "c")
-        val afterDelete = DataRuleBook(rules = listOf(a, c)) // "b" was deleted from between "a" and "c"
-        val b = rule("NZ").copy(id = "b")
-        val restored = afterDelete.withRuleRestored(b, afterId = "a", beforeId = "c")
-        assertEquals(listOf(a, b, c), restored.rules)
-        assertEquals(restored.rules, restored.withRuleRestored(b, afterId = "a", beforeId = "c").rules)
-    }
-
-    @Test
-    fun `a blank id matches nothing, never every rule`() {
+    fun `a blank id marks nothing, never every rule`() {
         val blanks = DataRuleBook(rules = listOf(rule("AU"), rule("NZ"))) // all id = ""
         assertEquals(blanks.rules, blanks.withRuleReplaced("", rule("FR")).rules)
-        assertEquals(blanks.rules, blanks.withRuleRemoved("").rules)
+        assertEquals(blanks.rules, blanks.withRuleMarkedForRemoval("").rules)
     }
 
     @Test

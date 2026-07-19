@@ -82,6 +82,20 @@ class DecisionEngineTest {
         )
     }
 
+    @Test
+    fun `a soft-deleted rule is skipped even when it matches`() {
+        // The AU rule is tombstoned (struck-through, awaiting purge on leave), so
+        // it's inert on the decision path and evaluation falls through.
+        val rules = listOf(
+            country("AU", RuleAction.UseSim(telstra.ref())).copy(pendingRemoval = true),
+            any(RuleAction.SystemDefault),
+        )
+        assertEquals(
+            Verdict.Proceed(ProceedReason.SYSTEM_DEFAULT),
+            engine.decide(call(auNumber), snapshot(rules), now),
+        )
+    }
+
     // --- App-to-app (contact) hand-off ---
 
     private val whatsApp = RuleAction.HandOff.ViaContactApp(ContactCallApp.WHATSAPP)

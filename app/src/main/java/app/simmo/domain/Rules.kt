@@ -182,6 +182,14 @@ data class Rule(
      * blank only for a rule not yet given one.
      */
     val id: String = "",
+    /**
+     * A soft-deleted rule awaiting purge: shown struck-through in the list with
+     * an Undo affordance, and **skipped during evaluation** (like a disabled
+     * one), so a delete takes effect at once but can be reversed by clearing
+     * this flag. Purged — actually removed — when the user leaves the rules
+     * screen; a crash retains it so the delete stays undoable. Defaults false.
+     */
+    val pendingRemoval: Boolean = false,
 )
 
 /**
@@ -223,9 +231,22 @@ data class RuleBook(
     fun withRuleReplaced(id: String, rule: Rule): RuleBook =
         if (id.isBlank()) this else copy(rules = rules.map { if (it.id == id) rule else it })
 
-    /** Remove the rule with [id]; a no-op if none matches (a blank [id] matches nothing). */
-    fun withRuleRemoved(id: String): RuleBook =
-        if (id.isBlank()) this else copy(rules = rules.filterNot { it.id == id })
+    /**
+     * Soft-delete the rule with [id]: mark it [Rule.pendingRemoval] (struck-
+     * through, skipped in evaluation) rather than removing it, so the delete is
+     * undoable in place with no re-insertion. A no-op if none matches (a blank
+     * [id] matches nothing).
+     */
+    fun withRuleMarkedForRemoval(id: String): RuleBook =
+        if (id.isBlank()) this else copy(rules = rules.map { if (it.id == id) it.copy(pendingRemoval = true) else it })
+
+    /** Undo a soft-delete: clear [Rule.pendingRemoval] on the rule with [id], in place. */
+    fun withRuleRemovalUndone(id: String): RuleBook =
+        if (id.isBlank()) this else copy(rules = rules.map { if (it.id == id) it.copy(pendingRemoval = false) else it })
+
+    /** Purge every soft-deleted rule — the point a delete becomes final (on leaving the screen). */
+    fun withPendingRemovalsPurged(): RuleBook =
+        if (rules.none { it.pendingRemoval }) this else copy(rules = rules.filterNot { it.pendingRemoval })
 
     /**
      * Insert a copy of the rule at [index] directly below it, under [newId] —
@@ -234,22 +255,6 @@ data class RuleBook(
      */
     fun withRuleDuplicated(index: Int, newId: String): RuleBook =
         rules.getOrNull(index)?.let { withRuleInserted(index + 1, it.copy(id = newId)) } ?: this
-
-    /**
-     * Re-insert a deleted [rule] for Undo, relative to whichever neighbor it had
-     * when deleted still survives: just below [afterId] (the rule it sat under),
-     * else just above [beforeId] (the rule it sat over), else at the top.
-     * Anchoring by neighbor id rather than an absolute index keeps the restore
-     * correct when the list shifted underneath the offer — e.g. the chooser
-     * prepended a "remember" rule, which a top rule (afterId null) must land
-     * *below*, not above. Only inserts if no rule with [rule]'s id is present,
-     * so a retried restore (a second tap, a replay after process death) can't
-     * duplicate it.
-     */
-    fun withRuleRestored(rule: Rule, afterId: String?, beforeId: String?): RuleBook {
-        if (rules.any { it.id == rule.id }) return this
-        return withRuleInserted(restoreIndexFor(rules.map { it.id }, afterId, beforeId), rule)
-    }
 
     /** Reorder for drag-and-drop; out-of-range indices are a no-op. */
     fun withRuleMoved(fromIndex: Int, toIndex: Int): RuleBook {
@@ -271,18 +276,6 @@ data class RuleBook(
             Rule(RuleMatcher.AnyDestination, RuleAction.SystemDefault, id = "default-system"),
         )
     }
-}
-
-/**
- * The index to re-insert an undone deletion at, given the ids currently in the
- * list and the deleted rule's captured neighbors: below [afterId] if it's still
- * present, else above [beforeId] if it is, else the top. Shared by the calling
- * and data books' `withRuleRestored`.
- */
-internal fun restoreIndexFor(ids: List<String>, afterId: String?, beforeId: String?): Int {
-    if (afterId != null) ids.indexOf(afterId).let { if (it >= 0) return it + 1 }
-    if (beforeId != null) ids.indexOf(beforeId).let { if (it >= 0) return it }
-    return 0
 }
 
 /**

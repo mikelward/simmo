@@ -20,6 +20,15 @@ data class CustomGroup(
     val id: String,
     val name: String,
     val regionCodes: List<String> = emptyList(),
+    /**
+     * A soft-deleted group awaiting purge: shown struck-through in the Groups
+     * list with an Undo affordance. Unlike a soft-deleted rule, it stays
+     * **resolvable** — referencing rules keep matching its countries until it's
+     * actually purged (on leaving the screen), so a mistap doesn't break those
+     * rules during the undo window; only the deliberate leave commits the loss.
+     * Defaults false.
+     */
+    val pendingRemoval: Boolean = false,
 ) {
     companion object {
         /** Prefix that keeps a custom id disjoint from every [CountryGroups] id. */
@@ -39,8 +48,16 @@ data class CustomGroup(
 fun List<CustomGroup>.withGroupSaved(group: CustomGroup): List<CustomGroup> =
     if (any { it.id == group.id }) map { if (it.id == group.id) group else it } else this + group
 
-/** Drops the group with [id]; rules still referencing it resolve to no members. */
-fun List<CustomGroup>.withoutGroup(id: String): List<CustomGroup> = filterNot { it.id == id }
+/** Soft-deletes the group with [id] (struck-through, still resolvable) pending purge. */
+fun List<CustomGroup>.withGroupMarkedForRemoval(id: String): List<CustomGroup> =
+    map { if (it.id == id) it.copy(pendingRemoval = true) else it }
+
+/** Undoes a soft-delete: clears [CustomGroup.pendingRemoval] on the group with [id]. */
+fun List<CustomGroup>.withGroupRemovalUndone(id: String): List<CustomGroup> =
+    map { if (it.id == id) it.copy(pendingRemoval = false) else it }
+
+/** Purges every soft-deleted group — the point at which referencing rules stop matching them. */
+fun List<CustomGroup>.withPendingGroupRemovalsPurged(): List<CustomGroup> = filterNot { it.pendingRemoval }
 
 /**
  * Member regions of [groupId], resolved from the built-in table first and then

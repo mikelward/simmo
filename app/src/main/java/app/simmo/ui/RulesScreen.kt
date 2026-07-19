@@ -46,6 +46,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -70,44 +71,31 @@ fun RulesScreen(
     val dataRows by viewModel.dataRows.collectAsStateWithLifecycle()
     val newSimPrompts by viewModel.newSimPrompts.collectAsStateWithLifecycle()
     val tab by viewModel.rulesTab.collectAsStateWithLifecycle()
-    val pendingUndo by viewModel.pendingUndo.collectAsStateWithLifecycle()
-    Box(modifier = Modifier.fillMaxSize()) {
-        RulesScreenContent(
-            rows = rows,
-            dataRows = dataRows,
-            tab = tab,
-            onSelectTab = viewModel::selectRulesTab,
-            newSimPrompts = newSimPrompts,
-            onAddRule = onAddRule,
-            onEditRule = onEditRule,
-            onDuplicateRule = viewModel::duplicateRule,
-            onDeleteRule = viewModel::removeRule,
-            onSetRuleEnabled = viewModel::setRuleEnabled,
-            onMoveRule = viewModel::moveRule,
-            onAddDataRule = viewModel::openNewDataRule,
-            onEditDataRule = viewModel::openEditDataRule,
-            onDuplicateDataRule = viewModel::duplicateDataRule,
-            onDeleteDataRule = viewModel::removeDataRule,
-            onSetDataRuleEnabled = viewModel::setDataRuleEnabled,
-            onMoveDataRule = viewModel::moveDataRule,
-            onAddRuleForSim = viewModel::openNewRuleForSim,
-            onDismissNewSimPrompt = viewModel::dismissNewSimPrompt,
-            onOpenSettings = viewModel::openSettings,
-            onOpenGroups = onOpenGroups,
-        )
-        // The "Rule deleted — Undo" bar. Hosted here, so it shows over the rule
-        // list (including after an editor delete closes back to it) but never
-        // over the editor, Groups, or Settings, which aren't this composable.
-        DeletionUndoHost(
-            pending = pendingUndo,
-            onUndo = viewModel::undo,
-            onDismiss = viewModel::dismissUndo,
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .safeDrawingPadding()
-                .padding(16.dp),
-        )
-    }
+    RulesScreenContent(
+        rows = rows,
+        dataRows = dataRows,
+        tab = tab,
+        onSelectTab = viewModel::selectRulesTab,
+        newSimPrompts = newSimPrompts,
+        onAddRule = onAddRule,
+        onEditRule = onEditRule,
+        onDuplicateRule = viewModel::duplicateRule,
+        onDeleteRule = viewModel::removeRule,
+        onUndoDeleteRule = viewModel::undoRuleRemoval,
+        onSetRuleEnabled = viewModel::setRuleEnabled,
+        onMoveRule = viewModel::moveRule,
+        onAddDataRule = viewModel::openNewDataRule,
+        onEditDataRule = viewModel::openEditDataRule,
+        onDuplicateDataRule = viewModel::duplicateDataRule,
+        onDeleteDataRule = viewModel::removeDataRule,
+        onUndoDeleteDataRule = viewModel::undoDataRuleRemoval,
+        onSetDataRuleEnabled = viewModel::setDataRuleEnabled,
+        onMoveDataRule = viewModel::moveDataRule,
+        onAddRuleForSim = viewModel::openNewRuleForSim,
+        onDismissNewSimPrompt = viewModel::dismissNewSimPrompt,
+        onOpenSettings = viewModel::openSettings,
+        onOpenGroups = onOpenGroups,
+    )
 }
 
 @Composable
@@ -121,12 +109,14 @@ internal fun RulesScreenContent(
     onEditRule: (String) -> Unit = {},
     onDuplicateRule: (String) -> Unit = {},
     onDeleteRule: (String) -> Unit = {},
+    onUndoDeleteRule: (String) -> Unit = {},
     onSetRuleEnabled: (String, Boolean) -> Unit = { _, _ -> },
     onMoveRule: (Int, Int) -> Unit = { _, _ -> },
     onAddDataRule: () -> Unit = {},
     onEditDataRule: (String) -> Unit = {},
     onDuplicateDataRule: (String) -> Unit = {},
     onDeleteDataRule: (String) -> Unit = {},
+    onUndoDeleteDataRule: (String) -> Unit = {},
     onSetDataRuleEnabled: (String, Boolean) -> Unit = { _, _ -> },
     onMoveDataRule: (Int, Int) -> Unit = { _, _ -> },
     onAddRuleForSim: (NewSimPromptUi) -> Unit = {},
@@ -214,6 +204,8 @@ internal fun RulesScreenContent(
                             onDuplicate = { onDuplicateRule(row.id) },
                             onDelete = { onDeleteRule(row.id) },
                             onSetEnabled = { enabled -> onSetRuleEnabled(row.id, enabled) },
+                            pendingRemoval = row.pendingRemoval,
+                            onUndoDelete = { onUndoDeleteRule(row.id) },
                             modifier = modifier,
                         )
                     }
@@ -230,6 +222,8 @@ internal fun RulesScreenContent(
                             onDuplicate = { onDuplicateDataRule(row.id) },
                             onDelete = { onDeleteDataRule(row.id) },
                             onSetEnabled = { enabled -> onSetDataRuleEnabled(row.id, enabled) },
+                            pendingRemoval = row.pendingRemoval,
+                            onUndoDelete = { onUndoDeleteDataRule(row.id) },
                             modifier = modifier,
                         )
                     }
@@ -380,6 +374,8 @@ private fun RuleListRow(
     onDuplicate: () -> Unit,
     onDelete: () -> Unit,
     onSetEnabled: (Boolean) -> Unit,
+    pendingRemoval: Boolean,
+    onUndoDelete: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     // Rows are identified by position (rules have no stable IDs), so the
@@ -388,10 +384,11 @@ private fun RuleListRow(
     // the pointer coroutine mid-drag would cancel the drag.
     val currentIndex by rememberUpdatedState(index)
     var menuOpen by remember { mutableStateOf(false) }
-    // Greyed when the rule can't act — statusLabel carries why. Applied to the
-    // handle and content, not the whole row, so the actions menu button stays
-    // legible enough to re-enable a disabled rule.
-    val contentAlpha = if (statusLabel != null) 0.4f else 1f
+    // Greyed when the rule can't act — statusLabel carries why. A soft-deleted
+    // rule is dimmed and struck-through, and its content is inert (no tap-to-
+    // edit, no drag, no menu); only its Undo action is offered.
+    val contentAlpha = if (pendingRemoval || statusLabel != null) 0.4f else 1f
+    val strike = if (pendingRemoval) TextDecoration.LineThrough else null
     Row(
         modifier = modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
@@ -401,7 +398,7 @@ private fun RuleListRow(
             modifier = Modifier
                 .size(48.dp)
                 .alpha(contentAlpha)
-                .pointerInputDragHandle(dragState) { currentIndex },
+                .then(if (pendingRemoval) Modifier else Modifier.pointerInputDragHandle(dragState) { currentIndex }),
             contentAlignment = Alignment.Center,
         ) {
             Icon(
@@ -415,47 +412,57 @@ private fun RuleListRow(
                 .weight(1f)
                 // Tap edits; long-press opens the same menu as the ⋮ button.
                 // Reorder lives on the handle, so long-press here never contends.
-                .combinedClickable(onClick = onClick, onLongClick = { menuOpen = true })
+                // A soft-deleted row is inert — only Undo acts on it.
+                .then(
+                    if (pendingRemoval) Modifier
+                    else Modifier.combinedClickable(onClick = onClick, onLongClick = { menuOpen = true }),
+                )
                 .alpha(contentAlpha),
         ) {
-            Text(text = title, style = MaterialTheme.typography.titleMedium)
-            Text(text = subtitle, style = MaterialTheme.typography.bodyMedium)
-            statusLabel?.let {
+            Text(text = title, style = MaterialTheme.typography.titleMedium, textDecoration = strike)
+            Text(text = subtitle, style = MaterialTheme.typography.bodyMedium, textDecoration = strike)
+            statusLabel?.takeIf { !pendingRemoval }?.let {
                 Text(text = it, style = MaterialTheme.typography.labelMedium)
             }
         }
-        // The row's actions. The menu is not dimmed with the rule — it must
-        // stay legible to re-enable a disabled rule.
-        Box {
-            IconButton(onClick = { menuOpen = true }) {
-                Icon(
-                    imageVector = Icons.Filled.MoreVert,
-                    contentDescription = stringResource(R.string.rule_menu_more),
-                )
-            }
-            DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.rule_menu_edit)) },
-                    onClick = { menuOpen = false; onClick() },
-                )
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.rule_menu_duplicate)) },
-                    onClick = { menuOpen = false; onDuplicate() },
-                )
-                DropdownMenuItem(
-                    text = {
-                        Text(
-                            stringResource(
-                                if (enabled) R.string.rule_menu_disable else R.string.rule_menu_enable,
-                            ),
-                        )
-                    },
-                    onClick = { menuOpen = false; onSetEnabled(!enabled) },
-                )
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.rule_menu_delete)) },
-                    onClick = { menuOpen = false; onDelete() },
-                )
+        if (pendingRemoval) {
+            // The undo affordance replaces the actions menu for a soft-deleted
+            // row; the delete finalizes when the screen is left (purge).
+            TextButton(onClick = onUndoDelete) { Text(stringResource(R.string.action_undo)) }
+        } else {
+            // The row's actions. The menu is not dimmed with the rule — it must
+            // stay legible to re-enable a disabled rule.
+            Box {
+                IconButton(onClick = { menuOpen = true }) {
+                    Icon(
+                        imageVector = Icons.Filled.MoreVert,
+                        contentDescription = stringResource(R.string.rule_menu_more),
+                    )
+                }
+                DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.rule_menu_edit)) },
+                        onClick = { menuOpen = false; onClick() },
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.rule_menu_duplicate)) },
+                        onClick = { menuOpen = false; onDuplicate() },
+                    )
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                stringResource(
+                                    if (enabled) R.string.rule_menu_disable else R.string.rule_menu_enable,
+                                ),
+                            )
+                        },
+                        onClick = { menuOpen = false; onSetEnabled(!enabled) },
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.rule_menu_delete)) },
+                        onClick = { menuOpen = false; onDelete() },
+                    )
+                }
             }
         }
     }
