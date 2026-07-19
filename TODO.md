@@ -94,10 +94,20 @@ small stack), fully unit-tested, with `./gradlew test` and `./gradlew lint` gree
       inert with an **Undo** in place of its menu, so undo just clears the flag (no
       re-insertion, no restore-position/anchoring machinery); the evaluation engines skip
       a tombstoned rule like a disabled one, and the whole set is purged on leaving the
-      rules screen (the activity's `ON_STOP`), retained across a crash. Any number of
-      pending deletes can be undone before the leave. A struck-through **group still
-      resolves** for referencing rules until the purge, so a mistaken group delete doesn't
-      strand them during the undo window.
+      app (the activity's `ON_STOP`), retained across a crash. Any number of pending
+      deletes can be undone before the leave. A struck-through **group still resolves**
+      for referencing rules until the purge, so a mistaken group delete doesn't strand
+      them during the undo window.
+- [x] Add an explicit **Apply** control to flush pending deletions on demand, so the
+      user can watch the affected list compact without leaving. It takes the place of the
+      header's **Done** button whenever *any* deletion is pending — calling rule, data
+      rule, or custom group — derived from a single `hasPendingRemovals` flag so it
+      surfaces on both the Rules and Groups screens, and it commits all three at once.
+      With nothing pending the button is **Done**, which just closes the UI (leaving
+      already commits, so Done needs no separate apply). In-app navigation deliberately
+      does *not* commit — only Apply, Done, or leaving the app.
+- [x] Title the home screen with the app name ("Simmo"); the Calling/Data tabs below name
+      the two lists, so the old per-tab "Calling rules"/"Data rules" titles were redundant.
   - [ ] Consider extending the leave-to-purge undo window to *other* modifications
         (reorders, edits, enable/disable), not just deletes — right now anything but a
         delete commits immediately, and a leave that undoes only deletes hints at a more
