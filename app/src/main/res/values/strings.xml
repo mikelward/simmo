@@ -140,8 +140,6 @@
     <!-- TODO: translate -->
     <string name="action_done" tools:ignore="MissingTranslation">Done</string>
     <!-- TODO: translate -->
-    <string name="groups_open" tools:ignore="MissingTranslation">Country groups</string>
-    <!-- TODO: translate -->
     <string name="groups_title" tools:ignore="MissingTranslation">Country groups</string>
     <!-- TODO: translate -->
     <string name="groups_explainer" tools:ignore="MissingTranslation">Groups let one rule cover a set of countries — like your plan\'s included destinations.</string>
@@ -197,6 +195,8 @@
     <string name="settings_open" tools:ignore="MissingTranslation">Settings</string>
     <!-- TODO: translate -->
     <string name="settings_sims_description" tools:ignore="MissingTranslation">Every SIM Simmo has seen</string>
+    <!-- TODO: translate -->
+    <string name="settings_groups_description" tools:ignore="MissingTranslation">Custom sets of countries a rule can match</string>
     <!-- TODO: translate -->
     <string name="settings_call_toast_label" tools:ignore="MissingTranslation">Show which SIM or app is used</string>
     <!-- TODO: translate -->

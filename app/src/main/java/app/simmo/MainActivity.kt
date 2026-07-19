@@ -257,6 +257,7 @@ class MainActivity : ComponentActivity() {
                                 (application as SimmoApp).refreshContacts()
                             },
                             onOpenSims = vm::openSimRegistry,
+                            onOpenGroups = vm::openGroups,
                             onBack = vm::closeSettings,
                         )
 
@@ -264,7 +265,6 @@ class MainActivity : ComponentActivity() {
                             viewModel = vm,
                             onAddRule = vm::openNewRule,
                             onEditRule = vm::openEditRule,
-                            onOpenGroups = vm::openGroups,
                             onDone = { activity?.finish() },
                         )
                     }

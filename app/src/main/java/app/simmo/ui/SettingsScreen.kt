@@ -63,6 +63,7 @@ fun SettingsScreen(
     contactsGranted: Boolean,
     onContactsGranted: () -> Unit,
     onOpenSims: () -> Unit,
+    onOpenGroups: () -> Unit,
     onBack: () -> Unit,
 ) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
@@ -91,6 +92,7 @@ fun SettingsScreen(
         onGuardDisabledSimChange = viewModel::setGuardDisabledSimHandsFree,
         onAnalyticsOptInChange = viewModel::setAnalyticsOptIn,
         onOpenSims = onOpenSims,
+        onOpenGroups = onOpenGroups,
         onBack = onBack,
     )
 }
@@ -107,6 +109,7 @@ internal fun SettingsContent(
     onGuardDisabledSimChange: (Boolean) -> Unit = {},
     onAnalyticsOptInChange: (Boolean) -> Unit = {},
     onOpenSims: () -> Unit = {},
+    onOpenGroups: () -> Unit = {},
     onBack: () -> Unit = {},
 ) {
     BackHandler(onBack = onBack)
@@ -137,6 +140,27 @@ internal fun SettingsContent(
                     )
                     Text(
                         text = stringResource(R.string.settings_sims_description),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            // Country groups management lives here — most groups are built inline
+            // from the rule editor's picker, so this is the edit/delete surface.
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(onClick = onOpenGroups)
+                    .padding(vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.groups_title),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                    Text(
+                        text = stringResource(R.string.settings_groups_description),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
