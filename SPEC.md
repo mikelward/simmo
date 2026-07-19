@@ -36,10 +36,15 @@ first *applicable* rule decides the call and evaluation stops. The user drags a 
 handle to reorder, taps it to edit, and reaches a per-rule menu (its ⋮ button or a
 long-press) to **edit, duplicate, enable/disable, or delete** it — duplicate drops a
 copy directly below the original as the starting point for a variant, and delete takes
-effect immediately with an **Undo** snackbar rather than a confirm-first dialog (the
-same for a data rule; deleting a custom group still asks to confirm first, since rules
-can reference it and the loss of those references isn't undoable yet). A rule pairs a
-**matcher** with an **action**:
+effect immediately rather than asking to confirm first. A deleted rule is not removed
+outright: it stays in the list **struck through** and inert, offering an **Undo** in
+place of its menu, and is only truly dropped when the screen is left (a *purge*, on the
+activity's stop). Until then the delete is fully reversible — any number of deletions can
+be undone before leaving. The same model covers data rules and custom groups, with one
+deliberate difference for groups: a struck-through group **still resolves** for rules that
+reference it, so a mistaken group delete doesn't strand those rules during the undo
+window; only the purge commits the loss (after which the rules match none of the group's
+members — see below). A rule pairs a **matcher** with an **action**:
 
 - **Matcher**: one or more destination countries (ISO regions, shown with their
   calling codes — "+61 Australia"), or **any destination** (used by the preseeded
