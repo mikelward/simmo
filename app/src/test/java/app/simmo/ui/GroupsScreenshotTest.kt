@@ -72,7 +72,7 @@ class GroupsScreenshotTest {
     }
 
     @Test
-    fun applyReplacesDoneWhileAGroupDeletionIsPending() {
+    fun applyReplacesBackWhileAGroupDeletionIsPending() {
         var applied = false
         composeRule.setContent {
             MaterialTheme {
@@ -88,27 +88,29 @@ class GroupsScreenshotTest {
             }
         }
 
-        composeRule.onNodeWithText("Done").assertDoesNotExist()
+        composeRule.onNodeWithText("Back").assertDoesNotExist()
         composeRule.onNodeWithText("Apply").performClick()
         composeRule.runOnIdle { assertEquals(true, applied) }
     }
 
     @Test
-    fun doneShowsWithNoPendingGroup() {
-        var done = false
+    fun backShowsWithNoPendingGroup() {
+        // The header button returns to the previous screen (Settings) — it's a
+        // sub-screen, so it goes back rather than closing the app.
+        var backed = false
         composeRule.setContent {
             MaterialTheme {
                 GroupsContent(
                     groups = listOf(CustomGroup("custom:1", "Vodafone Zone 1", listOf("GB"))),
                     countryOptions = emptyList(),
-                    onDone = { done = true },
+                    onBack = { backed = true },
                 )
             }
         }
 
         composeRule.onNodeWithText("Apply").assertDoesNotExist()
-        composeRule.onNodeWithText("Done").performClick()
-        composeRule.runOnIdle { assertEquals(true, done) }
+        composeRule.onNodeWithText("Back").performClick()
+        composeRule.runOnIdle { assertEquals(true, backed) }
     }
 
     @Test

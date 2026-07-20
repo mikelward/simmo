@@ -44,11 +44,14 @@ effect immediately rather than asking to confirm first. A deleted rule is not re
 outright: it stays in the list **struck through** and inert, offering an **Undo** in
 place of its menu. The delete is committed (a *purge* — the struck-through entries are
 dropped) when the user leaves the app, or on demand via the header's **Apply** button.
-Apply takes the place of the **Done** button whenever *any* deletion is pending — a
+Apply takes the place of the header button whenever *any* deletion is pending — a
 calling rule, a data rule, or a custom group — and commits all three at once, so it
 surfaces on both the rules and groups screens and flushes the struck-through entries in
 place (the affected list compacts) without leaving. With nothing pending the button is
-Done, which simply closes the UI (the redirection service keeps running). Until a purge,
+the screen's ordinary exit: **Done** on the rules home, which simply closes the UI (the
+redirection service keeps running); **Back** on the Country groups screen, which — being
+a Settings sub-screen, not the app's home — returns to Settings rather than closing the
+app (matching the system back gesture). Until a purge,
 the delete is fully reversible — any number of deletions can be undone. The same model
 covers data rules and custom
 groups, with one deliberate difference for groups: a struck-through group **still
