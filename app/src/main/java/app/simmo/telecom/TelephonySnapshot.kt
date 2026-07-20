@@ -3,7 +3,6 @@ package app.simmo.telecom
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
-import android.os.Build
 import android.telecom.PhoneAccount
 import android.telecom.PhoneAccountHandle
 import android.telecom.TelecomManager
@@ -165,19 +164,12 @@ class TelephonyReader(private val context: Context) {
      * number grant degrades to a number-less row, never to losing the SIM list.
      * Many profiles simply carry no number; "" is a normal answer.
      */
+    // getPhoneNumber needs READ_PHONE_NUMBERS; phoneNumberOrEmpty catches the
+    // SecurityException a denied grant raises, but lint can't see that handling
+    // across the helper boundary — hence the scoped suppress.
+    @Suppress("MissingPermission")
     private fun readPhoneNumber(subscriptions: SubscriptionManager, info: SubscriptionInfo): String =
-        try {
-            if (Build.VERSION.SDK_INT >= 33) {
-                subscriptions.getPhoneNumber(info.subscriptionId)
-            } else {
-                @Suppress("DEPRECATION")
-                info.number.orEmpty()
-            }
-        } catch (_: SecurityException) {
-            ""
-        } catch (_: IllegalStateException) {
-            ""
-        }
+        phoneNumberOrEmpty { subscriptions.getPhoneNumber(info.subscriptionId) }
 
     /**
      * A non-SIM account's user-facing name. The account's own label is best
@@ -349,6 +341,22 @@ class TelephonyReader(private val context: Context) {
         }
     }
 }
+
+/**
+ * Wraps the SIM line-number read ([SubscriptionManager.getPhoneNumber]) so a denied
+ * READ_PHONE_NUMBERS grant (SecurityException) or a transient telephony error
+ * (IllegalStateException) degrades to "" — a number-less SIM row, never a lost SIM.
+ * Extracted so the degradation is unit-testable without a live SubscriptionManager;
+ * anything else propagates (the catch stays narrow).
+ */
+internal fun phoneNumberOrEmpty(read: () -> String): String =
+    try {
+        read()
+    } catch (_: SecurityException) {
+        ""
+    } catch (_: IllegalStateException) {
+        ""
+    }
 
 /** Stable, process-independent identity for a platform phone account handle. */
 fun PhoneAccountHandle.toRef(): PhoneAccountRef =

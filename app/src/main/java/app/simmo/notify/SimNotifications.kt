@@ -6,7 +6,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
-import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
@@ -42,8 +41,7 @@ class SimNotifications(private val context: Context) {
     private val mainHandler = Handler(Looper.getMainLooper())
 
     fun canPost(): Boolean {
-        val permitted = Build.VERSION.SDK_INT < 33 ||
-            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) ==
+        val permitted = ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) ==
             PackageManager.PERMISSION_GRANTED
         return permitted && NotificationManagerCompat.from(context).areNotificationsEnabled()
     }
