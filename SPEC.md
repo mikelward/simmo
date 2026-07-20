@@ -303,6 +303,14 @@ two buttons — **Edit rules** (to the rules list, where *preferred* is set) and
 step one toward making the SIMs screen the app's home; promoting it above the rules
 list is deferred.)
 
+The primary/temporary chips stay live while the app is foregrounded: an
+active-data-subscription listener (API 31+) registered on the activity's start and
+dropped on its stop refreshes telephony when automatic data switching moves data, so
+an in-view switch is reflected at once. It is deliberately **foreground-only** — not
+part of the background wake lattice (see "Data-roaming visibility"), which watches
+roaming, not the data-SIM override — so there is no always-on cost; where it can't run
+(backgrounded, or API 30) the chips simply refresh on the next resume.
+
 ### Quick Settings tile
 
 A "Manage SIMs" tile in Quick Settings jumps straight into Simmo's SIMs screen, which

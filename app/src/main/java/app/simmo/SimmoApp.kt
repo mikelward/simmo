@@ -13,10 +13,14 @@ import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
+import android.os.Build
 import android.provider.ContactsContract
 import android.telephony.SubscriptionManager
+import android.telephony.TelephonyCallback
 import android.telephony.TelephonyManager
 import android.util.Log
+import androidx.annotation.RequiresApi
+import androidx.annotation.VisibleForTesting
 import androidx.core.content.ContextCompat
 import androidx.datastore.core.DataStore
 import app.simmo.analytics.TelemetryGate
@@ -118,6 +122,19 @@ open class SimmoApp : Application() {
     /** Guards [registerContactsObserver] so a grant only registers once. */
     @Volatile
     private var contactsObserverRegistered = false
+
+    /**
+     * A **foreground-only** listener for automatic data switching (SPEC "SIMs
+     * screen"): while the app UI is visible, an active-data-subscription change
+     * refreshes telephony so the SIMs screen's primary/temporary chips and the
+     * data triage card stay live. Deliberately NOT part of the background wake
+     * lattice — it is registered on the activity's `ON_START` and dropped on
+     * `ON_STOP` ([startActiveDataWatch]/[stopActiveDataWatch]), so there is no
+     * always-on callback. Held as `Any?` because [TelephonyCallback] is API 31+
+     * (minSdk 30); on API 30 the watch is a no-op and the chips still refresh on
+     * resume. Guarded by `this`'s monitor via the `@Synchronized` accessors.
+     */
+    private var activeDataCallback: Any? = null
 
     /**
      * Serializes roaming-watch checks (same shape as the assembler's
@@ -412,6 +429,65 @@ open class SimmoApp : Application() {
      */
     fun refreshTelephony() {
         appScope.launch { refreshTelephonyNow() }
+    }
+
+    /**
+     * Start the foreground-only automatic-data-switch watch (see
+     * [activeDataCallback]). Called from the activity's `ON_START`. A no-op
+     * below API 31 (no [TelephonyCallback]) — the chips still refresh on
+     * resume there — and idempotent, so repeated starts are free.
+     */
+    fun startActiveDataWatch() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) registerActiveDataCallback()
+    }
+
+    @RequiresApi(Build.VERSION_CODES.S)
+    @Synchronized
+    private fun registerActiveDataCallback() {
+        if (activeDataCallback != null) return
+        // Registering the callback needs READ_PHONE_STATE; without it the read
+        // would throw. A revoked permission just leaves the chips on
+        // resume-refresh, like API 30.
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_PHONE_STATE) !=
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            return
+        }
+        val telephony = getSystemService(TelephonyManager::class.java) ?: return
+        val callback = object : TelephonyCallback(), TelephonyCallback.ActiveDataSubscriptionIdListener {
+            override fun onActiveDataSubscriptionIdChanged(subId: Int) {
+                // Delivered on the executor below (off the main thread); a plain
+                // refresh re-reads the active/default data subs so the SIMs
+                // chips and triage card reflect the switch at once.
+                refreshTelephony()
+            }
+        }
+        try {
+            telephony.registerTelephonyCallback(Dispatchers.Default.asExecutor(), callback)
+            activeDataCallback = callback
+        } catch (e: SecurityException) {
+            // Revoked between the check and the register; degrade to
+            // resume-refresh rather than crash the UI.
+            Log.e("SimmoApp", "Active-data watch registration failed", e)
+        }
+    }
+
+    /** Whether the foreground active-data watch is currently registered. */
+    @VisibleForTesting
+    internal fun isActiveDataWatchRegistered(): Boolean = activeDataCallback != null
+
+    /** Stop the foreground-only active-data-switch watch. Called from `ON_STOP`. */
+    @Synchronized
+    fun stopActiveDataWatch() {
+        val callback = activeDataCallback ?: return
+        activeDataCallback = null
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            // Best-effort: unregister can throw if the callback is already gone.
+            runCatching {
+                getSystemService(TelephonyManager::class.java)
+                    ?.unregisterTelephonyCallback(callback as TelephonyCallback)
+            }
+        }
     }
 
     /**
