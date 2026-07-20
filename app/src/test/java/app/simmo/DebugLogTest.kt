@@ -28,15 +28,105 @@ class DebugLogTest {
     }
 
     @Test
-    fun `warnings capture the exception type and frames but not its message`() {
-        // The throwable message can carry PII (a tel: URI, an account id), so
-        // it is dropped; the developer message and the type + frames remain.
-        SimmoDebugLog.warning("boom", IllegalStateException("dialed tel:+15551234567"))
+    fun `warnings keep the exception message but scrub numbers from it`() {
+        SimmoDebugLog.warning("boom", IllegalStateException("failed for tel:+15551234567"))
         val line = SimmoDebugLog.snapshot().single()
         assertTrue(line.contains("boom"))
         assertTrue(line.contains("IllegalStateException"))
+        assertTrue("the message context is kept", line.contains("failed for"))
         assertTrue("stack frames are kept", line.contains("at "))
-        assertFalse("the throwable message is not retained", line.contains("15551234567"))
+        assertFalse("the number is scrubbed from the message", line.contains("15551234567"))
+    }
+
+    @Test
+    fun `scrubPii masks numbers and account ids in free text but keeps the rest`() {
+        val scrubbed = scrubPii("redirect to tel:+15551234567 failed")
+        assertTrue(scrubbed.contains("redirect to"))
+        assertTrue(scrubbed.contains("failed"))
+        assertFalse(scrubbed.contains("15551234567"))
+        // Email / SIP account ids are masked too (Codex #83).
+        assertFalse(scrubPii("account alice@example.com denied").contains("alice@example.com"))
+        assertFalse(scrubPii("via sip:alice@voip.example;9991234567").contains("alice"))
+        // Internationalized (Unicode) emails are masked too (Codex #83).
+        assertFalse(scrubPii("account álîçé@example.com denied").contains("álîçé"))
+        assertFalse(scrubPii("to alice@例え.テスト failed").contains("例え"))
+        // Slash-formatted numbers (e.g. German 030/12 34 56) too.
+        val slash = scrubPii("fax 030/12 34 56 done")
+        assertTrue(slash.contains("fax"))
+        assertFalse("slash-formatted number is masked", slash.contains("34"))
+        // Short digit runs (line numbers, subscription ids) are left alone.
+        assertEquals("at Foo.kt:163 sub=3", scrubPii("at Foo.kt:163 sub=3"))
+        // A single-label SIP host (internal PBX) is masked, not just dotted ones.
+        assertFalse(scrubPii("account alice@pbx denied").contains("alice@pbx"))
+        // A six-digit subscriber number is masked (redactNumber handles it safely).
+        val sixDigit = scrubPii("dialed 123456 failed")
+        assertTrue(sixDigit.contains("dialed"))
+        assertFalse("six-digit number is masked", sixDigit.contains("123456"))
+        // A vanity tel: number (letters split the digit run) is masked whole.
+        val vanity = scrubPii("dial tel:1-800-FLOWERS now")
+        assertTrue(vanity.contains("dial"))
+        assertFalse("vanity tel: number is masked", vanity.contains("FLOWERS"))
+    }
+
+    @Test
+    fun `a throwable whose getMessage throws cannot escape logging`() {
+        val evil = object : RuntimeException() {
+            override val message: String get() = throw IllegalStateException("boom in getMessage")
+        }
+        // Must not throw — logging runs on the decision path and must never
+        // preempt the service's safe verdict (Codex #83).
+        SimmoDebugLog.warning("logging evil", evil)
+        val line = SimmoDebugLog.snapshot().single()
+        assertTrue("the developer message is kept", line.contains("logging evil"))
+        assertTrue("stack frames are still rendered", line.contains("at "))
+    }
+
+    @Test
+    fun `scrubPii catches numbers formatted with unicode separators`() {
+        val nnbsp = "\u202F" // narrow no-break space, used to group digits in fr-FR
+        val spaced = scrubPii("call +33${nnbsp}6${nnbsp}12${nnbsp}34${nnbsp}56${nnbsp}78 dropped")
+        assertTrue(spaced.contains("call"))
+        assertTrue(spaced.contains("\u2022"))
+        assertFalse("unicode-spaced number is masked", spaced.contains("56"))
+        // Unicode (non-breaking / en) dashes too.
+        val dashed = scrubPii("number 555\u20112345\u201367 failed")
+        assertTrue(dashed.contains("\u2022"))
+        assertFalse("unicode-dashed number is masked", dashed.contains("2345"))
+    }
+
+    @Test
+    fun `scrubPii catches numbers formatted with full-width punctuation`() {
+        // Full-width parens (U+FF08/FF09) are Unicode Ps/Pe, not Zs/Pd — without
+        // them in the separator class the run split into sub-7-digit fragments and
+        // the whole number leaked (Codex #83). Full-width digits are Nd, so the
+        // gate still counts them.
+        val fullWidth = scrubPii("dialed ０３（１２３４）５６７８ failed")
+        assertTrue(fullWidth.contains("dialed"))
+        assertTrue(fullWidth.contains("•"))
+        assertFalse("full-width number is masked", fullWidth.contains("５６７８"))
+    }
+
+    @Test
+    fun `scrubPii catches numbers written in localized digits`() {
+        // Eastern Arabic-Indic digits \u0661\u0662\u0663\u0664\u0665\u0666\u0667\u0668 \u2014 JVM \d is ASCII-only without (?U).
+        val arabic = "\u0661\u0662\u0663\u0664\u0665\u0666\u0667\u0668"
+        val scrubbed = scrubPii("sim $arabic here")
+        assertTrue(scrubbed.contains("sim"))
+        assertTrue(scrubbed.contains("\u2022"))
+        assertFalse("localized-digit number is masked", scrubbed.contains(arabic))
+    }
+
+    @Test
+    fun `redactLabel masks numbers anywhere in a label but leaves ordinary labels`() {
+        assertEquals("Personal", redactLabel("Personal"))
+        assertEquals("Telstra", redactLabel("Telstra"))
+        assertEquals("SIM 2", redactLabel("SIM 2"))
+        // A whole-number name and a number embedded in text are both masked.
+        assertFalse(redactLabel("+1 555 123 4567").contains("5551234567"))
+        val embedded = redactLabel("Work +1 555 123 4567")
+        assertTrue("surrounding text is kept", embedded.contains("Work"))
+        assertTrue(embedded.contains("•"))
+        assertFalse(embedded.contains("123 4567"))
     }
 
     @Test
