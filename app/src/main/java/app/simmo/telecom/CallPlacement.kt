@@ -7,6 +7,8 @@ import android.os.Bundle
 import android.telecom.TelecomManager
 import android.util.Log
 import app.simmo.SimmoApp
+import app.simmo.SimmoDebugLog
+import app.simmo.redactAccountId
 import app.simmo.domain.PassToken
 import app.simmo.domain.PhoneAccountRef
 
@@ -34,6 +36,7 @@ fun SimmoApp.replaceCall(handle: Uri, account: PhoneAccountRef): Boolean {
     val accountHandle = assembler.handleFor(account)
     if (accountHandle == null) {
         Log.e(TAG, "Chosen phone account no longer available; not re-placing")
+        SimmoDebugLog.warning("Re-place skipped: chosen phone account (${redactAccountId(account.id)}) no longer available")
         return false
     }
     val extras = Bundle().apply {
@@ -44,6 +47,7 @@ fun SimmoApp.replaceCall(handle: Uri, account: PhoneAccountRef): Boolean {
         true
     } catch (e: SecurityException) {
         Log.e(TAG, "Re-placing the call failed", e)
+        SimmoDebugLog.warning("Re-placing the call failed (CALL_PHONE revoked?)", e)
         false
     }
 }

@@ -1,5 +1,6 @@
 package app.simmo.telecom
 
+import app.simmo.SimmoDebugLog
 import app.simmo.domain.DecisionEngine
 import app.simmo.domain.DecisionSnapshot
 import app.simmo.domain.NumberCorrection
@@ -40,15 +41,20 @@ class RedirectionCoordinator(
     fun decide(call: PlacedCall): CallDecision {
         val snapshot = try {
             snapshotProvider()
-        } catch (_: RuntimeException) {
+        } catch (e: RuntimeException) {
+            SimmoDebugLog.warning("Snapshot read failed; proceeding unmodified", e)
             null
-        } ?: return CallDecision(Verdict.Proceed(ProceedReason.SNAPSHOT_UNAVAILABLE))
+        } ?: run {
+            SimmoDebugLog.event("Snapshot unavailable (not warm yet); proceeding unmodified")
+            return CallDecision(Verdict.Proceed(ProceedReason.SNAPSHOT_UNAVAILABLE))
+        }
         return try {
             CallDecision(
                 verdict = engine.decide(call, snapshot, nowMillis()),
                 missedCorrection = engine.missedCorrection(call, snapshot, nowMillis()),
             )
-        } catch (_: RuntimeException) {
+        } catch (e: RuntimeException) {
+            SimmoDebugLog.warning("Decision threw; proceeding unmodified", e)
             CallDecision(Verdict.Proceed(ProceedReason.INTERNAL_ERROR))
         }
     }
