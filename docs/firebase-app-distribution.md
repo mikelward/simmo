@@ -6,10 +6,17 @@ upload is wired into the `deploy` job in `.github/workflows/android-ci.yml` usin
 
 ## What gets uploaded
 
-The action uploads the **debug** APK that `assembleDebug` produced
-(`app/build/outputs/apk/debug/app-debug.apk`). Distributing the debug APK avoids
-needing the release keystore for tester builds; debug-signed builds remain
-installable for internal testers.
+The action uploads the **firebase** APK that `assembleFirebase` produced
+(`app/build/outputs/apk/firebase/app-firebase.apk`). The `firebase` build type
+inherits the release build's R8 pipeline (`isMinifyEnabled` +
+`proguard-rules.pro`), so testers exercise — and catch regressions in — the same
+shrinking and obfuscation a Play release would, instead of an unminified debug
+APK that never runs R8. It is **debug-signed** (see below), so it stays
+installable without a release keystore or any Play setup.
+
+The build type is named for its distribution channel: `alpha`/`beta` would
+collide with Play's track names, and AGP reserves build-type names starting with
+`test`.
 
 ## Stable debug signing key
 
@@ -108,8 +115,8 @@ new".
 Install the [Firebase CLI](https://firebase.google.com/docs/cli) and run:
 
 ```sh
-./gradlew assembleDebug
-firebase appdistribution:distribute app/build/outputs/apk/debug/app-debug.apk \
+./gradlew assembleFirebase
+firebase appdistribution:distribute app/build/outputs/apk/firebase/app-firebase.apk \
   --app "$FIREBASE_APP_ID" \
   --groups testers \
   --release-notes "Local upload from $(git rev-parse --short HEAD)"
