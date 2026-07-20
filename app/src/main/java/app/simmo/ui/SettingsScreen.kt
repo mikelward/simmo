@@ -110,7 +110,12 @@ fun SettingsScreen(
         onOpenRules = onOpenRules,
         onOpenGroups = onOpenGroups,
         onOpenLicenses = onOpenLicenses,
-        onShareDebugLog = { DebugReport.share(context) },
+        onShareDebugLog = {
+            DebugReport.share(context)
+            // Sharing consumes the prior run, so clear the SIMs-screen crash
+            // banner too if it was up (Codex on PR #91).
+            viewModel.onDebugReportShared()
+        },
         onBack = onBack,
     )
 }

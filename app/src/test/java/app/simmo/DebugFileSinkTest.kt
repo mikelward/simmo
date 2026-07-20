@@ -115,4 +115,110 @@ class DebugFileSinkTest {
         sink.start()
         assertNull(sink.readPreviousRun())
     }
+
+    @Test
+    fun `a routine (non-crash) prior run does not raise the banner`() {
+        val dir = folder.newFolder()
+
+        // Run A logs and its snapshot persists, but it ends without a crash — a
+        // graceful exit, OS reclaim, force-stop, app update, or a silent kill,
+        // none of which is an uncaught exception.
+        val runA = DebugFileSink(dir)
+        runA.start()
+        SimmoDebugLog.event("Decision +614••78 -> Ask")
+        runA.log("x")
+        runA.awaitIdleForTest()
+
+        val runB = DebugFileSink(dir)
+        runB.start()
+        assertFalse("an ordinary process death never says crashed", runB.hasUnacknowledgedCrash())
+        // The log still persisted and is shareable — the #90 value is kept.
+        assertTrue(runB.readPreviousRun()!!.contains("Decision +614••78 -> Ask"))
+    }
+
+    @Test
+    fun `a crashed run raises the banner, which dismiss then silences`() {
+        val dir = folder.newFolder()
+
+        // Run A logs, then crashes (uncaught exception).
+        Thread.setDefaultUncaughtExceptionHandler { _, _ -> }
+        val runA = DebugFileSink(dir)
+        runA.start()
+        SimmoDebugLog.event("Decision +614••78 -> Ask")
+        triggerCrash()
+
+        // Next launch sees the crash — the banner shows.
+        val runB = DebugFileSink(dir)
+        runB.start()
+        assertTrue("a crashed prior run raises the banner", runB.hasUnacknowledgedCrash())
+
+        // Dismiss renames the crash log off the crash suffix; it stays quiet even
+        // across a boring restart, and its log is kept (still shareable).
+        runB.acknowledgeCrashBanner()
+        assertFalse("dismissed crash stays quiet", runB.hasUnacknowledgedCrash())
+        assertTrue(
+            "the dismissed run's log is kept and shareable",
+            runB.readPreviousRun()!!.contains("Decision +614••78 -> Ask"),
+        )
+
+        val runC = DebugFileSink(dir)
+        runC.start()
+        assertFalse("the dismissal survives a boring restart", runC.hasUnacknowledgedCrash())
+    }
+
+    @Test
+    fun `a later crash re-raises the banner after an earlier dismiss`() {
+        val dir = folder.newFolder()
+
+        // Run A crashes; dismiss its banner.
+        Thread.setDefaultUncaughtExceptionHandler { _, _ -> }
+        val runA = DebugFileSink(dir)
+        runA.start()
+        SimmoDebugLog.event("run A")
+        triggerCrash("run A boom")
+
+        val runB = DebugFileSink(dir)
+        runB.start()
+        assertTrue(runB.hasUnacknowledgedCrash())
+        runB.acknowledgeCrashBanner()
+        assertFalse(runB.hasUnacknowledgedCrash())
+
+        // Run B then crashes too, leaving a newer crash file; the next start must
+        // show the banner again — the ack named A's file, not this newer one.
+        // (runB.start() already installed runB's handler as the default; triggering
+        // it records this crash — don't reset the default here or the marker never
+        // gets written.)
+        SimmoDebugLog.clearForTest()
+        SimmoDebugLog.event("run B")
+        triggerCrash("run B boom")
+
+        val runC = DebugFileSink(dir)
+        runC.start()
+        assertTrue("a newer crash re-raises the banner", runC.hasUnacknowledgedCrash())
+    }
+
+    @Test
+    fun `sharing a crashed run clears the banner`() {
+        val dir = folder.newFolder()
+
+        Thread.setDefaultUncaughtExceptionHandler { _, _ -> }
+        val runA = DebugFileSink(dir)
+        runA.start()
+        SimmoDebugLog.event("run A")
+        triggerCrash()
+
+        val runB = DebugFileSink(dir)
+        runB.start()
+        assertTrue(runB.hasUnacknowledgedCrash())
+        // Sharing reads then clears the prior run (as DebugReport does).
+        runB.readPreviousRun()
+        runB.clearPreviousRun()
+        assertFalse("a shared crash leaves no banner", runB.hasUnacknowledgedCrash())
+    }
+
+    /** Fires the currently-installed default handler, as an OS crash would. */
+    private fun triggerCrash(message: String = "boom") {
+        Thread.getDefaultUncaughtExceptionHandler()!!
+            .uncaughtException(Thread.currentThread(), IllegalStateException(message))
+    }
 }

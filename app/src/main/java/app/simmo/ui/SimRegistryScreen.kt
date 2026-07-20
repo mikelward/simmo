@@ -21,6 +21,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -42,6 +44,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.core.content.ContextCompat
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import app.simmo.DebugReport
 import app.simmo.R
 import app.simmo.domain.SimRef
 
@@ -89,6 +92,7 @@ fun SimRegistryScreen(
 ) {
     val page by viewModel.simsPage.collectAsStateWithLifecycle()
     val newSimPrompts by viewModel.newSimPrompts.collectAsStateWithLifecycle()
+    val showCrashBanner by viewModel.crashBannerVisible.collectAsStateWithLifecycle()
     // The rows' own-number line needs READ_PHONE_NUMBERS (split from
     // READ_PHONE_STATE in API 30). Only requested when the phone grant is
     // already held: same permission group, so the request is granted silently
@@ -113,6 +117,7 @@ fun SimRegistryScreen(
         rows = page.rows,
         currentCountry = page.currentCountry,
         newSimPrompts = newSimPrompts,
+        showCrashBanner = showCrashBanner,
         onDelete = viewModel::deleteRegisteredSim,
         onBack = onBack,
         onOpenSimSettings = onOpenSimSettings,
@@ -120,6 +125,13 @@ fun SimRegistryScreen(
         onOpenSettings = onOpenSettings,
         onAddRuleForSim = viewModel::openNewRuleForSim,
         onDismissNewSimPrompt = viewModel::dismissNewSimPrompt,
+        onShareCrashReport = {
+            // Same share path as Settings' "Share debug logs"; it consumes and
+            // clears the prior run, so the banner won't return.
+            DebugReport.share(context)
+            viewModel.onDebugReportShared()
+        },
+        onDismissCrashBanner = viewModel::dismissCrashBanner,
     )
 }
 
@@ -128,6 +140,7 @@ internal fun SimRegistryContent(
     rows: List<RegistrySimRowUi>,
     currentCountry: String? = null,
     newSimPrompts: List<NewSimPromptUi> = emptyList(),
+    showCrashBanner: Boolean = false,
     onDelete: (SimRef) -> Unit = {},
     onBack: () -> Unit = {},
     onOpenSimSettings: () -> Unit = {},
@@ -135,6 +148,8 @@ internal fun SimRegistryContent(
     onOpenSettings: () -> Unit = {},
     onAddRuleForSim: (NewSimPromptUi) -> Unit = {},
     onDismissNewSimPrompt: (SimRef) -> Unit = {},
+    onShareCrashReport: () -> Unit = {},
+    onDismissCrashBanner: () -> Unit = {},
 ) {
     BackHandler(onBack = onBack)
     // The row awaiting delete confirmation; saveable so a rotation mid-confirm
@@ -202,6 +217,19 @@ internal fun SimRegistryContent(
                 }
             }
             LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                // The post-crash banner: shown atop the list when the last run
+                // ended without a clean exit and the user hasn't shared or
+                // dismissed it. Inside the scrolling list (not pinned) for the
+                // same reason as the new-SIM prompt — it must never push the SIM
+                // registry off-screen at a large font scale (Codex on PR #84).
+                if (showCrashBanner) {
+                    item {
+                        CrashBannerCard(
+                            onShare = onShareCrashReport,
+                            onDismiss = onDismissCrashBanner,
+                        )
+                    }
+                }
                 // The "add a rule for this new SIM?" nudge (SPEC "On SIM change")
                 // shows on the home too, not only on the rules list — this is
                 // where a freshly inserted SIM is most visible. Inside the
@@ -248,6 +276,40 @@ internal fun SimRegistryContent(
                 }
             },
         )
+    }
+}
+
+/**
+ * The post-crash banner card: "Simmo crashed" with a one-line explainer and
+ * Share / Dismiss. Styled like [NewSimPromptCard] — a Card with 16dp interior
+ * padding, a title, a body, and the actions right-aligned — so the two cards
+ * read as siblings when both show.
+ */
+@Composable
+internal fun CrashBannerCard(
+    onShare: () -> Unit,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Card(modifier = modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = stringResource(R.string.crash_banner_title),
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Text(
+                text = stringResource(R.string.crash_banner_body),
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+            ) {
+                TextButton(onClick = onDismiss) { Text(stringResource(R.string.crash_banner_dismiss)) }
+                Button(onClick = onShare) { Text(stringResource(R.string.crash_banner_share)) }
+            }
+        }
     }
 }
 
