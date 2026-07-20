@@ -145,6 +145,17 @@ class MainActivity : ComponentActivity() {
                         val app = application as SimmoApp
                         if (contactsNowGranted) app.refreshContacts() else app.clearContacts()
                     }
+                    // Register the change observer on every granted resume, not
+                    // only on a transition: a grant made in system Settings is
+                    // invisible to a freshly recreated activity (both state vars
+                    // initialize already-granted, so no transition fires), and
+                    // the telephony-refresh fallback is itself gated on
+                    // READ_PHONE_STATE — so a contacts-only grant while phone
+                    // access is denied would otherwise strand the observer
+                    // (Codex on PR #74). Idempotent, so repeated resumes are free.
+                    if (contactsNowGranted) {
+                        (application as SimmoApp).registerContactsObserver()
+                    }
                     contactsGranted = contactsNowGranted
                 }
                 if (ready) {
