@@ -120,6 +120,40 @@ class SimRegistryScreenshotTest {
         captureSnapshot("sim_registry.png")
     }
 
+    @Test
+    fun simRegistry_crashBanner() {
+        composeRule.setContent {
+            MaterialTheme {
+                SimRegistryContent(
+                    currentCountry = "Australia",
+                    showCrashBanner = true,
+                    rows = listOf(
+                        RegistrySimRowUi(
+                            ref = SimRef(1, "Telstra", "Telstra personal"),
+                            name = "Telstra personal",
+                            carrier = "Telstra",
+                            detail = "+61 412 345 678 · Australia",
+                            active = true,
+                            lastSeenLabel = "Jul 17, 2026",
+                            callingPrimary = true,
+                            callingPreferred = true,
+                        ),
+                    ),
+                )
+            }
+        }
+        composeRule.waitForIdle()
+
+        // The banner atop the list, with its explainer and two actions.
+        composeRule.onNodeWithText("Simmo crashed").assertExists()
+        composeRule.onNodeWithText("Send a crash report to help us fix it").assertExists()
+        composeRule.onNodeWithText("Share").assertExists()
+        composeRule.onNodeWithText("Dismiss").assertExists()
+        // The SIM list is still there below it.
+        composeRule.onNodeWithText("Telstra personal").assertExists()
+        captureSnapshot("sim_registry_crash_banner.png")
+    }
+
     private fun captureSnapshot(name: String, widthPx: Int = 1080, heightPx: Int = 1920) {
         val isRecord = System.getProperty("roborazzi.test.record") == "true"
         val isVerify = System.getProperty("roborazzi.test.verify") == "true"

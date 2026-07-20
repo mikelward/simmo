@@ -762,7 +762,17 @@ UI is forbidden).
   Telecom account ids are logged only as non-identifying fingerprints; the file lives in
   `cacheDir` (excluded from backup) and never holds a complete number, so the "dialed
   numbers never reach a backup" line above still holds. The whole payload is size-bounded
-  so a large rule set or log can't defeat the share.
+  so a large rule set or log can't defeat the share. When a prior run **crashed** (ended in
+  an uncaught exception), the SIMs screen shows a **post-crash banner** offering to share
+  that report or dismiss it — so the crash surfaces on its own instead of relying on the
+  user to remember the hidden Settings action. Only a crash raises it: the crash handler
+  leaves a marker that the next start rotates into a distinct file name, so an ordinary
+  process death (OS reclaim, force-stop, app update) or a silent kill never shows "Simmo
+  crashed" — those runs' logs still persist and remain shareable from Settings, they just
+  don't nag. Sharing (from the banner or Settings) consumes the prior run; Dismiss renames
+  the crash log off the crash-suffixed name (keeping it shareable) so it no longer raises
+  the banner — a rename in the same cache, not a separate ack marker that eviction could
+  drop while keeping the crash file — while a later crash raises the banner again.
 - **Backups are on** (maintainer decision): rules, the SIM registry, and settings are
   included in Android backups and device-to-device transfers via explicit extraction
   rules scoped to exactly Simmo's own state files, so a phone upgrade keeps the rule

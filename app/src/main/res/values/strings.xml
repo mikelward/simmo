@@ -164,6 +164,14 @@
     <!-- TODO: translate -->
     <string name="new_sim_prompt_dismiss" tools:ignore="MissingTranslation">Not now</string>
     <!-- TODO: translate -->
+    <string name="crash_banner_title" tools:ignore="MissingTranslation">Simmo crashed</string>
+    <!-- TODO: translate -->
+    <string name="crash_banner_body" tools:ignore="MissingTranslation">Send a crash report to help us fix it</string>
+    <!-- TODO: translate -->
+    <string name="crash_banner_share" tools:ignore="MissingTranslation">Share</string>
+    <!-- TODO: translate -->
+    <string name="crash_banner_dismiss" tools:ignore="MissingTranslation">Dismiss</string>
+    <!-- TODO: translate -->
     <string name="chooser_title" tools:ignore="MissingTranslation">Place this call with…</string>
     <!-- TODO: translate -->
     <string name="chooser_skipped_sim" tools:ignore="MissingTranslation">Your rule wanted %1$s, but that SIM is disabled.</string>

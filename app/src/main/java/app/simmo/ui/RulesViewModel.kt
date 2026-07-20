@@ -640,6 +640,44 @@ class RulesViewModel(
     }
 
     /**
+     * Whether the post-crash banner shows atop the SIMs screen: true when the
+     * previous run *crashed* (ended in an uncaught exception) and the user has
+     * neither shared nor dismissed its log. A routine kill or silent kill does
+     * not raise it. Resolved once off the main thread — a crash is settled by the
+     * time this process starts — so the first frame renders without the banner
+     * and it swaps in when the check lands, never blocking composition on disk.
+     */
+    private val _crashBannerVisible = MutableStateFlow(false)
+    val crashBannerVisible: StateFlow<Boolean> = _crashBannerVisible
+
+    init {
+        viewModelScope.launch(Dispatchers.Default) {
+            _crashBannerVisible.value = app.debugFileSink?.hasUnacknowledgedCrash() ?: false
+        }
+    }
+
+    /** The banner's Dismiss: hide it and remember not to re-nag for this crash. */
+    fun dismissCrashBanner() {
+        _crashBannerVisible.value = false
+        // On the app scope, not [viewModelScope]: the ack write must finish even
+        // if the activity leaves right after the tap.
+        app.appScope.launch(Dispatchers.Default) {
+            app.debugFileSink?.acknowledgeCrashBanner()
+        }
+    }
+
+    /**
+     * A debug report was just shared — from the banner *or* from Settings' "Share
+     * debug logs". Either path consumes and clears the prior run (see
+     * [DebugReport]), so the banner is now stale: hide it. Both share entry points
+     * route through here so the banner clears no matter which one is used (Codex
+     * on PR #91).
+     */
+    fun onDebugReportShared() {
+        _crashBannerVisible.value = false
+    }
+
+    /**
      * Whether the rules list is open. The SIMs screen is the home now (SPEC
      * "SIMs screen"), so the rules list is a sub-screen reached from it.
      * Mirrored into [SavedStateHandle] for the same reason as [editorTarget]:
