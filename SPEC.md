@@ -292,7 +292,11 @@ on; a SIM with no role shows no chip. Primary is read from the platform (the def
 voice and data subscriptions); preferred is computed by the same decision logic the
 call path and roaming watch use — the calling side asks which SIM a call *to the
 current country* would route to, the data side which SIM a "use for data" rule wants
-here — so a chip can never claim something the engine wouldn't actually do. It is a
+here — so a chip can never claim something the engine wouldn't actually do. When
+Android's automatic data switching has moved data off the primary, the SIM carrying it
+gets a separate **"Data · temporary"** chip (the active data sub differs from the
+default) — so the override is visible rather than silently masquerading as primary. It
+is a
 status view, not a control: Simmo cannot change either primary, so the screen carries
 two buttons — **Edit rules** (to the rules list, where *preferred* is set) and
 **Change SIMs** (the jump to Android's SIM settings, where *primary* is set). (This is

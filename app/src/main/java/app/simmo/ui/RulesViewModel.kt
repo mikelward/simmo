@@ -627,6 +627,7 @@ class RulesViewModel(
                     callingPrimary = status.callingPrimary,
                     callingPreferred = status.callingPreferred,
                     dataPrimary = status.dataPrimary,
+                    dataTemporary = status.dataTemporary,
                     dataPreferred = status.dataPreferred,
                 )
             } ?: row
