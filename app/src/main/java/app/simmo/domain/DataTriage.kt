@@ -40,7 +40,7 @@ sealed interface DataTriage {
     /**
      * No mobile data at all (data roaming off on a non-local SIM): a
      * connectivity problem, not a billing one, so the only honest resolution
-     * is System settings — there is no rule to make. [switchTo] names active
+     * is Change SIMs — there is no rule to make. [switchTo] names active
      * local SIMs; [enableFirst] disabled local profiles to enable first.
      */
     data class NoData(
@@ -53,7 +53,7 @@ sealed interface DataTriage {
 
     /**
      * A [DataExpectation.UseSimForData] rule wants [wantedSim] carrying data
-     * here, but [dataSim] is: the resolution is System settings (switch the
+     * here, but [dataSim] is: the resolution is Change SIMs (switch the
      * data SIM), not a new rule.
      */
     data class WrongSim(

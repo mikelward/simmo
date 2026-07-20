@@ -60,7 +60,7 @@ class ChooserScreenshotTest {
         composeRule.onNodeWithText("Call with Telstra AU").assertExists()
         composeRule.onNodeWithText("Call with SIP work").assertExists()
         composeRule.onNodeWithText("Your rule wanted Voda AU, but that SIM is disabled.").assertExists()
-        composeRule.onNodeWithText("System settings").assertExists()
+        composeRule.onNodeWithText("Change SIMs").assertExists()
         composeRule.onNodeWithText("Remember for Australia").assertExists()
         composeRule.onNodeWithText("Cancel call").assertExists()
         captureSnapshot("chooser.png")

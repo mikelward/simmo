@@ -7,6 +7,8 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -14,6 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
@@ -57,6 +60,14 @@ data class RegistrySimRowUi(
     val active: Boolean,
     /** Formatted last-seen date; only shown for inactive SIMs. */
     val lastSeenLabel: String,
+    /** Android's default voice SIM — "primary for calling" in the current country. */
+    val callingPrimary: Boolean = false,
+    /** The SIM Simmo's calling rules would use for a call to the current country. */
+    val callingPreferred: Boolean = false,
+    /** The SIM carrying data now — "primary for data" in the current country. */
+    val dataPrimary: Boolean = false,
+    /** The SIM Simmo's data rules want carrying data here. */
+    val dataPreferred: Boolean = false,
 )
 
 /**
@@ -70,8 +81,9 @@ fun SimRegistryScreen(
     viewModel: RulesViewModel,
     onBack: () -> Unit,
     onOpenSimSettings: () -> Unit,
+    onEditRules: () -> Unit,
 ) {
-    val rows by viewModel.registryRows.collectAsStateWithLifecycle()
+    val page by viewModel.simsPage.collectAsStateWithLifecycle()
     // The rows' own-number line needs READ_PHONE_NUMBERS (split from
     // READ_PHONE_STATE in API 30). Only requested when the phone grant is
     // already held: same permission group, so the request is granted silently
@@ -93,19 +105,23 @@ fun SimRegistryScreen(
         }
     }
     SimRegistryContent(
-        rows = rows,
+        rows = page.rows,
+        currentCountry = page.currentCountry,
         onDelete = viewModel::deleteRegisteredSim,
         onBack = onBack,
         onOpenSimSettings = onOpenSimSettings,
+        onEditRules = onEditRules,
     )
 }
 
 @Composable
 internal fun SimRegistryContent(
     rows: List<RegistrySimRowUi>,
+    currentCountry: String? = null,
     onDelete: (SimRef) -> Unit = {},
     onBack: () -> Unit = {},
     onOpenSimSettings: () -> Unit = {},
+    onEditRules: () -> Unit = {},
 ) {
     BackHandler(onBack = onBack)
     // The row awaiting delete confirmation; saveable so a rotation mid-confirm
@@ -123,23 +139,39 @@ internal fun SimRegistryContent(
             Text(
                 text = stringResource(R.string.sim_registry_title),
                 style = MaterialTheme.typography.headlineMedium,
-                modifier = Modifier.padding(bottom = 16.dp),
+                modifier = Modifier.padding(bottom = if (currentCountry != null) 4.dp else 16.dp),
             )
+            // Where the user is now — the context the primary/preferred status
+            // chips below are relative to. Hidden when the country is unknown.
+            currentCountry?.let {
+                Text(
+                    text = stringResource(R.string.sims_current_country, it),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 16.dp),
+                )
+            }
             Text(
                 text = stringResource(R.string.sim_registry_explainer),
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.padding(bottom = 16.dp),
             )
-            // Enabling or disabling a SIM is Settings' job (apps can't switch
-            // profiles themselves) — same jump the chooser offers, styled the
-            // same way.
-            OutlinedButton(
-                onClick = onOpenSimSettings,
+            // The two top actions: jump to the rules list, or to Android's SIM
+            // settings — enabling/disabling a SIM and changing the primary
+            // call/data SIM are Settings' job (apps can't do it themselves), so
+            // "Change SIMs" is the one label every jump out uses.
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(bottom = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Text(stringResource(R.string.system_settings))
+                OutlinedButton(onClick = onEditRules, modifier = Modifier.weight(1f)) {
+                    Text(stringResource(R.string.sims_edit_rules))
+                }
+                OutlinedButton(onClick = onOpenSimSettings, modifier = Modifier.weight(1f)) {
+                    Text(stringResource(R.string.change_sims))
+                }
             }
             LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 // Deliberately no item keys: after a restore invalidates every
@@ -202,6 +234,7 @@ private fun RegistryRow(row: RegistrySimRowUi, onDeleteRequest: () -> Unit) {
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            SimStatusChips(row)
         }
         if (!row.active) {
             IconButton(onClick = onDeleteRequest) {
@@ -211,6 +244,47 @@ private fun RegistryRow(row: RegistrySimRowUi, onDeleteRequest: () -> Unit) {
                 )
             }
         }
+    }
+}
+
+/**
+ * The current-country status chips under a SIM row: which role, if any, this
+ * SIM holds right now. **Primary** is what the phone is set to use (Android's
+ * own word — "Your primary SIMs"); **preferred** is what Simmo's rules would
+ * use here. Nothing renders when the SIM holds no role, so an ordinary SIM
+ * stays uncluttered.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun SimStatusChips(row: RegistrySimRowUi) {
+    val chips = buildList {
+        if (row.callingPrimary) add(R.string.sim_status_calling_primary)
+        if (row.callingPreferred) add(R.string.sim_status_calling_preferred)
+        if (row.dataPrimary) add(R.string.sim_status_data_primary)
+        if (row.dataPreferred) add(R.string.sim_status_data_preferred)
+    }
+    if (chips.isEmpty()) return
+    FlowRow(
+        modifier = Modifier.padding(top = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        chips.forEach { StatusChip(stringResource(it)) }
+    }
+}
+
+@Composable
+private fun StatusChip(label: String) {
+    Surface(
+        shape = RoundedCornerShape(8.dp),
+        color = MaterialTheme.colorScheme.secondaryContainer,
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSecondaryContainer,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+        )
     }
 }
 

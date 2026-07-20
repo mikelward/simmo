@@ -36,6 +36,7 @@ import app.simmo.domain.newRuleId
 import app.simmo.domain.newSimRuleInsertionIndex
 import app.simmo.domain.regionCodes
 import app.simmo.domain.resolveSim
+import app.simmo.domain.simStatuses
 import app.simmo.store.SimmoState
 import com.google.i18n.phonenumbers.NumberParseException
 import com.google.i18n.phonenumbers.PhoneNumberUtil
@@ -156,7 +157,7 @@ data class DataTriageUi(
     val countryLabel: String,
     /**
      * The other SIM named in the body: the local SIM to prefer (roaming and
-     * no-data — active or a disabled local profile alike; "Change SIM" is the
+     * no-data — active or a disabled local profile alike; "Change SIMs" is the
      * one action for both) or the wanted SIM (wrong-SIM).
      */
     val otherSimName: String?,
@@ -322,7 +323,7 @@ class RulesViewModel(
             dataSimName = dataSim.name(),
             countryLabel = countryDisplayName(country),
             // The local SIM to prefer: an active one to switch to, or a
-            // disabled local profile — "Change SIM" covers enabling it too.
+            // disabled local profile — "Change SIMs" covers enabling it too.
             otherSimName = switchTo.firstOrNull()?.name()
                 ?: enableFirst.firstOrNull()?.let { it.displayName.ifBlank { it.carrierName } },
             country = country.trim().uppercase(),
@@ -584,26 +585,57 @@ class RulesViewModel(
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     /**
-     * The SIMs screen rows: the whole registry with live active state, built
-     * off the main thread (the last-seen date formatting included, so
-     * composition just renders strings).
+     * The SIMs screen: the current country and the whole registry with live
+     * active state, each active SIM tagged with its current-country status
+     * (primary/preferred for calling and data). Built off the main thread — the
+     * last-seen date formatting and the libphonenumber-touching status
+     * derivation included — so composition just renders.
      */
-    val registryRows: StateFlow<List<RegistrySimRowUi>> =
+    val simsPage: StateFlow<SimsPageUi> =
         combine(
             app.stateHolders().flatMapLatest { holder -> holder?.state ?: flowOf(null) },
             app.assembler.simsAndAccounts(),
             app.assembler.dataStates(),
-        ) { state, sims, dataState ->
-            // The subscription rows join the call snapshot: a data-only eSIM
-            // is just as active, and without them its row would sort and
-            // label as "last seen" while it is live (Codex on PR #52).
-            buildRegistryRows(
-                state?.simRegistry.orEmpty(),
-                sims.activeSims + dataState.subscriptions,
-            )
-        }
+        ) { state, sims, dataState -> buildSimsPage(state, sims, dataState) }
             .flowOn(Dispatchers.Default)
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SimsPageUi())
+
+    private fun buildSimsPage(
+        state: SimmoState?,
+        sims: TelephonyReader.SimsAndAccounts,
+        dataState: TelephonyReader.DataState,
+    ): SimsPageUi {
+        // The subscription rows join the call snapshot: a data-only eSIM is just
+        // as active, and without them its row would sort and label as "last
+        // seen" while it is live (Codex on PR #52).
+        val active = allActiveSims(sims, dataState)
+        val rows = buildRegistryRows(state?.simRegistry.orEmpty(), active)
+        if (state == null) return SimsPageUi(rows = rows)
+        // Status reuses the decision engines' own logic (SimStatus.kt), so a
+        // chip can never disagree with what a call or a roaming arrival does.
+        val statuses = simStatuses(
+            callingBook = state.rules,
+            callingActiveSims = sims.activeSims,
+            defaultCallSubscriptionId = sims.defaultCallSubscriptionId,
+            dataBook = state.dataRules,
+            dataSnapshot = buildDataSnapshot(dataState, state),
+        )
+        val taggedRows = rows.map { row ->
+            statuses[row.ref.subscriptionId]?.let { status ->
+                row.copy(
+                    callingPrimary = status.callingPrimary,
+                    callingPreferred = status.callingPreferred,
+                    dataPrimary = status.dataPrimary,
+                    dataPreferred = status.dataPreferred,
+                )
+            } ?: row
+        }
+        // Where the user is — the data sub's network country, no SIM-country
+        // fallback, so a roaming SIM's home can't mask it (same field the
+        // roaming watch reads). Null (no header) when the platform reports none.
+        val country = dataState.networkCountry.trim().takeIf { it.isNotEmpty() }?.let(::countryDisplayName)
+        return SimsPageUi(currentCountry = country, rows = taggedRows)
+    }
 
     /**
      * Whether the SIMs screen is open. Mirrored into [SavedStateHandle] for
@@ -614,6 +646,20 @@ class RulesViewModel(
     val registryOpen: StateFlow<Boolean> = _registryOpen
 
     fun openSimRegistry() = setRegistryOpen(true)
+
+    /**
+     * The SIMs screen's "Edit rules" button: leave every stacked screen and
+     * land on the rules list. A deliberate forward navigation, so any open
+     * editor is abandoned like Cancel — the same shape as [openDataRules].
+     */
+    fun openRules() {
+        setEditorTarget(null)
+        setDataEditorTarget(null)
+        setRegistryOpen(false)
+        setGroupsOpen(false)
+        setSettingsOpen(false)
+        setLicensesOpen(false)
+    }
 
     /**
      * The Quick Settings tile's landing: a deliberate navigation, so any open
@@ -1025,6 +1071,15 @@ class RulesViewModel(
         const val GUARD_RELEASE_TIMEOUT_MILLIS = 5_000L
     }
 }
+
+/**
+ * The SIMs screen's rendered state: the current country (localized name, or
+ * null when the platform reports none) heading the list of registry rows.
+ */
+data class SimsPageUi(
+    val currentCountry: String? = null,
+    val rows: List<RegistrySimRowUi> = emptyList(),
+)
 
 internal fun buildRegistryRows(
     registry: List<RegisteredSim>,

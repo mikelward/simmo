@@ -70,8 +70,6 @@
     <!-- TODO: translate -->
     <string name="triage_ignore_trip" tools:ignore="MissingTranslation">Ignore for this trip</string>
     <!-- TODO: translate -->
-    <string name="triage_pick_sim" tools:ignore="MissingTranslation">Change SIM</string>
-    <!-- TODO: translate -->
     <string name="rule_matcher_any" tools:ignore="MissingTranslation">Any country</string>
     <!-- TODO: translate -->
     <string name="rule_action_use_sim" tools:ignore="MissingTranslation">Call with %1$s</string>
@@ -175,8 +173,11 @@
     <string name="chooser_no_sims" tools:ignore="MissingTranslation">No active SIM can place this call.</string>
     <!-- TODO: translate -->
     <string name="chooser_cancel" tools:ignore="MissingTranslation">Cancel call</string>
+    <!-- The one label for every jump out to Android's SIM settings (SPEC
+         "Product behavior"): enabling/disabling a SIM and changing the primary
+         call/data SIM are Settings' job, so one consistent term marks them all. -->
     <!-- TODO: translate -->
-    <string name="system_settings" tools:ignore="MissingTranslation">System settings</string>
+    <string name="change_sims" tools:ignore="MissingTranslation">Change SIMs</string>
     <!-- TODO: translate -->
     <string name="group_eu_eea" tools:ignore="MissingTranslation">EU/EEA</string>
     <!-- TODO: translate -->
@@ -271,6 +272,20 @@
     <string name="notification_local_number_body" tools:ignore="MissingTranslation">You dialed %1$s</string>
     <!-- TODO: translate -->
     <string name="sim_registry_title" tools:ignore="MissingTranslation">SIMs</string>
+    <!-- TODO: translate -->
+    <string name="sims_current_country" tools:ignore="MissingTranslation">Current country: %1$s</string>
+    <!-- TODO: translate -->
+    <string name="sims_edit_rules" tools:ignore="MissingTranslation">Edit rules</string>
+    <!-- Status chips: "primary" = the SIM the phone is set to use now (Android's
+         own word); "preferred" = the SIM Simmo's rules would use here. -->
+    <!-- TODO: translate -->
+    <string name="sim_status_calling_primary" tools:ignore="MissingTranslation">Calling · primary</string>
+    <!-- TODO: translate -->
+    <string name="sim_status_calling_preferred" tools:ignore="MissingTranslation">Calling · preferred</string>
+    <!-- TODO: translate -->
+    <string name="sim_status_data_primary" tools:ignore="MissingTranslation">Data · primary</string>
+    <!-- TODO: translate -->
+    <string name="sim_status_data_preferred" tools:ignore="MissingTranslation">Data · preferred</string>
     <!-- TODO: translate -->
     <string name="sim_registry_explainer" tools:ignore="MissingTranslation">Every SIM Simmo has seen. Rules can use a SIM even while it\'s disabled.</string>
     <!-- TODO: translate -->

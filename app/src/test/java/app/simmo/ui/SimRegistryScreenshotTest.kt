@@ -34,7 +34,10 @@ class SimRegistryScreenshotTest {
         composeRule.setContent {
             MaterialTheme {
                 SimRegistryContent(
+                    currentCountry = "Australia",
                     rows = listOf(
+                        // The local SIM: Android's primary for calls and data,
+                        // and Simmo's preferred for both here — all four chips.
                         RegistrySimRowUi(
                             ref = SimRef(1, "Telstra", "Telstra personal"),
                             name = "Telstra personal",
@@ -42,6 +45,10 @@ class SimRegistryScreenshotTest {
                             detail = "+61 412 345 678 · Australia",
                             active = true,
                             lastSeenLabel = "Jul 17, 2026",
+                            callingPrimary = true,
+                            callingPreferred = true,
+                            dataPrimary = true,
+                            dataPreferred = true,
                         ),
                         // An active data-only travel eSIM: registered for the
                         // roaming watch and shown as Active like any SIM, even
@@ -82,9 +89,14 @@ class SimRegistryScreenshotTest {
         composeRule.onNodeWithText("Orange Holiday").assertExists()
         composeRule.onNodeWithText("+61 412 345 678 · Australia").assertExists()
         composeRule.onNodeWithText("Last seen Mar 2, 2026").assertExists()
-        // The jump to system settings (the Quick Settings tile's landing
-        // screen leans on it: enabling SIMs is Settings' job).
-        composeRule.onNodeWithText("System settings").assertExists()
+        // The current-country header the status chips are relative to.
+        composeRule.onNodeWithText("Current country: Australia").assertExists()
+        // The primary/preferred status chips on the local SIM.
+        composeRule.onNodeWithText("Calling · primary").assertExists()
+        composeRule.onNodeWithText("Data · preferred").assertExists()
+        // The two top actions: the rules list, and the one jump-out label.
+        composeRule.onNodeWithText("Edit rules").assertExists()
+        composeRule.onNodeWithText("Change SIMs").assertExists()
         captureSnapshot("sim_registry.png")
     }
 

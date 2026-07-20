@@ -251,6 +251,7 @@ class MainActivity : ComponentActivity() {
                                 vm::closeSimRegistry
                             },
                             onOpenSimSettings = openSimSettingsAskingNotifications,
+                            onEditRules = vm::openRules,
                         )
 
                         // A Settings sub-screen: both the header Back button and

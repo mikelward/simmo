@@ -211,7 +211,7 @@ fun isMarkStale(mark: String?, snapshot: DataSnapshot): Boolean {
     return markedCountry != country || markedSubscription != snapshot.dataSubscriptionId
 }
 
-private fun DataSimScope.covers(
+internal fun DataSimScope.covers(
     dataSim: ActiveSim,
     matcher: RuleMatcher,
     snapshot: DataSnapshot,
