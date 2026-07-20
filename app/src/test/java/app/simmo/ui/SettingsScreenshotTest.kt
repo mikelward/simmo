@@ -44,6 +44,8 @@ class SettingsScreenshotTest {
         composeRule.waitForIdle()
 
         composeRule.onNodeWithText("Settings").assertExists()
+        // A visible Back button in the header, beside the system back gesture.
+        composeRule.onNodeWithText("Back").assertExists()
         // Rules leads the list (the SIMs screen is the home, so Settings no
         // longer links to it); Country groups follows.
         composeRule.onNodeWithText("Rules").assertExists()
@@ -67,6 +69,18 @@ class SettingsScreenshotTest {
         // Tall enough to show the whole scrolling page, including the footer
         // (the new "Share debug logs" row pushed the version line down).
         captureSnapshot("settings.png", heightPx = 2500)
+    }
+
+    @Test
+    fun tappingBackExitsSettings() {
+        var backed = false
+        composeRule.setContent {
+            MaterialTheme {
+                SettingsContent(onBack = { backed = true })
+            }
+        }
+        composeRule.onNodeWithText("Back").performClick()
+        composeRule.runOnIdle { assertEquals(true, backed) }
     }
 
     @Test

@@ -143,11 +143,22 @@ internal fun SettingsContent(
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp),
         ) {
-            Text(
-                text = stringResource(R.string.settings_title),
-                style = MaterialTheme.typography.headlineMedium,
-                modifier = Modifier.padding(bottom = 16.dp),
-            )
+            // The title with a Back button at the end — a visible exit beside
+            // the system back gesture, like the rules and Country groups
+            // sub-screens.
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = stringResource(R.string.settings_title),
+                    style = MaterialTheme.typography.headlineMedium,
+                    modifier = Modifier.weight(1f),
+                )
+                TextButton(onClick = onBack) { Text(stringResource(R.string.action_back)) }
+            }
             // The rules list, reachable here as well as from the home's "Edit
             // rules" button.
             Row(
