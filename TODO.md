@@ -418,11 +418,11 @@ Android Auto safeguards").
       (`docs/firebase-app-distribution.md`).
 - [x] Firebase App Distribution job for tester builds (`deploy` job; skips quietly
       until the Firebase secrets are populated).
-- [ ] Mark the debug/tester build on-device so it can't be confused with the Play
-      build: a " Debug" suffix on the launcher display name and a DEBUG badge,
-      mirroring the clothescast and typelauncher builds (typelauncher `AGENTS.md`
-      is the convention tiebreaker). Debug variant only — the release build stays
-      unbadged.
+- [ ] Mark the non-Play builds on-device so they can't be confused with the Play
+      build: a suffix on the launcher display name and a DEBUG badge, mirroring the
+      clothescast and typelauncher builds (typelauncher `AGENTS.md` is the convention
+      tiebreaker). Both `debug` (local) and `firebase` (the R8 build distributed to
+      testers) — the release build stays unbadged.
 - [x] Release keystore signing config + Play internal track upload
       (`docs/play-store-internal-track.md`; skips quietly until secrets are
       populated).

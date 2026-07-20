@@ -96,6 +96,23 @@ android {
                 signingConfig = signingConfigs.getByName("release")
             }
         }
+        // The build Firebase App Distribution ships to testers. It inherits the
+        // release build's R8 pipeline (same minify + proguard rules) so testers
+        // exercise — and catch regressions in — the exact shrinking/obfuscation
+        // a Play release would, instead of the unminified debug APK that never
+        // runs R8. It is signed with the debug key so it stays installable
+        // without a release keystore or Play setup, and so successive tester
+        // builds update in place on a device (same signature as the old debug
+        // distribution). Named for its distribution channel: `alpha`/`beta`
+        // would collide with Play's track names, and AGP reserves `test*`.
+        create("firebase") {
+            initWith(getByName("release"))
+            // Override the release signing inherited above: debug-signed, so no
+            // release secrets are needed to produce an installable tester APK.
+            signingConfig = signingConfigs.getByName("debug")
+            // Resolve dependency variants that only publish debug/release.
+            matchingFallbacks += "release"
+        }
     }
 
     buildFeatures {
