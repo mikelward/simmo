@@ -197,6 +197,19 @@ small stack), fully unit-tested, with `./gradlew test` and `./gradlew lint` gree
 - [x] SIMs screen rows show each SIM's own number and country (last-known,
       captured into the registry while the SIM was active; the number needs
       optional `READ_PHONE_NUMBERS`, requested silently on that screen).
+- [x] SIMs screen dashboard, step 1 (SPEC "SIMs screen"): lead with the current
+      country; tag each active SIM with its current-country roles — **primary**
+      (the platform's default voice/data SIM) and **preferred** (what Simmo's
+      rules would use here), split across calling and data — computed by pure
+      helpers mirroring the decision engine and the roaming watch (`SimStatus.kt`,
+      unit-tested); add **Edit rules** and **Change SIMs** buttons.
+  - [ ] Step 2: promote the SIMs screen to the app's home (above the rules list).
+        Deferred — decide the navigation, the Settings gear's new home, and the
+        Quick Settings tile landing; needs its own screenshot + nav pass.
+- [x] Standardize every jump out to Android's SIM settings on one label,
+      **"Change SIMs"** (SPEC "Product behavior") — retiring "System settings"
+      and the triage card's "Change SIM" one-off across the chooser, the SIMs
+      screen, and the data triage card.
 - [x] Settings screen behind the rules list's gear: the home for app-level
       options (the default-region override is the next candidate), with the
       SIM registry reached through it instead of directly from the gear.

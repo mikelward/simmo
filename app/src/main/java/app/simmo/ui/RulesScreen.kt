@@ -309,7 +309,7 @@ internal fun dataExpectationLabel(expectation: DataExpectationUi): String = when
  * live data situation exists, with the resolutions one tap away. For a roaming
  * situation, **Use in ⟨country⟩** records a Roaming OK rule for here — scoped
  * to the SIM now carrying data — and each **Use in ⟨group⟩** records it for a
- * whole group that contains the country instead; **Change SIM** jumps to
+ * whole group that contains the country instead; **Change SIMs** jumps to
  * system settings to switch the data SIM (or enable a local one). The no-data
  * and wrong-SIM situations have no rule to make, so they offer only Change
  * SIM. The buttons wrap ([FlowRow]) so a country in a few groups doesn't grow
@@ -366,7 +366,7 @@ private fun DataTriageCard(
                     Text(stringResource(R.string.triage_ignore_trip))
                 }
                 OutlinedButton(onClick = onOpenSimSettings) {
-                    Text(stringResource(R.string.triage_pick_sim))
+                    Text(stringResource(R.string.change_sims))
                 }
             }
         }

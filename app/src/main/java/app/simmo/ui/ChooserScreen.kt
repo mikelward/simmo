@@ -233,7 +233,7 @@ internal fun ChooserContent(
                             .fillMaxWidth()
                             .padding(top = 8.dp),
                     ) {
-                        Text(stringResource(R.string.system_settings))
+                        Text(stringResource(R.string.change_sims))
                     }
                 }
                 Spacer(modifier = Modifier.height(16.dp))

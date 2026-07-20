@@ -251,6 +251,7 @@ class MainActivity : ComponentActivity() {
                                 vm::closeSimRegistry
                             },
                             onOpenSimSettings = openSimSettingsAskingNotifications,
+                            onEditRules = vm::openRules,
                         )
 
                         groupsOpen -> GroupsScreen(

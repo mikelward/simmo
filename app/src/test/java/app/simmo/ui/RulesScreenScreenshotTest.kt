@@ -181,7 +181,7 @@ class RulesScreenScreenshotTest {
         composeRule.onNodeWithText("Use in USA + territories").assertExists()
         composeRule.onNodeWithText("Use in North America").assertExists()
         composeRule.onNodeWithText("Ignore for this trip").assertExists()
-        composeRule.onNodeWithText("Change SIM").assertExists()
+        composeRule.onNodeWithText("Change SIMs").assertExists()
         captureSnapshot("data_triage.png")
     }
 
@@ -247,7 +247,7 @@ class RulesScreenScreenshotTest {
         // No rule to make here - only the rule-free dismiss and the change-SIM
         // resolution. "Ignore for this trip" carries the card's arrival key.
         composeRule.onNodeWithText("Use in Australia").assertDoesNotExist()
-        composeRule.onNodeWithText("Change SIM").assertExists()
+        composeRule.onNodeWithText("Change SIMs").assertExists()
         composeRule.onNodeWithText("Ignore for this trip").performClick()
         composeRule.runOnIdle { assertEquals("noDataSwitch:2:1:AU", ignored) }
     }

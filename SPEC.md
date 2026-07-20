@@ -24,14 +24,16 @@ power behind them. **Calling rules** match the *destination* of an outgoing call
 ("when calling Australia…") and are **enforced**: Simmo redirects the call itself.
 **Data rules** match the *current country* ("when in Australia…") and are
 **watched**: Simmo cannot switch data, so it checks reality against the rule and
-warns with a guided fix. The third place is Android's own **System settings**, where
-every switch that actually changes phone state lives; Simmo reaches it by buttons
-labeled exactly that — one consistent term, so it is always obvious what Simmo does
-itself versus what only Android can do. One deliberate exception (maintainer,
-2026-07-19): the data triage card labels its jump **"Change SIM"** rather than
-"System settings," because on that card naming the actual goal reads clearer than
-the generic term — the card is already framed as a data-SIM problem, so the jump's
-purpose isn't ambiguous.
+warns with a guided fix. The third place is Android's own SIM settings, where every
+switch that actually changes phone state lives — enabling or disabling a SIM,
+choosing the primary voice/data SIM, toggling data roaming. Simmo can only hand the
+user there; it never flips any of it. Every button that makes that jump is labeled
+with one consistent term, **"Change SIMs"** (maintainer, 2026-07-20) — the chooser's
+disabled-SIM assist, the SIMs screen, and the data triage card all use it — so it is
+always obvious what Simmo does itself versus what only Android can do. (The term was
+briefly "System settings," with "Change SIM" as a one-off on the triage card;
+standardizing on the more concrete "Change SIMs" everywhere retired both — the goal
+was one word, not two plus an exception.)
 
 ### Calling rules
 
@@ -272,6 +274,28 @@ On devices with Multiple Enabled Profiles (recent Pixels), enabling one profile 
 require disabling another; where the platform does swap profiles, that trade is made by
 the user inside system Settings, never by Simmo.
 
+### SIMs screen
+
+The SIMs screen is Simmo's at-a-glance view of the phone's SIM setup. It leads with
+the **current country** (where the user is now — the data subscription's network
+country, the same "where am I" the roaming watch reads, so a roaming SIM's home can't
+mask it), then lists **every SIM Simmo has ever seen, active ones first** (SPEC
+"Disabled-SIM assist" — the registry). Each *active* SIM is tagged, for the current
+country, with the roles it holds: **primary** — the SIM the phone is set to use right
+now (Android's own word: its Settings show "Your primary SIMs → Calls / Mobile data")
+— and **preferred** — the SIM Simmo's *rules* would use here. Both split across
+calling and data, so a SIM can read as "Calling · primary", "Data · preferred", and so
+on; a SIM with no role shows no chip. Primary is read from the platform (the default
+voice and data subscriptions); preferred is computed by the same decision logic the
+call path and roaming watch use — the calling side asks which SIM a call *to the
+current country* would route to, the data side which SIM a "use for data" rule wants
+here — so a chip can never claim something the engine wouldn't actually do. It is a
+status view, not a control: Simmo cannot change either primary, so the screen carries
+two buttons — **Edit rules** (to the rules list, where *preferred* is set) and
+**Change SIMs** (the jump to Android's SIM settings, where *primary* is set). (This is
+step one toward making the SIMs screen the app's home; promoting it above the rules
+list is deferred.)
+
 ### Quick Settings tile
 
 A "Manage SIMs" tile in Quick Settings jumps straight into Simmo's SIMs screen, which
@@ -307,7 +331,7 @@ Data rules are an ordered list, first match wins, with the same editing surface 
 calling rules (drag to reorder, tap to edit, per-rule menu). The two lists live as
 **Calling / Data tabs on the rules home** (decided at build time, 2026-07): one
 screen, one set of affordances, the tab naming the list — matching the
-Calling rules / Data rules / System settings terminology split. Data rows and the
+Calling rules / Data rules / Change SIMs terminology split. Data rows and the
 data editor's matcher show plain country names, no dialing codes: the matcher is
 where the user *is*, not who they're calling. When no rule matches,
 the default is to **warn when the active data SIM is roaming** — once per
@@ -337,7 +361,7 @@ registry keeps each SIM's last-known home country precisely so a disabled eSIM c
 still be recognized as local). The nudge only fires when there is such a SIM to
 offer, follows the same Settings-into-triage flow. Unlike the roaming case there is
 no rule to record — "no mobile data here is fine" isn't a data-rule expectation — so
-the card's actions are **Change SIM** (the settings jump) and **Ignore for this
+the card's actions are **Change SIMs** (the settings jump) and **Ignore for this
 trip**, a rule-free per-trip dismiss that quiets the nudge — card and notification —
 without recording anything, leaning on the existing once-per-arrival suppression
 rather than a negative rule (see Triage).
@@ -368,7 +392,7 @@ with its honest resolutions one tap away:
   mark, deliberately separate from the notification's own mark so posting a warning
   can never pre-dismiss the card — and clears when the arrival ends (the country or
   data SIM changes), so the next trip surfaces the situation again.
-- **Change SIM** jumps to where the data SIM and roaming toggles actually live.
+- **Change SIMs** jumps to where the data SIM and roaming toggles actually live.
   Simmo sees the outcome via subscription callbacks and then offers to remember it
   as a "Use \<SIM\> for data" rule for this country.
 

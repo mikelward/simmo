@@ -40,6 +40,12 @@ class TelephonyReader(private val context: Context) {
         val callingAccounts: List<CallingAccount> = emptyList(),
         /** Domain ref ↔ platform handle, for turning verdicts back into redirects. */
         val handlesByRef: Map<PhoneAccountRef, PhoneAccountHandle> = emptyMap(),
+        /**
+         * The default voice subscription — the SIMs screen's "primary for
+         * calling" (the word Android's own SIM settings uses). INVALID when the
+         * device has none. Read alongside the SIMs, off the decision path.
+         */
+        val defaultCallSubscriptionId: Int = SubscriptionManager.INVALID_SUBSCRIPTION_ID,
     )
 
     fun hasPhonePermission(): Boolean =
@@ -133,13 +139,25 @@ class TelephonyReader(private val context: Context) {
                     // mislabel a SIM, so it stays dropped (as before).
                 }
             }
-            SimsAndAccounts(sims, accounts, handles)
+            SimsAndAccounts(sims, accounts, handles, defaultCallSubscriptionId())
         } catch (_: SecurityException) {
             SimsAndAccounts()
         } catch (_: UnsupportedOperationException) {
             SimsAndAccounts()
         }
     }
+
+    /**
+     * The default voice subscription id, or INVALID when the device has none
+     * (or the read is unsupported on a no-radio device). No permission beyond
+     * what the SIM read already holds; degrades to INVALID rather than throwing.
+     */
+    private fun defaultCallSubscriptionId(): Int =
+        try {
+            SubscriptionManager.getDefaultVoiceSubscriptionId()
+        } catch (_: UnsupportedOperationException) {
+            SubscriptionManager.INVALID_SUBSCRIPTION_ID
+        }
 
     /**
      * The SIM's own line number, or "" when unknown. Needs READ_PHONE_NUMBERS
