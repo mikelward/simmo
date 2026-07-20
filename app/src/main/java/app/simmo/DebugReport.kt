@@ -40,8 +40,9 @@ internal object DebugReport {
         startShare(context, text)
     }
 
-    private fun collectPayload(context: Context, state: SimmoState?): String =
-        buildDebugReportPayload(
+    private fun collectPayload(context: Context, state: SimmoState?): String {
+        val fileSink = (context.applicationContext as? SimmoApp)?.debugFileSink
+        val payload = buildDebugReportPayload(
             nowMillis = System.currentTimeMillis(),
             versionName = BuildConfig.VERSION_NAME,
             versionCode = BuildConfig.VERSION_CODE.toLong(),
@@ -56,7 +57,14 @@ internal object DebugReport {
             redirectionRoleHeld = isRedirectionRoleHeld(context),
             state = state,
             recentLog = SimmoDebugLog.snapshot(),
+            // The previous run's log if it ended without a clean exit (a crash or
+            // a silent kill) — read once and cleared, so it rides along in this
+            // report and this report only.
+            previousRun = fileSink?.readPreviousRun(),
         )
+        fileSink?.clearPreviousRun()
+        return payload
+    }
 
     private fun isRedirectionRoleHeld(context: Context): Boolean =
         runCatching {
@@ -106,6 +114,7 @@ internal fun buildDebugReportPayload(
     redirectionRoleHeld: Boolean,
     state: SimmoState?,
     recentLog: List<String>,
+    previousRun: String? = null,
 ): String {
     val timestamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss Z", Locale.US).format(Date(nowMillis))
     val head = buildString {
@@ -185,6 +194,24 @@ internal fun buildDebugReportPayload(
     } else {
         head
     }
+    // The previous run's log if it didn't exit cleanly — its own bounded section
+    // between the structured head and the current run's log, so the crash or kill
+    // that ended the last run is right there without crowding either neighbor out.
+    val crash = if (previousRun.isNullOrBlank()) {
+        ""
+    } else {
+        buildString {
+            appendLine()
+            appendLine("--- Previous run (ended without a clean exit) ---")
+            // Keep the NEWEST lines: the file is oldest-first, so the crash entry
+            // and the last decisions are at the end — a head take() would drop
+            // exactly the context this section exists for (Codex on PR #90).
+            appendLine(
+                boundedLogTail(previousRun.trimEnd().split("\n"), MAX_CRASH_PAYLOAD_CHARS)
+                    .joinToString("\n"),
+            )
+        }
+    }
     val log = buildString {
         appendLine()
         val kept = boundedLogTail(recentLog, MAX_LOG_PAYLOAD_CHARS)
@@ -197,7 +224,7 @@ internal fun buildDebugReportPayload(
             kept.forEach { appendLine(it) }
         }
     }
-    return boundedHead + log
+    return boundedHead + crash + log
 }
 
 /** A calling rule as one readable line: `destination → action [flags]`. */
@@ -256,6 +283,13 @@ private fun subLabel(subscriptionId: Int): String =
 
 /** ~0.3 MB of UTF-16 text — comfortably inside the ~1 MB Binder limit. */
 private const val MAX_LOG_PAYLOAD_CHARS = 150_000
+
+/**
+ * Ceiling for the previous-run crash section. Bounded here again (it is already
+ * capped when written to disk) so the three sections together — structured
+ * head, crash, current log — stay well inside the Binder limit.
+ */
+private const val MAX_CRASH_PAYLOAD_CHARS = 100_000
 
 /**
  * Ceiling for the structured section (build/device/settings/rules/SIMs/groups),

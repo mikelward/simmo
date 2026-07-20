@@ -21,6 +21,7 @@ import android.util.Log
 import androidx.annotation.VisibleForTesting
 import androidx.core.content.ContextCompat
 import androidx.datastore.core.DataStore
+import app.simmo.analytics.CrashlyticsDebugSink
 import app.simmo.analytics.TelemetryGate
 import app.simmo.domain.ActiveSim
 import app.simmo.domain.CountryVerdict
@@ -94,6 +95,14 @@ open class SimmoApp : Application() {
     val passTokens = PassTokenStore()
     val heldCalls = HeldCallStore()
     val notifications by lazy { SimNotifications(this) }
+
+    /**
+     * On-device persistence of the redacted debug log, so it survives a crash or
+     * a silent kill and can be shared next launch (read by [DebugReport]). Set in
+     * [onCreate]; null only before it runs.
+     */
+    internal var debugFileSink: DebugFileSink? = null
+        private set
 
     private val detector = PhoneNumberCountryDetector()
     private val stateHolderFlow = MutableStateFlow<SimmoStateHolder?>(null)
@@ -195,6 +204,17 @@ open class SimmoApp : Application() {
             ?: true
 
     /**
+     * Whether Crashlytics breadcrumbs may be sent right now — the effective
+     * opt-in read from memory only, but defaulting to **false** until the choice
+     * is affirmatively known (unlike [currentAnalyticsOptIn]'s default-on for
+     * UI), so nothing is mirrored before the stored choice loads. Read by
+     * [CrashlyticsDebugSink] at delivery, so the single source of truth
+     * (optInTaps) decides — no separate enabled flag to race (Codex on PR #90).
+     */
+    private fun crashlyticsBreadcrumbsAllowed(): Boolean =
+        optInTaps.value ?: stateHolder()?.current?.analyticsOptIn ?: false
+
+    /**
      * The effective "Make Simmo better" choice: the latest in-process tap (or
      * the durable marker it left behind) masking the persisted state. The
      * telemetry gate and the Settings switch both read this stream, so the
@@ -239,6 +259,16 @@ open class SimmoApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        // Persist the redacted debug log to disk so it survives a crash or a
+        // silent kill. start() rotates the prior run's log aside and installs a
+        // chained crash handler (Crashlytics's own handler runs after when a
+        // Firebase config is present). Register it as a sink AFTER start() so the
+        // rotate is ordered before this run's writes. All disk work is on a
+        // background worker — off the decision path ("Fast decision path").
+        val fileSink = DebugFileSink(this)
+        fileSink.start()
+        SimmoDebugLog.addSink(fileSink)
+        debugFileSink = fileSink
         val reader = TelephonyReader(this)
         assembler = SnapshotAssembler(
             reader = reader,
@@ -307,6 +337,14 @@ open class SimmoApp : Application() {
             val gate = telemetry ?: return@launch
             // A marked opt-out runs its cleanup now, not after the state loads.
             if (optInTaps.value == false) gate.set(false)
+            // Mirror captured log lines into Crashlytics breadcrumbs so an
+            // uploaded crash report carries the recent routing decisions. The
+            // sink reads the effective opt-in itself, at delivery
+            // ([crashlyticsBreadcrumbsAllowed]) — there is no enabled flag toggled
+            // from two threads to race (Codex on PR #90), and it is false until
+            // the choice is known, so nothing mirrors before then. This collector
+            // just follows the same choice for Firebase collection.
+            SimmoDebugLog.addSink(CrashlyticsDebugSink(optedIn = ::crashlyticsBreadcrumbsAllowed))
             gate.follow(analyticsOptIns())
         }
         appScope.launch {
@@ -563,6 +601,10 @@ open class SimmoApp : Application() {
         // writes the main state sequentially. Apply to the SDKs now as well —
         // a crash or upload while that write is in flight must already honor
         // the tap.
+        // Publishing the tap first makes the opt-out visible to the breadcrumb
+        // sink synchronously (it reads [crashlyticsBreadcrumbsAllowed], i.e.
+        // optInTaps, at delivery), so no breadcrumb is sent after the gate's
+        // Firebase cleanup below (Codex on PR #90).
         optInTaps.value = enabled
         telemetry?.set(enabled)
     }

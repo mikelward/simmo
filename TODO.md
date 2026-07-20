@@ -652,13 +652,15 @@ System settings.
 - [x] Decide on crash reporting (Crashlytics) and usage analytics — decided and
       landed per SPEC "Permissions and privacy": Firebase Crashlytics + Analytics
       compiled in, dormant without a `google-services.json` at build time
-      (`SETUP.md`), collection gated on the "Make Simmo better" opt-in. Only
-      automatic telemetry so far; the candidate custom signals (SIM name ×
-      destination country routing counts, call completion/failure rates — never
-      contact names/numbers or dialed numbers) are still open, below.
+      (`SETUP.md`), collection gated on the "Make Simmo better" opt-in. Firebase's
+      automatic telemetry plus one custom signal — the recent redacted routing log,
+      attached to crash reports as breadcrumbs (see "Share debug logs"); the candidate
+      analytics signals (SIM name × destination country routing counts, call
+      completion/failure rates — never contact names/numbers or dialed numbers) are
+      still open, below.
 - [ ] Custom analytics signals (SIM name × destination country routing counts,
-      call completion/failure rates) — decide and implement off the decision path;
-      nothing beyond Firebase's automatic events is logged today.
+      call completion/failure rates) — decide and implement off the decision path.
+      (The redacted debug-log breadcrumbs already ship; these aggregate counters do not.)
 - [ ] Fill in the Play data safety form for crash reporting/analytics before the
       first Play release built with Firebase enabled — answers recorded in
       `docs/play-store-internal-track.md` "App content declarations".

@@ -532,9 +532,13 @@ Key platform constraints the design honors:
   us." A timeout is a dropped call, so Simmo never relies on it: every path — rule
   hit, no match, missing or half-loaded snapshot, cold start, internal error — ends in
   an explicit answer (worst case "proceed unmodified") delivered well inside the
-  deadline. The decision path therefore reads only from an in-memory snapshot (rules,
-  SIM registry, phone accounts) kept warm off the main thread; the service never does
-  I/O, parsing table loads, or IPC on the decision path.
+  deadline. The decision path therefore reads from an in-memory snapshot (rules,
+  SIM registry, phone accounts) kept warm off the main thread, and — the invariant that
+  actually matters — it never *blocks*: the code between `onPlaceCall` and `respond()`
+  waits on no synchronous disk, parsing-table load, IPC, or main-thread work. Background
+  work off the decision coroutine (async logging, a disk write-through on a worker
+  thread) is fine and doesn't count against the deadline — the rule is "don't make
+  `respond()` wait," not "never touch disk near a call."
 - **Redirect-loop guard.** The Ask and hand-off flows cancel a call and later re-place
   it, which routes the new call back through Simmo. Re-placed calls carry a short-lived
   in-memory pass token (number + chosen account + expiry); a call matching a live token
@@ -717,9 +721,13 @@ UI is forbidden).
   before the state loads, and an opt-out is additionally marked durably at tap
   time in its own device-local store (read at startup before the main state), so
   a crash that loses the main settings write can neither resurrect collection nor
-  upload the tail-of-session crash report. Only automatic telemetry ships today (crash traces,
-  first-open/screen/session events); the advertising ID is stripped and ad
-  personalization disabled. Candidate future signals: SIM name × destination
+  upload the tail-of-session crash report. Beyond Firebase's automatic signals (crash
+  traces, first-open/screen/session events), the one piece of *custom* telemetry today is
+  the recent **redacted** routing log, attached to uploaded crash reports as Crashlytics
+  breadcrumbs when collection is on — the same masked lines the shared debug log shows, so
+  a crash arrives with the decisions that led to it, never a full dialed number, gated by
+  the same opt-in as everything else. The advertising ID is stripped and ad personalization
+  disabled. Still-deferred custom signals: SIM name × destination
   country routing counts and call completion/failure rates — never dialed numbers.
   `docs/PRIVACY.md` and the Play data safety form must describe the collection in
   any release built with Firebase enabled.
@@ -739,12 +747,22 @@ UI is forbidden).
   recent routing decisions and errors — the rule and SIM detail is the point, since
   counts alone can't explain why a given rule did or didn't fire. It is only ever built
   and shared on an explicit tap, via the system share sheet (and copied to the clipboard
-  as a fallback); nothing is transmitted automatically. The buffer is never persisted;
-  every phone number that appears — a dialed number, or a SIM's own number — is redacted
+  as a fallback); nothing is transmitted automatically. **The redacted buffer is mirrored
+  continuously to an app-private file** on a background worker, so it survives the process
+  ending — a crash *or* a silent kill (the background redirection process is killed with
+  no UI and no uncaught exception, so a crash-only handler would miss the very "it exited
+  immediately" case). A chained `UncaughtExceptionHandler` forces a final synchronous
+  write on a crash and still lets Crashlytics run. At the next start the prior run's file
+  is rotated aside and folded into the report under a "Previous run" section, then deleted
+  once read, so it is reported once. This is off the decision path — the decision answers
+  from the in-memory snapshot and the mirror write is a fire-and-forget background append
+  (see "The decision deadline") — and the file holds the same redacted content as the log.
+  Every phone number that appears — a dialed number, or a SIM's own number — is redacted
   to a fingerprint (a few leading/trailing characters, the rest masked), and opaque
-  Telecom account ids are logged only as non-identifying fingerprints, so the "full
-  dialed numbers never reach disk or a backup" line above still holds. The whole payload
-  is size-bounded so a large rule set or log can't defeat the share.
+  Telecom account ids are logged only as non-identifying fingerprints; the file lives in
+  `cacheDir` (excluded from backup) and never holds a complete number, so the "dialed
+  numbers never reach a backup" line above still holds. The whole payload is size-bounded
+  so a large rule set or log can't defeat the share.
 - **Backups are on** (maintainer decision): rules, the SIM registry, and settings are
   included in Android backups and device-to-device transfers via explicit extraction
   rules scoped to exactly Simmo's own state files, so a phone upgrade keeps the rule

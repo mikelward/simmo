@@ -36,6 +36,30 @@ internal object SimmoDebugLog {
         SimpleDateFormat("MM-dd HH:mm:ss.SSS", Locale.US)
     }
 
+    /**
+     * External mirrors that each redacted line is fanned out to — the on-device
+     * persistence file (always on) and, when Firebase is present and the user
+     * has opted in, Crashlytics breadcrumbs. Only the already-redacted buffer
+     * entry is passed, never a raw dialed number. Empty in plain-JUnit tests;
+     * wired in SimmoApp. Kept behind this interface so this object stays
+     * Android-/Firebase-free and unit-testable. Copy-on-write so fan-out never
+     * blocks on registration, and each call is isolated so one sink's failure
+     * can't affect another or the decision path.
+     */
+    private val sinks = java.util.concurrent.CopyOnWriteArrayList<Sink>()
+
+    fun interface Sink {
+        fun log(line: String)
+    }
+
+    fun addSink(sink: Sink) {
+        sinks.addIfAbsent(sink)
+    }
+
+    fun removeSink(sink: Sink) {
+        sinks.remove(sink)
+    }
+
     fun event(message: String) {
         // Recording must never throw: these run on the decision path (see
         // RedirectionCoordinator), so an exception here must not preempt the
@@ -62,10 +86,17 @@ internal object SimmoDebugLog {
 
     private fun record(level: Char, message: String, throwable: Throwable?) {
         val timestamp = timestampFormat.get()!!.format(Date())
+        // Scrub the message itself, not just the throwable trace: a caller can
+        // interpolate a free-form SIM/account display label (via
+        // [Verdict.debugSummary]) that is itself a phone number, and every entry
+        // is now exported automatically — to the persisted file ([DebugFileSink])
+        // and Crashlytics breadcrumbs — not only the user-reviewed share.
+        // Bounded first so scrubbing stays cheap on the decision path (Codex #90).
+        val safeMessage = scrubPii(message.take(DEBUG_LOG_MAX_ENTRY_CHARS))
         val entry = if (throwable == null) {
-            "$timestamp $level $SIMMO_DEBUG_TAG: $message"
+            "$timestamp $level $SIMMO_DEBUG_TAG: $safeMessage"
         } else {
-            "$timestamp $level $SIMMO_DEBUG_TAG: $message\n${throwable.sanitizedTrace().trimEnd()}"
+            "$timestamp $level $SIMMO_DEBUG_TAG: $safeMessage\n${throwable.sanitizedTrace().trimEnd()}"
         }
         val bounded = if (entry.length > DEBUG_LOG_MAX_ENTRY_CHARS) {
             entry.take(DEBUG_LOG_MAX_ENTRY_CHARS) + "…(truncated)"
@@ -76,6 +107,16 @@ internal object SimmoDebugLog {
             if (buffer.size >= DEBUG_LOG_MAX_ENTRIES) buffer.removeFirst()
             buffer.addLast(bounded)
         }
+        // Fan the redacted entry out to every mirror after it is safely in the
+        // buffer. Each is isolated and best-effort: a sink failure must never
+        // propagate onto the decision path (Codex #83), and sinks enqueue rather
+        // than block, so this stays off the response path (Codex #90).
+        sinks.forEach { runCatching { it.log(bounded) } }
+    }
+
+    /** Test-only: detaches all mirrors so tests don't leak a sink into each other. */
+    internal fun clearSinksForTest() {
+        sinks.clear()
     }
 
     // Render the exception type, its message, and stack frames. A platform

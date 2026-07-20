@@ -102,6 +102,41 @@ class DebugReportTest {
     }
 
     @Test
+    fun `report includes the previous run only when one is present`() {
+        assertFalse(payload(SimmoState()).contains("Previous run"))
+        val withPrevious = buildDebugReportPayload(
+            nowMillis = 0L, versionName = "v", versionCode = 1, buildType = "debug",
+            applicationId = "app.simmo", isDebuggable = true, deviceManufacturer = "G",
+            deviceModel = "P", androidRelease = "15", androidSdkInt = 35, locale = Locale.US,
+            redirectionRoleHeld = true, state = SimmoState(),
+            recentLog = listOf("07-20 D SimmoDebug: back up and running"),
+            previousRun = "07-20 D SimmoDebug: Decision +614••78 -> Ask\n" +
+                "07-20 W SimmoDebug: Uncaught exception in thread main",
+        )
+        assertTrue(withPrevious.contains("--- Previous run (ended without a clean exit) ---"))
+        assertTrue(withPrevious.contains("Uncaught exception in thread main"))
+        // The current run's log still follows the previous-run section.
+        assertTrue(withPrevious.contains("back up and running"))
+    }
+
+    @Test
+    fun `an oversized previous run keeps its newest lines, including the crash`() {
+        // The file is oldest-first and the crash entry is last; an over-cap
+        // previous run must keep the tail, not the head (Codex #90).
+        val big = (0 until 300).joinToString("\n") { "line-$it " + "x".repeat(600) } +
+            "\n07-20 W SimmoDebug: Uncaught exception in thread main"
+        val text = buildDebugReportPayload(
+            nowMillis = 0L, versionName = "v", versionCode = 1, buildType = "debug",
+            applicationId = "app.simmo", isDebuggable = true, deviceManufacturer = "G",
+            deviceModel = "P", androidRelease = "15", androidSdkInt = 35, locale = Locale.US,
+            redirectionRoleHeld = true, state = SimmoState(), recentLog = emptyList(),
+            previousRun = big,
+        )
+        assertTrue("the crash entry at the end survives", text.contains("Uncaught exception in thread main"))
+        assertFalse("the oldest line is dropped", text.contains("line-0 "))
+    }
+
+    @Test
     fun `report notes when state has not loaded yet`() {
         val text = payload(state = null)
         assertTrue(text.contains("(state not loaded yet)"))
