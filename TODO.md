@@ -448,10 +448,20 @@ Android Auto safeguards").
 - [x] Firebase App Distribution job for tester builds (`deploy` job; skips quietly
       until the Firebase secrets are populated).
 - [ ] Mark the non-Play builds on-device so they can't be confused with the Play
-      build: a suffix on the launcher display name and a DEBUG badge, mirroring the
-      clothescast and typelauncher builds (typelauncher `AGENTS.md` is the convention
-      tiebreaker). Both `debug` (local) and `firebase` (the R8 build distributed to
-      testers) — the release build stays unbadged.
+      build: a suffix on the launcher display name, a DEBUG badge, and a build-specific
+      Quick Settings tile label (`ManageSimsTileService`), mirroring the clothescast and
+      typelauncher builds (typelauncher `AGENTS.md` is the convention tiebreaker). The
+      `debug` build is both the local build and the tester build distributed to Firebase;
+      the release build stays unbadged.
+- [ ] Before the first Google Play publish, match typelauncher and clothescast:
+      distribute a non-R8 `debug` build with a `.debug` `applicationIdSuffix` to Firebase
+      instead of the R8 `firebase` build type. Add `applicationIdSuffix = ".debug"` to the
+      `debug` build type, point CI's Firebase step at `assembleDebug`, and drop the
+      `firebase` build type. The tester package becomes `app.simmo.debug`, co-installable
+      beside the release-signed Play `app.simmo`. Register an `app.simmo.debug` Firebase
+      Android app and repoint CI's `GOOGLE_SERVICES_JSON` / `FIREBASE_APP_ID` secrets at
+      it. Doing this before the first Play publish avoids a tester migration off the
+      current unsuffixed `app.simmo` build.
 - [x] Release keystore signing config + Play internal track upload
       (`docs/play-store-internal-track.md`; skips quietly until secrets are
       populated).
