@@ -617,6 +617,7 @@ class RulesViewModel(
             callingBook = state.rules,
             callingActiveSims = sims.activeSims,
             defaultCallSubscriptionId = sims.defaultCallSubscriptionId,
+            defaultDataSubscriptionId = dataState.defaultDataSubscriptionId,
             dataBook = state.dataRules,
             dataSnapshot = buildDataSnapshot(dataState, state),
         )

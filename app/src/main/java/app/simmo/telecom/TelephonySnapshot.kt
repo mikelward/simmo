@@ -229,6 +229,16 @@ class TelephonyReader(private val context: Context) {
          */
         val dataSubscriptionId: Int = SubscriptionManager.INVALID_SUBSCRIPTION_ID,
         /**
+         * The user-selected default data subscription — the SIMs screen's
+         * "primary for data" (what Android's own settings show under "Your
+         * primary SIMs"). Kept distinct from [dataSubscriptionId]: automatic
+         * data switching can move the *active* data sub to another SIM
+         * temporarily without the user changing this primary, and the chip
+         * must name what the user chose, not the transient one. INVALID when
+         * the device has none.
+         */
+        val defaultDataSubscriptionId: Int = SubscriptionManager.INVALID_SUBSCRIPTION_ID,
+        /**
          * The data subscription's network country. Deliberately *not* the
          * [readNetworkRegion] value: that one falls back to the SIM country,
          * and a roaming SIM's home country must never mask where the user is.
@@ -267,9 +277,10 @@ class TelephonyReader(private val context: Context) {
             } catch (_: UnsupportedOperationException) {
                 emptyList()
             }
+            val defaultDataSubId = SubscriptionManager.getDefaultDataSubscriptionId()
             val dataSubId = SubscriptionManager.getActiveDataSubscriptionId()
                 .takeIf { it != SubscriptionManager.INVALID_SUBSCRIPTION_ID }
-                ?: SubscriptionManager.getDefaultDataSubscriptionId()
+                ?: defaultDataSubId
             val roaming = mutableSetOf<Int>()
             val dataRoamingEnabled = mutableSetOf<Int>()
             val simRows = mutableListOf<ActiveSim>()
@@ -323,7 +334,14 @@ class TelephonyReader(private val context: Context) {
             } catch (_: UnsupportedOperationException) {
                 ""
             }
-            DataState(dataSubId, networkCountry, roaming, dataRoamingEnabled, simRows)
+            DataState(
+                dataSubscriptionId = dataSubId,
+                defaultDataSubscriptionId = defaultDataSubId,
+                networkCountry = networkCountry,
+                roamingSubscriptionIds = roaming,
+                dataRoamingEnabledSubscriptionIds = dataRoamingEnabled,
+                subscriptions = simRows,
+            )
         } catch (_: SecurityException) {
             DataState()
         } catch (_: UnsupportedOperationException) {
