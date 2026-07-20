@@ -84,10 +84,10 @@ class TelephonyReader(private val context: Context) {
             val accounts = mutableListOf<CallingAccount>()
             val handles = mutableMapOf<PhoneAccountRef, PhoneAccountHandle>()
             for (handle in telecom.callCapablePhoneAccounts) {
-                // API 30+: the platform's own mapping from phone account to
-                // subscription — the reason minSdk is 30. Absent or
-                // feature-less telephony can't map any handle, and on such a
-                // device no handle is a SIM's — invalid is the true answer.
+                // The platform's own mapping from phone account to subscription
+                // (available since API 30; minSdk is comfortably above that).
+                // Absent or feature-less telephony can't map any handle, and on
+                // such a device no handle is a SIM's — invalid is the true answer.
                 // (SecurityException still propagates to the outer catch: a
                 // revoked permission must empty the snapshot, not relabel
                 // SIM accounts as generic calling accounts.)

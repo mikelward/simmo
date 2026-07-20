@@ -16,6 +16,9 @@ itself; see "Data rules").
 Primary target: Pixel phones on current Android (Android 17 at the time of writing),
 where several eSIM profiles can be installed at once and swapped in Settings.
 
+Minimum supported version: Android 14 (API 34). Older devices (Android 11–13) can
+neither install nor update to this release.
+
 ## Product behavior
 
 Simmo keeps two rule lists that share one grammar — ordered, first applicable rule
