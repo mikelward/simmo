@@ -1,11 +1,13 @@
 package app.simmo
 
+import android.Manifest
 import android.app.Application
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.PackageManager
 import android.database.ContentObserver
 import android.net.ConnectivityManager
 import android.net.Network
@@ -112,6 +114,10 @@ open class SimmoApp : Application() {
     /** Trailing-edge debounce for the contacts-change observer; latest wins. */
     @Volatile
     private var contactRefreshJob: Job? = null
+
+    /** Guards [registerContactsObserver] so a grant only registers once. */
+    @Volatile
+    private var contactsObserverRegistered = false
 
     /**
      * Serializes roaming-watch checks (same shape as the assembler's
@@ -338,32 +344,64 @@ open class SimmoApp : Application() {
             ContextCompat.RECEIVER_NOT_EXPORTED,
         )
 
-        // Contacts can change while Simmo stays resident (a WhatsApp contact
-        // added, removed, or its call-action row re-synced). Without tracking
-        // that, the warm index would keep returning a stale — possibly deleted —
-        // Data row for a hand-off, so the service would cancel the carrier call
-        // and open WhatsApp on a dead row. Rebuild on change, debounced because
-        // a single account sync fires a burst of notifications. Delivered on a
-        // binder thread (null handler), so no main-thread work. Registered
-        // unconditionally: without READ_CONTACTS the rebuild degrades to empty.
-        contentResolver.registerContentObserver(
-            ContactsContract.AUTHORITY_URI,
-            /* notifyForDescendants = */ true,
-            object : ContentObserver(null) {
-                override fun onChange(selfChange: Boolean) {
-                    // Drop the possibly-stale index *now* so a call placed during
-                    // the debounce can't route to a just-deleted Data row (it
-                    // degrades to "proceed unmodified"); debounce only the
-                    // expensive repopulation.
-                    assembler.clearContacts()
-                    contactRefreshJob?.cancel()
-                    contactRefreshJob = appScope.launch {
-                        delay(CONTACT_REFRESH_DEBOUNCE_MILLIS)
-                        assembler.refreshContacts()
+        // Watch for contact changes (see [registerContactsObserver]). A no-op
+        // until READ_CONTACTS is held — registering an observer on the Contacts
+        // provider requires that permission, so an unconditional register here
+        // throws SecurityException on a fresh install and takes the whole
+        // process down in onCreate, before onboarding can even ask for it. The
+        // grant paths re-attempt through [refreshContacts].
+        registerContactsObserver()
+    }
+
+    /**
+     * Registers the contacts-change observer, once READ_CONTACTS is held.
+     *
+     * Contacts can change while Simmo stays resident (a WhatsApp contact added,
+     * removed, or its call-action row re-synced). Without tracking that, the
+     * warm index would keep returning a stale — possibly deleted — Data row for
+     * a hand-off, so the service would cancel the carrier call and open WhatsApp
+     * on a dead row. Rebuild on change, debounced because a single account sync
+     * fires a burst of notifications. Delivered on a binder thread (null
+     * handler), so no main-thread work.
+     *
+     * Registering an observer on the Contacts provider itself requires
+     * READ_CONTACTS, so this must not run before the grant: it no-ops without
+     * the permission (the index already degrades to empty there) and the grant
+     * paths call it again via [refreshContacts]. Idempotent — a second call
+     * after registration does nothing — and defensive against a revoke racing
+     * the check, degrading to no live updates rather than crashing.
+     */
+    @Synchronized
+    internal fun registerContactsObserver() {
+        if (contactsObserverRegistered) return
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_CONTACTS) !=
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            return
+        }
+        try {
+            contentResolver.registerContentObserver(
+                ContactsContract.AUTHORITY_URI,
+                /* notifyForDescendants = */ true,
+                object : ContentObserver(null) {
+                    override fun onChange(selfChange: Boolean) {
+                        // Drop the possibly-stale index *now* so a call placed during
+                        // the debounce can't route to a just-deleted Data row (it
+                        // degrades to "proceed unmodified"); debounce only the
+                        // expensive repopulation.
+                        assembler.clearContacts()
+                        contactRefreshJob?.cancel()
+                        contactRefreshJob = appScope.launch {
+                            delay(CONTACT_REFRESH_DEBOUNCE_MILLIS)
+                            assembler.refreshContacts()
+                        }
                     }
-                }
-            },
-        )
+                },
+            )
+            contactsObserverRegistered = true
+        } catch (e: SecurityException) {
+            Log.e("SimmoApp", "Contacts observer registration failed", e)
+        }
     }
 
     /**
@@ -408,7 +446,14 @@ open class SimmoApp : Application() {
      * is granted (the startup build ran before the grant and read nothing).
      */
     fun refreshContacts() {
-        appScope.launch { assembler.refreshContacts() }
+        appScope.launch {
+            // Every contacts-grant path funnels through here, so this is where a
+            // just-granted permission finally gets the change observer that
+            // onCreate had to skip. Idempotent, so the refreshes that aren't
+            // grants (a resume, a telephony refresh) cost nothing.
+            registerContactsObserver()
+            assembler.refreshContacts()
+        }
     }
 
     /**
