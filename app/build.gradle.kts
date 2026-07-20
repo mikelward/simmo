@@ -40,11 +40,11 @@ android {
 
     defaultConfig {
         applicationId = "app.simmo"
-        // CallRedirectionService exists since API 29, but mapping a
-        // PhoneAccountHandle to its subscription without OEM-specific guesswork
-        // (TelephonyManager.getSubscriptionId(handle)) needs API 30 — and the
-        // primary target is current Pixels anyway (SPEC).
-        minSdk = 30
+        // minSdk 34 (Android 14) is the device floor across the target fleet.
+        // Independently, mapping a PhoneAccountHandle to its subscription without
+        // OEM-specific guesswork (TelephonyManager.getSubscriptionId(handle)) needs
+        // at least API 30, and the primary target is current Pixels anyway (SPEC).
+        minSdk = 34
         targetSdk = 36
         versionCode = gitCommitCount
         versionName = "$baseVersionName.$gitCommitCount+$gitShortSha"
