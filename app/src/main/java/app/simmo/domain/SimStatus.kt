@@ -16,14 +16,22 @@ data class SimStatus(
     val callingPrimary: Boolean = false,
     /** The SIM your calling rules would place a call to this country on. */
     val callingPreferred: Boolean = false,
-    /** The SIM carrying data now: Android's default (or active) data SIM. */
+    /** Android's default (user-selected) data SIM. */
     val dataPrimary: Boolean = false,
+    /**
+     * The SIM *actually* carrying data right now while it is not the primary —
+     * Android's automatic data switching has moved data here temporarily. Only
+     * set when the active data sub differs from the default, so a normal setup
+     * (data on the primary) never shows it.
+     */
+    val dataTemporary: Boolean = false,
     /** The SIM your data rules want carrying data here. */
     val dataPreferred: Boolean = false,
 ) {
     /** True when no role applies — the row shows no status chips. */
     val isEmpty: Boolean
-        get() = !callingPrimary && !callingPreferred && !dataPrimary && !dataPreferred
+        get() = !callingPrimary && !callingPreferred && !dataPrimary &&
+            !dataTemporary && !dataPreferred
 }
 
 /**
@@ -37,8 +45,10 @@ data class SimStatus(
  * [defaultDataSubscriptionId]) — what Android's own "Your primary SIMs" shows —
  * NOT the SIM transiently carrying data ([DataSnapshot.dataSubscriptionId]),
  * which automatic data switching can move without the user changing anything
- * (Codex on PR #79). The **preferred** roles still read the active data sub,
- * since they mirror what the rules would actually do to the live arrangement.
+ * (Codex on PR #79). When those two differ, the SIM carrying data now gets the
+ * separate **temporary** role, so the switch is visible instead of hidden. The
+ * **preferred** roles read the active data sub, since they mirror what the rules
+ * would actually do to the live arrangement.
  *
  * A subscription absent from the returned map has no role in this country; the
  * caller renders no chips for it. Inactive/registered-only SIMs never appear —
@@ -55,6 +65,16 @@ fun simStatuses(
     val country = dataSnapshot.networkCountry.trim().uppercase().ifEmpty { null }
     val callingPreferred = preferredCallingSubId(callingBook, callingActiveSims, country, dataSnapshot.customGroups)
     val dataPreferred = preferredDataSubId(dataBook, dataSnapshot)
+    // The SIM carrying data now, only when it differs from the chosen primary —
+    // an automatic-data-switching override. Both must be real ids: with no
+    // configured primary there is nothing for the active sub to deviate from.
+    val activeData = dataSnapshot.dataSubscriptionId
+    val temporaryData = activeData
+        .takeIf {
+            it != SimRef.INVALID_SUBSCRIPTION_ID &&
+                defaultDataSubscriptionId != SimRef.INVALID_SUBSCRIPTION_ID &&
+                it != defaultDataSubscriptionId
+        }
 
     val ids = buildSet {
         callingActiveSims.forEach { add(it.subscriptionId) }
@@ -65,6 +85,7 @@ fun simStatuses(
             callingPrimary = id == defaultCallSubscriptionId,
             callingPreferred = id == callingPreferred,
             dataPrimary = id == defaultDataSubscriptionId,
+            dataTemporary = id == temporaryData,
             dataPreferred = id == dataPreferred,
         )
     }.filterValues { !it.isEmpty }

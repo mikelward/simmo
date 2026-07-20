@@ -64,8 +64,10 @@ data class RegistrySimRowUi(
     val callingPrimary: Boolean = false,
     /** The SIM Simmo's calling rules would use for a call to the current country. */
     val callingPreferred: Boolean = false,
-    /** The SIM carrying data now — "primary for data" in the current country. */
+    /** Android's default (user-selected) data SIM — "primary for data". */
     val dataPrimary: Boolean = false,
+    /** The SIM carrying data now while it isn't the primary (auto data switch). */
+    val dataTemporary: Boolean = false,
     /** The SIM Simmo's data rules want carrying data here. */
     val dataPreferred: Boolean = false,
 )
@@ -261,6 +263,7 @@ private fun SimStatusChips(row: RegistrySimRowUi) {
         if (row.callingPrimary) add(R.string.sim_status_calling_primary)
         if (row.callingPreferred) add(R.string.sim_status_calling_preferred)
         if (row.dataPrimary) add(R.string.sim_status_data_primary)
+        if (row.dataTemporary) add(R.string.sim_status_data_temporary)
         if (row.dataPreferred) add(R.string.sim_status_data_preferred)
     }
     if (chips.isEmpty()) return

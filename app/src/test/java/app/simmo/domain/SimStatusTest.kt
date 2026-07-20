@@ -193,20 +193,37 @@ class SimStatusTest {
     }
 
     @Test
-    fun `data primary follows the default SIM, not a temporary active switch`() {
+    fun `data primary follows the default SIM while the active switch is temporary`() {
         // Automatic data switching moved the active data sub to T-Mobile, but
-        // the user's chosen primary data SIM is still Telstra — the chip must
-        // name Telstra (Codex on PR #79).
+        // the user's chosen primary data SIM is still Telstra: Telstra stays
+        // "primary" (Codex on PR #79) and T-Mobile gets the "temporary" role so
+        // the override is visible.
         val statuses = simStatuses(
             callingBook = CallingRuleBook(),
             callingActiveSims = listOf(telstra, tmobile),
             defaultCallSubscriptionId = SimRef.INVALID_SUBSCRIPTION_ID,
             defaultDataSubscriptionId = telstra.subscriptionId,
             dataBook = DataRuleBook(emptyList()),
-            dataSnapshot = dataSnapshot(dataSim = tmobile),
+            // In France, so neither SIM is the local (preferred) calling SIM —
+            // the data roles stand alone.
+            dataSnapshot = dataSnapshot(networkCountry = "FR", dataSim = tmobile),
         )
-        assertTrue(statuses.getValue(telstra.subscriptionId).dataPrimary)
-        // T-Mobile only carries data transiently, so it holds no role.
+        assertEquals(SimStatus(dataPrimary = true), statuses[telstra.subscriptionId])
+        assertEquals(SimStatus(dataTemporary = true), statuses[tmobile.subscriptionId])
+    }
+
+    @Test
+    fun `no temporary role when data is on the primary SIM`() {
+        // Active data sub == default: the ordinary case, no temporary chip.
+        val statuses = simStatuses(
+            callingBook = CallingRuleBook(),
+            callingActiveSims = listOf(telstra, tmobile),
+            defaultCallSubscriptionId = SimRef.INVALID_SUBSCRIPTION_ID,
+            defaultDataSubscriptionId = telstra.subscriptionId,
+            dataBook = DataRuleBook(emptyList()),
+            dataSnapshot = dataSnapshot(networkCountry = "FR", dataSim = telstra),
+        )
+        assertEquals(SimStatus(dataPrimary = true), statuses[telstra.subscriptionId])
         assertFalse(statuses.containsKey(tmobile.subscriptionId))
     }
 

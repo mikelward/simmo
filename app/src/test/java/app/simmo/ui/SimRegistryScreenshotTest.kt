@@ -52,7 +52,9 @@ class SimRegistryScreenshotTest {
                         ),
                         // An active data-only travel eSIM: registered for the
                         // roaming watch and shown as Active like any SIM, even
-                        // though it has no call-capable account.
+                        // though it has no call-capable account. Here it is
+                        // carrying data via automatic data switching while
+                        // Telstra stays the primary — the "Data · temporary" chip.
                         RegistrySimRowUi(
                             ref = SimRef(5, "Orange", "Orange Holiday"),
                             name = "Orange Holiday",
@@ -60,6 +62,7 @@ class SimRegistryScreenshotTest {
                             detail = "France",
                             active = true,
                             lastSeenLabel = "Jul 18, 2026",
+                            dataTemporary = true,
                         ),
                         RegistrySimRowUi(
                             ref = SimRef(2, "T-Mobile", ""),
@@ -94,6 +97,8 @@ class SimRegistryScreenshotTest {
         // The primary/preferred status chips on the local SIM.
         composeRule.onNodeWithText("Calling · primary").assertExists()
         composeRule.onNodeWithText("Data · preferred").assertExists()
+        // The auto-data-switch chip on the SIM currently carrying data.
+        composeRule.onNodeWithText("Data · temporary").assertExists()
         // The two top actions: the rules list, and the one jump-out label.
         composeRule.onNodeWithText("Edit rules").assertExists()
         composeRule.onNodeWithText("Change SIMs").assertExists()

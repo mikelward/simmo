@@ -284,6 +284,10 @@
     <string name="sim_status_calling_preferred" tools:ignore="MissingTranslation">Calling · preferred</string>
     <!-- TODO: translate -->
     <string name="sim_status_data_primary" tools:ignore="MissingTranslation">Data · primary</string>
+    <!-- Shown on the SIM carrying data now when it isn't the primary — an
+         automatic-data-switching override. -->
+    <!-- TODO: translate -->
+    <string name="sim_status_data_temporary" tools:ignore="MissingTranslation">Data · temporary</string>
     <!-- TODO: translate -->
     <string name="sim_status_data_preferred" tools:ignore="MissingTranslation">Data · preferred</string>
     <!-- TODO: translate -->
