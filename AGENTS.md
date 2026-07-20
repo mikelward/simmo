@@ -42,10 +42,16 @@ UI**:
   deadline, and a missed deadline means **Telecom cancels the call** — a timeout drops
   the user's call. So the service must always respond explicitly (worst case "proceed
   unmodified") on every path including cold start and errors, and must answer from the
-  in-memory snapshot only — no disk, no `PackageManager`/telephony IPC, no parser table
-  loads on the decision path, and nothing on the main thread. Any change touching the
-  service or snapshot must state (in the PR) what the decision path now reads and why
-  it's already in memory. Degrade to "proceed unmodified," never to a blocked call.
+  in-memory snapshot **without blocking**: the code between `onPlaceCall` and `respond()`
+  does no *synchronous* disk, `PackageManager`/telephony IPC, parser-table load, or
+  main-thread work — the response must never *wait* on any of that. **Background work off
+  the decision coroutine does not count against the deadline and is fine** — e.g. logging
+  may write to disk asynchronously on a worker thread; what matters is that `respond()`
+  isn't held up. (The realistic risk is a *blocking* op stalling the ~5 s window, not a
+  fire-and-forget one; a single async append is sub-millisecond and never on the path.)
+  Any change touching the service or snapshot must state (in the PR) what the decision
+  path now reads and why it's already in memory. Degrade to "proceed unmodified," never
+  to a blocked call.
 - **Jank-free UI**: the chooser appears mid-call-attempt — it must render its first
   frame instantly from snapshot state (no loading spinner while a call hangs). Usual
   Compose discipline applies: `remember`/`derivedStateOf`/stable types, no I/O in

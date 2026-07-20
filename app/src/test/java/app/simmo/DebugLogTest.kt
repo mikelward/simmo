@@ -15,7 +15,10 @@ class DebugLogTest {
 
     @Before
     @After
-    fun reset() = SimmoDebugLog.clearForTest()
+    fun reset() {
+        SimmoDebugLog.clearForTest()
+        SimmoDebugLog.clearSinksForTest()
+    }
 
     @Test
     fun `events are captured oldest first`() {
@@ -66,6 +69,37 @@ class DebugLogTest {
         val vanity = scrubPii("dial tel:1-800-FLOWERS now")
         assertTrue(vanity.contains("dial"))
         assertFalse("vanity tel: number is masked", vanity.contains("FLOWERS"))
+    }
+
+    @Test
+    fun `sinks mirror captured lines and a failing sink cannot break logging`() {
+        val mirrored = mutableListOf<String>()
+        SimmoDebugLog.addSink { mirrored += it }
+        SimmoDebugLog.event("Decision +614••78 -> Proceed")
+        assertEquals(1, mirrored.size)
+        assertTrue(mirrored.single().endsWith("Decision +614••78 -> Proceed"))
+
+        // A second, throwing sink must not propagate onto the decision path, and
+        // the line is still captured in the buffer and delivered to the good sink.
+        SimmoDebugLog.addSink { throw RuntimeException("sink down") }
+        SimmoDebugLog.event("still recorded")
+        assertTrue(SimmoDebugLog.snapshot().last().endsWith("still recorded"))
+        assertTrue("fan-out reaches the healthy sink", mirrored.last().endsWith("still recorded"))
+    }
+
+    @Test
+    fun `a raw number interpolated into a message is scrubbed everywhere it is exported`() {
+        // A verdict summary can carry a free-form SIM/account label that is
+        // itself a number (e.g. a delayed-redirect target). It must be scrubbed
+        // in the buffer (shared report + crash file) and in the mirror
+        // (Crashlytics breadcrumbs) alike (Codex #90).
+        val mirrored = mutableListOf<String>()
+        SimmoDebugLog.addSink { mirrored += it }
+        SimmoDebugLog.event("DelayedRedirect(+1 555 123 4567, 3s)")
+        val line = SimmoDebugLog.snapshot().single()
+        assertTrue(line.contains("DelayedRedirect"))
+        assertFalse("scrubbed in the buffer", line.contains("123 4567"))
+        assertFalse("scrubbed in the mirror", mirrored.single().contains("123 4567"))
     }
 
     @Test

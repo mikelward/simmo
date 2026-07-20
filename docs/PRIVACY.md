@@ -29,12 +29,17 @@ crashes and understand which features are used:
 
 - **Crash reports**: a technical trace of where the app crashed, plus device
   information such as model, operating system version, and free memory at the
-  time of the crash.
+  time of the crash. A crash report also carries a short, **redacted** log of
+  Simmo's recent routing decisions and errors — the same masked form as the
+  shareable debug log below, with every phone number redacted — so we can see
+  what led up to the crash. A decision in that log may name the SIM it used by
+  its display label (the name you see for it on the SIMs screen); it never
+  includes a phone number.
 - **Usage statistics**: standard app events such as first open, which screens
   are viewed, and session length, tied to a random per-install identifier.
 
-Neither ever includes the numbers you dial, your contacts, or the contents of
-your rules, and ad personalization is turned off.
+Neither ever includes the **full** numbers you dial, your contacts, or a full
+account identifier, and ad personalization is turned off.
 
 Both are controlled by the **"Make Simmo better"** switch, shown during setup
 and available anytime in Simmo's settings: it is on by default, and turning it
@@ -49,12 +54,16 @@ for how Firebase handles it.
 
 To decide which SIM a call should use, Simmo looks at the number you dialed and
 works out the destination country. This happens entirely on your device, in memory,
-using an offline phone-number library. The **full** number is **never written to
+using an offline phone-number library. The complete number is **never written to
 storage** and exists only in memory for the moment the call is being placed, and
 Simmo never sends it off your device on its own. (A **redacted** partial number
-may remain briefly in the in-memory debug log described under "Sharing debug
-logs" — never the full number, never written to storage or a backup, and it
-leaves your device only if you choose to share that log.)
+may appear in the debug log described under "Sharing debug logs" — never the
+complete number. A redacted copy of that log is kept in Simmo's private storage
+so it survives an unexpected exit — a crash, or the system closing the app; the
+prior run's copy is included if you share a report, then removed. It is never
+backed up. It leaves your device only when you share that log — or, if you leave
+crash reporting on, as part of a crash report's redacted breadcrumbs (see "Crash
+reporting"); never as a complete number either way.)
 
 One exception to keep in mind: if a rule (or your choice in Simmo's chooser) hands
 a call off to another calling app, such as Google Voice, Simmo passes the dialed
@@ -67,14 +76,19 @@ app's own privacy policy.
 Your rules, your settings, and a registry of the SIMs your device has used (their
 names and carriers, so rules can refer to them, plus each SIM's home country and
 its own phone number — when your device reports them — so you can tell your SIMs
-apart on the SIMs screen). Simmo never transmits this data anywhere.
+apart on the SIMs screen). Simmo never transmits your rules or this registry
+anywhere — with one narrow exception: if you leave crash reporting on, a crash
+report may name the SIM used for a recent routing decision by its display label
+(see "Crash reporting"). It never transmits a SIM's phone number.
 
 Like most Android apps, this app data is included in Android's standard backup and
 device-to-device transfer, so if you have device backup turned on, Android copies
 it to your backup (for example, your Google Account) along with your other app
 data. That is handled by Android under your device's backup settings, not by
-Simmo. Because dialed numbers are never written to storage — the debug log's
-redacted partials live only in memory — no call data can ever appear in a backup.
+Simmo. Because the complete dialed number is never written to storage at all —
+the debug log holds only redacted partials, and the copy of it Simmo keeps to
+survive an unexpected exit (see "Sharing debug logs") lives in Simmo's private
+cache, which is excluded from backup — no call data can ever appear in a backup.
 
 ## Sharing debug logs
 
@@ -88,13 +102,16 @@ The report contains your device and app-build details, whether Simmo holds the
 call-redirection role, your current settings, your calling rules, your country
 groups, and the names, carriers, home countries, and own numbers of the SIMs
 Simmo has seen (so a rule like "in Mongolia, use Verizon" can actually be
-diagnosed). It also includes a short, in-memory log of Simmo's recent routing
-decisions and any errors, kept only while the app is running and never written
-to storage or included in a backup. Every phone number in the report — a dialed
-number in the log, or a SIM's own number — appears **only in redacted form**, a
-few leading and trailing characters with the rest masked, so a full number is
-never written to the report or shared. You can review the report in the share
-sheet or paste it from the clipboard before sending it.
+diagnosed). It also includes a short log of Simmo's recent routing decisions and
+any errors. A redacted copy of this log is kept in Simmo's private storage so it
+survives an unexpected exit (a crash, or the system closing the background app),
+which is what makes that kind of problem diagnosable; the prior run's copy is
+included once when you share a report, then removed (and it is cleared with the
+app's cache anyway). It is never included in a backup. Every phone number in the
+report — a dialed number in the log, or a SIM's own number — appears **only in
+redacted form**, a few leading and trailing characters with the rest masked, so a
+complete number is never written to the report or shared. You can review the
+report in the share sheet or paste it from the clipboard before sending it.
 
 ## Permissions
 
