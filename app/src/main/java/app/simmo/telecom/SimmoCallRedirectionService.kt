@@ -10,6 +10,10 @@ import android.telecom.CallRedirectionService
 import android.telecom.PhoneAccountHandle
 import android.util.Log
 import app.simmo.SimmoApp
+import app.simmo.SimmoDebugLog
+import app.simmo.debugSummary
+import app.simmo.redactAccountId
+import app.simmo.redactNumber
 import app.simmo.domain.PassToken
 import app.simmo.domain.PlacedCall
 import app.simmo.domain.Verdict
@@ -52,10 +56,13 @@ class SimmoCallRedirectionService : CallRedirectionService() {
                 true
             } catch (e: RuntimeException) {
                 // The response call itself failed (e.g. a stale handle);
-                // responded is already latched, so the watchdog can't save
-                // us — try the safe response directly as a last resort.
-                Log.e(TAG, "Redirection response failed; placing unmodified", e)
+                // responded is already latched and the watchdog removed, so
+                // nothing else can answer — retry the safe response FIRST, then
+                // record the diagnostic, so a logging stall can't consume
+                // Telecom's deadline on this unprotected path (Codex on PR #76).
                 runCatching { placeCallUnmodified() }
+                Log.e(TAG, "Redirection response failed; placed unmodified", e)
+                SimmoDebugLog.warning("Redirection response failed; placed unmodified", e)
                 false
             }
         }
@@ -129,7 +136,15 @@ class SimmoCallRedirectionService : CallRedirectionService() {
         }
 
         mainHandler.postDelayed(
-            { respond { placeCallUnmodified() } },
+            {
+                // Log a timeout only when THIS fallback actually won the race:
+                // respond() returns true only after its atomic CAS latched, so
+                // a decision that finished at the boundary and sent its verdict
+                // is never mislabeled "timed out" (Codex on PR #76).
+                if (respond { placeCallUnmodified() }) {
+                    SimmoDebugLog.warning("Decision timed out after ${WATCHDOG_MILLIS}ms; placed unmodified")
+                }
+            },
             watchdogToken,
             WATCHDOG_MILLIS,
         )
@@ -141,7 +156,22 @@ class SimmoCallRedirectionService : CallRedirectionService() {
                 currentAccount = app.assembler.refFor(initialPhoneAccount),
                 interactive = allowInteractiveResponse,
             )
+            // Diagnostics run here, off the main thread and after the watchdog
+            // is armed above: nothing in the log path may sit between Telecom's
+            // question and the fallback timer (Codex on PR #76).
+            SimmoDebugLog.event(
+                "onPlaceCall ${redactNumber(placedCall.dialedNumber)} " +
+                    // The canonical ref (component/id), not the raw handle id, so
+                    // this account's token matches the one the verdict lines log
+                    // for the same account (Codex on PR #76).
+                    "account=${redactAccountId(placedCall.currentAccount?.id.orEmpty())} " +
+                    "interactive=$allowInteractiveResponse",
+            )
             val decision = app.coordinator.decide(placedCall)
+            SimmoDebugLog.event(
+                "Decision ${redactNumber(placedCall.dialedNumber)} -> ${decision.verdict.debugSummary()}" +
+                    (decision.missedCorrection?.let { " (missed correction offered)" } ?: ""),
+            )
             when (val verdict = decision.verdict) {
                 is Verdict.Proceed -> {
                     verdict.consumedToken?.let(app.passTokens::consume)
