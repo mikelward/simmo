@@ -211,6 +211,10 @@
     <!-- TODO: translate -->
     <string name="settings_licenses" tools:ignore="MissingTranslation">Licenses</string>
     <!-- TODO: translate -->
+    <string name="settings_share_logs" tools:ignore="MissingTranslation">Share debug logs</string>
+    <!-- TODO: translate -->
+    <string name="settings_share_logs_description" tools:ignore="MissingTranslation">Recent routing decisions and errors, to paste into a bug report</string>
+    <!-- TODO: translate -->
     <string name="settings_licenses_title" tools:ignore="MissingTranslation">Open source licenses</string>
     <!-- TODO: translate -->
     <string name="settings_call_toast_label" tools:ignore="MissingTranslation">Show which SIM or app is used</string>

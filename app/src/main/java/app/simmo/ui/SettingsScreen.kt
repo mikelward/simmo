@@ -37,6 +37,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.simmo.BuildConfig
+import app.simmo.DebugReport
 import app.simmo.R
 import app.simmo.store.SimmoState
 import kotlin.math.roundToInt
@@ -109,6 +110,7 @@ fun SettingsScreen(
         onOpenSims = onOpenSims,
         onOpenGroups = onOpenGroups,
         onOpenLicenses = onOpenLicenses,
+        onShareDebugLog = { DebugReport.share(context) },
         onBack = onBack,
     )
 }
@@ -129,6 +131,7 @@ internal fun SettingsContent(
     onOpenSims: () -> Unit = {},
     onOpenGroups: () -> Unit = {},
     onOpenLicenses: () -> Unit = {},
+    onShareDebugLog: () -> Unit = {},
     onBack: () -> Unit = {},
 ) {
     BackHandler(onBack = onBack)
@@ -422,6 +425,29 @@ internal fun SettingsContent(
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.weight(1f),
                 )
+            }
+            // Shares the recent routing decisions and errors (SimmoDebugLog)
+            // plus build/device info so an unexpected call can be diagnosed —
+            // the redirection service runs in the background, so this is the
+            // only way to read what it decided.
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(onClick = onShareDebugLog)
+                    .padding(vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.settings_share_logs),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                    Text(
+                        text = stringResource(R.string.settings_share_logs_description),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
             Text(
                 text = stringResource(R.string.settings_version, versionName),

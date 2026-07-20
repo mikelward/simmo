@@ -221,8 +221,9 @@ what it blocks.
 Global options on the Settings screen (reached from the rules-screen gear; also home of
 the SIM registry, the **Country groups** manager, the "Make Simmo better" telemetry
 switch — see "Permissions and privacy" — and, at its foot, a **privacy policy** link, an
-**open-source licenses** screen listing every bundled dependency and its license, and the
-app **version**), all off by default:
+**open-source licenses** screen listing every bundled dependency and its license, a
+**Share debug logs** action (see "Permissions and privacy"), and the app **version**),
+all off by default:
 
 - **Show which SIM or app is used**: when a rule routes a call, a brief toast names
   where it went — "Calling using Telstra" for a SIM or another calling account (on a
@@ -708,6 +709,20 @@ UI is forbidden).
   explicit exit is the only one: Skip leaves with whatever is granted, and Continue
   (disabled until every optional grant and the analytics opt-in are on) is the
   affirmative finish — so the optional rows get their moment.
+- **Share debug logs** (Settings) lets the user hand a diagnostic to a bug report when a
+  call routes unexpectedly — the redirection service runs in the background, so its
+  decisions otherwise leave no trace the user can read. The report carries build and
+  device info, the current settings, the calling rules and country groups in full, the
+  registered SIMs (name, carrier, home country), and a small in-memory ring buffer of
+  recent routing decisions and errors — the rule and SIM detail is the point, since
+  counts alone can't explain why a given rule did or didn't fire. It is only ever built
+  and shared on an explicit tap, via the system share sheet (and copied to the clipboard
+  as a fallback); nothing is transmitted automatically. The buffer is never persisted;
+  every phone number that appears — a dialed number, or a SIM's own number — is redacted
+  to a fingerprint (a few leading/trailing characters, the rest masked), and opaque
+  Telecom account ids are logged only as non-identifying fingerprints, so the "full
+  dialed numbers never reach disk or a backup" line above still holds. The whole payload
+  is size-bounded so a large rule set or log can't defeat the share.
 - **Backups are on** (maintainer decision): rules, the SIM registry, and settings are
   included in Android backups and device-to-device transfers via explicit extraction
   rules scoped to exactly Simmo's own state files, so a phone upgrade keeps the rule

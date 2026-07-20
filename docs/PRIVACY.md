@@ -1,21 +1,26 @@
 # Simmo privacy policy
 
-**Effective date: July 18, 2026**
+**Effective date: July 20, 2026**
 
 Simmo picks the right SIM (or calling app) for your outgoing calls based on rules
 you set. The short version of this policy: **everything Simmo does with your calls
 happens on your device. The numbers you dial and your contacts are never collected
-or transmitted. The only data that can leave your device is optional crash
-reporting and usage statistics, controlled by the "Make Simmo better" switch.**
+or transmitted. Data leaves your device only with your involvement: optional crash
+reporting and usage statistics, controlled by the "Make Simmo better" switch, and a
+debug log that goes nowhere unless you choose to share it.**
 
 ## What Simmo collects
 
-- The numbers you dial, your contacts, and your rules are **never** collected or
-  shared with anyone, including us.
+- The numbers you dial and your contacts are **never** collected or shared with
+  anyone, including us. (A debug log you choose to share includes phone numbers —
+  dialed numbers and a SIM's own number — only in redacted form, and never your
+  contacts — see "Sharing debug logs".)
 - Simmo contains no third-party ad networks and no ad tracking, and requests
   that the advertising ID never be available to the app.
 - If the "Make Simmo better" switch is on, Simmo collects crash reports and
   anonymous usage statistics — see the next section.
+- Simmo can build a **debug log** that you may choose to share to report a
+  problem — see "Sharing debug logs". It is never sent anywhere on its own.
 
 ## Crash reporting and usage statistics ("Make Simmo better")
 
@@ -44,9 +49,12 @@ for how Firebase handles it.
 
 To decide which SIM a call should use, Simmo looks at the number you dialed and
 works out the destination country. This happens entirely on your device, in memory,
-using an offline phone-number library. Dialed numbers are **never stored** — they
-exist only for the moment the call is being placed — and Simmo never sends them off
-your device.
+using an offline phone-number library. The **full** number is **never written to
+storage** and exists only in memory for the moment the call is being placed, and
+Simmo never sends it off your device on its own. (A **redacted** partial number
+may remain briefly in the in-memory debug log described under "Sharing debug
+logs" — never the full number, never written to storage or a backup, and it
+leaves your device only if you choose to share that log.)
 
 One exception to keep in mind: if a rule (or your choice in Simmo's chooser) hands
 a call off to another calling app, such as Google Voice, Simmo passes the dialed
@@ -65,8 +73,28 @@ Like most Android apps, this app data is included in Android's standard backup a
 device-to-device transfer, so if you have device backup turned on, Android copies
 it to your backup (for example, your Google Account) along with your other app
 data. That is handled by Android under your device's backup settings, not by
-Simmo. Because dialed numbers are never stored at all, no call data can ever
-appear in a backup.
+Simmo. Because dialed numbers are never written to storage — the debug log's
+redacted partials live only in memory — no call data can ever appear in a backup.
+
+## Sharing debug logs
+
+Simmo's Settings screen has a **Share debug logs** action to help diagnose a
+problem — for example, a call that didn't route the way you expected. When you
+tap it, Simmo builds a short text report and opens Android's share sheet so you
+can send it wherever you choose (and also copies it to your clipboard). Nothing
+is sent anywhere unless you take that action and pick a destination.
+
+The report contains your device and app-build details, whether Simmo holds the
+call-redirection role, your current settings, your calling rules, your country
+groups, and the names, carriers, home countries, and own numbers of the SIMs
+Simmo has seen (so a rule like "in Mongolia, use Verizon" can actually be
+diagnosed). It also includes a short, in-memory log of Simmo's recent routing
+decisions and any errors, kept only while the app is running and never written
+to storage or included in a backup. Every phone number in the report — a dialed
+number in the log, or a SIM's own number — appears **only in redacted form**, a
+few leading and trailing characters with the rest masked, so a full number is
+never written to the report or shared. You can review the report in the share
+sheet or paste it from the clipboard before sending it.
 
 ## Permissions
 
