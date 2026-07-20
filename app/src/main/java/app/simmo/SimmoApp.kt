@@ -436,6 +436,15 @@ open class SimmoApp : Application() {
         assembler.setHandOffApps(
             installedDialHandoffApps(packageManager).mapTo(HashSet()) { it.packageName },
         )
+        // Ensure the change observer is registered here too, not only on a
+        // grant detected by a resuming activity: a READ_CONTACTS grant made in
+        // system Settings is invisible to a freshly recreated MainActivity
+        // (it initializes already-granted, so its resume sees no transition
+        // and never calls refreshContacts). This refresh runs on every such
+        // resume — and on subscription/network wake-ups — so registration
+        // can't be stranded, leaving later contact edits to silently stale the
+        // warm index (Codex on PR #74). Idempotent and permission-guarded.
+        registerContactsObserver()
         // Rebuild the contact index after the region is set; it feeds
         // app-to-app hand-off and degrades to empty without READ_CONTACTS.
         assembler.refreshContacts()
