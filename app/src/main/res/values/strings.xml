@@ -199,6 +199,10 @@
     <!-- TODO: translate -->
     <string name="settings_open" tools:ignore="MissingTranslation">Settings</string>
     <!-- TODO: translate -->
+    <string name="settings_rules" tools:ignore="MissingTranslation">Rules</string>
+    <!-- TODO: translate -->
+    <string name="settings_rules_description" tools:ignore="MissingTranslation">Calling and data rules</string>
+    <!-- TODO: translate -->
     <string name="settings_groups_description" tools:ignore="MissingTranslation">Custom sets of countries a rule can match</string>
     <!-- TODO: translate -->
     <string name="settings_privacy_policy" tools:ignore="MissingTranslation">Privacy policy</string>

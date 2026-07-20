@@ -58,8 +58,8 @@ data class SettingsUi(
 )
 
 /**
- * App-level options, reached from the rules list. Also the way to the SIM
- * registry — the natural home as more options land (the default-region
+ * App-level options, reached from the SIMs home's gear. Leads with entries into
+ * the Rules list and Country groups, then the toggles (the default-region
  * override is the next candidate, per SPEC "Country detection").
  */
 @Composable
@@ -67,6 +67,7 @@ fun SettingsScreen(
     viewModel: RulesViewModel,
     contactsGranted: Boolean,
     onContactsGranted: () -> Unit,
+    onOpenRules: () -> Unit,
     onOpenGroups: () -> Unit,
     onOpenLicenses: () -> Unit,
     onBack: () -> Unit,
@@ -106,6 +107,7 @@ fun SettingsScreen(
         onGuardOverseasChange = viewModel::setGuardOverseasHandsFree,
         onGuardDisabledSimChange = viewModel::setGuardDisabledSimHandsFree,
         onAnalyticsOptInChange = viewModel::setAnalyticsOptIn,
+        onOpenRules = onOpenRules,
         onOpenGroups = onOpenGroups,
         onOpenLicenses = onOpenLicenses,
         onShareDebugLog = { DebugReport.share(context) },
@@ -126,6 +128,7 @@ internal fun SettingsContent(
     onGuardOverseasChange: (Boolean) -> Unit = {},
     onGuardDisabledSimChange: (Boolean) -> Unit = {},
     onAnalyticsOptInChange: (Boolean) -> Unit = {},
+    onOpenRules: () -> Unit = {},
     onOpenGroups: () -> Unit = {},
     onOpenLicenses: () -> Unit = {},
     onShareDebugLog: () -> Unit = {},
@@ -145,6 +148,27 @@ internal fun SettingsContent(
                 style = MaterialTheme.typography.headlineMedium,
                 modifier = Modifier.padding(bottom = 16.dp),
             )
+            // The rules list, reachable here as well as from the home's "Edit
+            // rules" button.
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(onClick = onOpenRules)
+                    .padding(vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.settings_rules),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                    Text(
+                        text = stringResource(R.string.settings_rules_description),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
             // Country groups management lives here — most groups are built inline
             // from the rule editor's picker, so this is the edit/delete surface.
             Row(
