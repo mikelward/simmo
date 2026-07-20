@@ -142,6 +142,8 @@
     <!-- TODO: translate -->
     <string name="action_done" tools:ignore="MissingTranslation">Done</string>
     <!-- TODO: translate -->
+    <string name="action_back" tools:ignore="MissingTranslation">Back</string>
+    <!-- TODO: translate -->
     <string name="groups_title" tools:ignore="MissingTranslation">Country groups</string>
     <!-- TODO: translate -->
     <string name="groups_explainer" tools:ignore="MissingTranslation">Groups let one rule cover a set of countries — like your plan\'s included destinations.</string>

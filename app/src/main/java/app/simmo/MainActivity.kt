@@ -253,10 +253,12 @@ class MainActivity : ComponentActivity() {
                             onOpenSimSettings = openSimSettingsAskingNotifications,
                         )
 
+                        // A Settings sub-screen: both the header Back button and
+                        // the system back gesture land back on Settings (which
+                        // stays open beneath it), never finishing the activity.
                         groupsOpen -> GroupsScreen(
                             viewModel = vm,
                             onBack = vm::closeGroups,
-                            onDone = { activity?.finish() },
                         )
 
                         // Above Settings, like the SIMs screen: opened from it,

@@ -44,14 +44,13 @@ import app.simmo.domain.CustomGroup
 /**
  * The Country groups screen (SPEC "Calling rules" → custom groups): create, edit, and
  * delete user-defined groups like "Vodafone Zone 1" that rules then match by a
- * single entry. Reached from the rules list; the groups become selectable in
- * the rule editor's country picker.
+ * single entry. Reached from Settings; the groups become selectable in the rule
+ * editor's country picker.
  */
 @Composable
 fun GroupsScreen(
     viewModel: RulesViewModel,
     onBack: () -> Unit,
-    onDone: () -> Unit = {},
 ) {
     val groups by viewModel.customGroups.collectAsStateWithLifecycle()
     val countryOptions by viewModel.countryOptions.collectAsStateWithLifecycle()
@@ -64,7 +63,6 @@ fun GroupsScreen(
         onDeleteGroup = viewModel::deleteCustomGroup,
         onUndoDeleteGroup = viewModel::undoGroupRemoval,
         onApply = viewModel::purgePendingRemovals,
-        onDone = onDone,
         onBack = onBack,
     )
 }
@@ -78,7 +76,6 @@ internal fun GroupsContent(
     onDeleteGroup: (String) -> Unit = {},
     onUndoDeleteGroup: (String) -> Unit = {},
     onApply: () -> Unit = {},
-    onDone: () -> Unit = {},
     onBack: () -> Unit = {},
 ) {
     // null = the list; "" = a new group; else the id being edited. A plain
@@ -124,12 +121,13 @@ internal fun GroupsContent(
                         modifier = Modifier.weight(1f),
                     )
                     // Apply while any deletion is pending (rule, data rule, or
-                    // group — it flushes them all); otherwise Done closes the UI
-                    // (leaving already commits).
+                    // group — it flushes them all); otherwise Back returns to
+                    // Settings, the same as the system back gesture (this is a
+                    // sub-screen, not the app's home — leaving already commits).
                     if (pendingRemovals) {
                         TextButton(onClick = onApply) { Text(stringResource(R.string.action_apply)) }
                     } else {
-                        TextButton(onClick = onDone) { Text(stringResource(R.string.action_done)) }
+                        TextButton(onClick = onBack) { Text(stringResource(R.string.action_back)) }
                     }
                 }
                 Text(
