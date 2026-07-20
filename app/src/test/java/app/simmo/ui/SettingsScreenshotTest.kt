@@ -56,12 +56,15 @@ class SettingsScreenshotTest {
         composeRule.onNodeWithText("Overseas calls").assertExists()
         composeRule.onNodeWithText("Calls needing a disabled SIM").assertExists()
         composeRule.onNodeWithText("Make Simmo better").assertExists()
-        // Privacy policy, Licenses, and version sit at the foot of the page.
+        // Privacy policy, Licenses, Share debug logs, and version sit at the
+        // foot of the page.
         composeRule.onNodeWithText("Privacy policy").assertExists()
         composeRule.onNodeWithText("Licenses").assertExists()
+        composeRule.onNodeWithText("Share debug logs").assertExists()
         composeRule.onNodeWithText("Version 1.4.87+ab12cd").assertExists()
-        // Tall enough to show the whole scrolling page, including the footer.
-        captureSnapshot("settings.png", heightPx = 2250)
+        // Tall enough to show the whole scrolling page, including the footer
+        // (the new "Share debug logs" row pushed the version line down).
+        captureSnapshot("settings.png", heightPx = 2500)
     }
 
     @Test
@@ -98,6 +101,18 @@ class SettingsScreenshotTest {
         }
         composeRule.onNodeWithText("Licenses").performClick()
         composeRule.runOnIdle { assertEquals(true, opened) }
+    }
+
+    @Test
+    fun tappingShareDebugLogsInvokesIt() {
+        var shared = false
+        composeRule.setContent {
+            MaterialTheme {
+                SettingsContent(onShareDebugLog = { shared = true })
+            }
+        }
+        composeRule.onNodeWithText("Share debug logs").performClick()
+        composeRule.runOnIdle { assertEquals(true, shared) }
     }
 
     private fun captureSnapshot(name: String, widthPx: Int = 1080, heightPx: Int = 1920) {
