@@ -158,7 +158,7 @@
     <!-- TODO: translate -->
     <string name="new_sim_prompt_title" tools:ignore="MissingTranslation">New SIM: %1$s</string>
     <!-- TODO: translate -->
-    <string name="new_sim_prompt_body" tools:ignore="MissingTranslation">Add a rule so your calls know when to use it.</string>
+    <string name="new_sim_prompt_body" tools:ignore="MissingTranslation">Add a rule for when to use it.</string>
     <!-- TODO: translate -->
     <string name="new_sim_prompt_add" tools:ignore="MissingTranslation">Add rule</string>
     <!-- TODO: translate -->
