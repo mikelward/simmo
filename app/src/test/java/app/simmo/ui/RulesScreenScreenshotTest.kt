@@ -294,28 +294,28 @@ class RulesScreenScreenshotTest {
             }
         }
 
-        // Something is pending, so the header shows Apply, not Done.
-        composeRule.onNodeWithText("Done").assertDoesNotExist()
+        // Something is pending, so the header shows Apply, not Back.
+        composeRule.onNodeWithText("Back").assertDoesNotExist()
         composeRule.onNodeWithText("Apply").performClick()
         composeRule.runOnIdle { assertEquals(true, applied) }
     }
 
     @Test
-    fun doneShowsWhenNothingIsPending() {
-        var done = false
+    fun backShowsWhenNothingIsPending() {
+        var back = false
         composeRule.setContent {
             MaterialTheme {
                 RulesScreenContent(
                     rows = listOf(RuleRowUi("+61 Australia", ActionUi.UseSim("Telstra"), id = "r0")),
                     pendingRemovals = false,
-                    onDone = { done = true },
+                    onBack = { back = true },
                 )
             }
         }
 
         composeRule.onNodeWithText("Apply").assertDoesNotExist()
-        composeRule.onNodeWithText("Done").performClick()
-        composeRule.runOnIdle { assertEquals(true, done) }
+        composeRule.onNodeWithText("Back").performClick()
+        composeRule.runOnIdle { assertEquals(true, back) }
     }
 
     @Test

@@ -70,10 +70,14 @@ class SimNotifications(private val context: Context) {
         )
     }
 
-    /** The "new SIM seen — add rules?" nudge; opens the rules list and its card. */
+    /** The "new SIM seen — add rules?" nudge; opens the calling rules list and its card. */
     fun postNewSim(simLabel: String) {
         val intent = Intent(context, MainActivity::class.java)
-            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            .setAction(MainActivity.ACTION_CALLING_RULES)
+            // SINGLE_TOP so a foregrounded MainActivity routes ACTION_CALLING_RULES
+            // through onNewIntent instead of stacking a duplicate — same as the
+            // data-watch notification (Codex on PR #84).
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
         post(
             // Tagged per SIM so two new SIMs get two notifications instead of
             // the second overwriting the first.

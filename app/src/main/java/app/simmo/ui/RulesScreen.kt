@@ -20,7 +20,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -69,7 +68,7 @@ fun RulesScreen(
     viewModel: RulesViewModel,
     onAddRule: () -> Unit,
     onEditRule: (String) -> Unit,
-    onDone: () -> Unit = {},
+    onBack: () -> Unit = {},
 ) {
     val rows by viewModel.rows.collectAsStateWithLifecycle()
     val dataRows by viewModel.dataRows.collectAsStateWithLifecycle()
@@ -87,7 +86,7 @@ fun RulesScreen(
         newSimPrompts = newSimPrompts,
         pendingRemovals = pendingRemovals,
         onApply = viewModel::purgePendingRemovals,
-        onDone = onDone,
+        onBack = onBack,
         onAddRule = onAddRule,
         onEditRule = onEditRule,
         onDuplicateRule = viewModel::duplicateRule,
@@ -108,7 +107,6 @@ fun RulesScreen(
         onTriageOpenSimSettings = { context.openSimSettings() },
         onAddRuleForSim = viewModel::openNewRuleForSim,
         onDismissNewSimPrompt = viewModel::dismissNewSimPrompt,
-        onOpenSettings = viewModel::openSettings,
     )
 }
 
@@ -122,7 +120,7 @@ internal fun RulesScreenContent(
     newSimPrompts: List<NewSimPromptUi> = emptyList(),
     pendingRemovals: Boolean = false,
     onApply: () -> Unit = {},
-    onDone: () -> Unit = {},
+    onBack: () -> Unit = {},
     onAddRule: () -> Unit = {},
     onEditRule: (String) -> Unit = {},
     onDuplicateRule: (String) -> Unit = {},
@@ -143,7 +141,6 @@ internal fun RulesScreenContent(
     onTriageOpenSimSettings: () -> Unit = {},
     onAddRuleForSim: (NewSimPromptUi) -> Unit = {},
     onDismissNewSimPrompt: (SimRef) -> Unit = {},
-    onOpenSettings: () -> Unit = {},
 ) {
     Surface(modifier = Modifier.fillMaxSize()) {
         Box(modifier = Modifier.fillMaxSize()) {
@@ -162,26 +159,21 @@ internal fun RulesScreenContent(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        // The home screen carries the app name; the Calling/Data
+                        // A sub-screen of the SIMs home now; the Calling/Data
                         // tabs below name the two lists.
                         text = stringResource(R.string.app_name),
                         style = MaterialTheme.typography.headlineMedium,
                         modifier = Modifier.weight(1f),
                     )
-                    IconButton(onClick = onOpenSettings) {
-                        Icon(
-                            imageVector = Icons.Filled.Settings,
-                            contentDescription = stringResource(R.string.settings_open),
-                        )
-                    }
                     // While any deletion is pending — a rule, data rule, or group
                     // — the button is Apply, which flushes them all in place. With
-                    // nothing pending it's Done, which just closes the UI (leaving
-                    // the app already commits, so Done needs no separate apply).
+                    // nothing pending it's Back, returning to the SIMs home — the
+                    // same shape as the Country groups sub-screen (leaving the app
+                    // is what purges, so Back needs no apply).
                     if (pendingRemovals) {
                         TextButton(onClick = onApply) { Text(stringResource(R.string.action_apply)) }
                     } else {
-                        TextButton(onClick = onDone) { Text(stringResource(R.string.action_done)) }
+                        TextButton(onClick = onBack) { Text(stringResource(R.string.action_back)) }
                     }
                 }
                 SecondaryTabRow(
@@ -462,7 +454,7 @@ private fun <T> ReorderableRuleList(
  * SIM, and the saved rule is suggested above any paused rules.
  */
 @Composable
-private fun NewSimPromptCard(
+internal fun NewSimPromptCard(
     prompt: NewSimPromptUi,
     onAddRule: () -> Unit,
     onDismiss: () -> Unit,

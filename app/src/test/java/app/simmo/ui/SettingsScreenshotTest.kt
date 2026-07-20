@@ -17,7 +17,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
-/** Renders the Settings screen: the SIMs entry and the app-level options. */
+/** Renders the Settings screen's app-level options. */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [36], qualifiers = "w411dp-h914dp-420dpi")
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
@@ -44,8 +44,8 @@ class SettingsScreenshotTest {
         composeRule.waitForIdle()
 
         composeRule.onNodeWithText("Settings").assertExists()
-        composeRule.onNodeWithText("SIMs").assertExists()
-        // Country groups moved here from the rules toolbar.
+        // The SIMs screen is the app's home now, so Settings no longer links to
+        // it; Country groups leads the list.
         composeRule.onNodeWithText("Country groups").assertExists()
         composeRule.onNodeWithText("Custom sets of countries a rule can match").assertExists()
         composeRule.onNodeWithText("Show which SIM or app is used").assertExists()

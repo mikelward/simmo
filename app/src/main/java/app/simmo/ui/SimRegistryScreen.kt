@@ -19,6 +19,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -84,8 +85,10 @@ fun SimRegistryScreen(
     onBack: () -> Unit,
     onOpenSimSettings: () -> Unit,
     onEditRules: () -> Unit,
+    onOpenSettings: () -> Unit,
 ) {
     val page by viewModel.simsPage.collectAsStateWithLifecycle()
+    val newSimPrompts by viewModel.newSimPrompts.collectAsStateWithLifecycle()
     // The rows' own-number line needs READ_PHONE_NUMBERS (split from
     // READ_PHONE_STATE in API 30). Only requested when the phone grant is
     // already held: same permission group, so the request is granted silently
@@ -109,10 +112,14 @@ fun SimRegistryScreen(
     SimRegistryContent(
         rows = page.rows,
         currentCountry = page.currentCountry,
+        newSimPrompts = newSimPrompts,
         onDelete = viewModel::deleteRegisteredSim,
         onBack = onBack,
         onOpenSimSettings = onOpenSimSettings,
         onEditRules = onEditRules,
+        onOpenSettings = onOpenSettings,
+        onAddRuleForSim = viewModel::openNewRuleForSim,
+        onDismissNewSimPrompt = viewModel::dismissNewSimPrompt,
     )
 }
 
@@ -120,10 +127,14 @@ fun SimRegistryScreen(
 internal fun SimRegistryContent(
     rows: List<RegistrySimRowUi>,
     currentCountry: String? = null,
+    newSimPrompts: List<NewSimPromptUi> = emptyList(),
     onDelete: (SimRef) -> Unit = {},
     onBack: () -> Unit = {},
     onOpenSimSettings: () -> Unit = {},
     onEditRules: () -> Unit = {},
+    onOpenSettings: () -> Unit = {},
+    onAddRuleForSim: (NewSimPromptUi) -> Unit = {},
+    onDismissNewSimPrompt: (SimRef) -> Unit = {},
 ) {
     BackHandler(onBack = onBack)
     // The row awaiting delete confirmation; saveable so a rotation mid-confirm
@@ -138,11 +149,26 @@ internal fun SimRegistryContent(
                 .safeDrawingPadding()
                 .padding(16.dp),
         ) {
-            Text(
-                text = stringResource(R.string.sim_registry_title),
-                style = MaterialTheme.typography.headlineMedium,
-                modifier = Modifier.padding(bottom = if (currentCountry != null) 4.dp else 16.dp),
-            )
+            // The home screen's header: the title with the Settings gear (moved
+            // here from the rules list now that the SIMs screen is the home).
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = if (currentCountry != null) 4.dp else 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = stringResource(R.string.sim_registry_title),
+                    style = MaterialTheme.typography.headlineMedium,
+                    modifier = Modifier.weight(1f),
+                )
+                IconButton(onClick = onOpenSettings) {
+                    Icon(
+                        imageVector = Icons.Filled.Settings,
+                        contentDescription = stringResource(R.string.settings_open),
+                    )
+                }
+            }
             // Where the user is now — the context the primary/preferred status
             // chips below are relative to. Hidden when the country is unknown.
             currentCountry?.let {
@@ -176,6 +202,19 @@ internal fun SimRegistryContent(
                 }
             }
             LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                // The "add a rule for this new SIM?" nudge (SPEC "On SIM change")
+                // shows on the home too, not only on the rules list — this is
+                // where a freshly inserted SIM is most visible. Inside the
+                // scrolling list (not pinned above it) so several prompts, or a
+                // tall one at a large font scale, can't push the SIM registry
+                // off-screen (Codex on PR #84); tapping Add rule opens the editor.
+                items(newSimPrompts) { prompt ->
+                    NewSimPromptCard(
+                        prompt = prompt,
+                        onAddRule = { onAddRuleForSim(prompt) },
+                        onDismiss = { onDismissNewSimPrompt(prompt.ref) },
+                    )
+                }
                 // Deliberately no item keys: after a restore invalidates every
                 // subscription ID, same-named rows differing only in last-seen
                 // can share the whole identity triple, and duplicate keys

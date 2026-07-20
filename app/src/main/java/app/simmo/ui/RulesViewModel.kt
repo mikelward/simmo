@@ -640,48 +640,60 @@ class RulesViewModel(
     }
 
     /**
-     * Whether the SIMs screen is open. Mirrored into [SavedStateHandle] for
-     * the same reason as [editorTarget]: recreation and process death must
-     * bring the user back where they were.
+     * Whether the rules list is open. The SIMs screen is the home now (SPEC
+     * "SIMs screen"), so the rules list is a sub-screen reached from it.
+     * Mirrored into [SavedStateHandle] for the same reason as [editorTarget]:
+     * recreation and process death must restore where the user was.
      */
-    private val _registryOpen = MutableStateFlow(savedState.get<Boolean>(KEY_REGISTRY_OPEN) ?: false)
-    val registryOpen: StateFlow<Boolean> = _registryOpen
-
-    fun openSimRegistry() = setRegistryOpen(true)
+    private val _rulesOpen = MutableStateFlow(savedState.get<Boolean>(KEY_RULES_OPEN) ?: false)
+    val rulesOpen: StateFlow<Boolean> = _rulesOpen
 
     /**
-     * The SIMs screen's "Edit rules" button: leave every stacked screen and
-     * land on the rules list. A deliberate forward navigation, so any open
-     * editor is abandoned like Cancel — the same shape as [openDataRules].
+     * The SIMs home's "Edit rules" button: open the rules list over the home,
+     * keeping the current Calling/Data tab.
      */
-    fun openRules() {
+    fun openRules() = showRules()
+
+    /** Close the rules list — back to the SIMs home. */
+    fun closeRules() = setRulesOpen(false)
+
+    /**
+     * The Quick Settings tile's landing: the SIMs screen is the home, so pop any
+     * open sub-screen (abandoning its draft, like Cancel) to reveal it —
+     * otherwise a tile tap while an editor covered the home would appear to do
+     * nothing (Codex on PR #22/#57).
+     */
+    fun goHome() {
         setEditorTarget(null)
         setDataEditorTarget(null)
-        setRegistryOpen(false)
+        setRulesOpen(false)
         setGroupsOpen(false)
         setSettingsOpen(false)
         setLicensesOpen(false)
     }
 
     /**
-     * The Quick Settings tile's landing: a deliberate navigation, so any open
-     * editor is closed too (abandoning its draft, exactly like Cancel) —
-     * otherwise the editor would keep covering the registry and the tile tap
-     * would appear to do nothing.
+     * The new-SIM notification's landing (SPEC "On SIM change"): the rules list
+     * on the Calling tab, where the "add a rule for this new SIM" prompt shows.
      */
-    fun openSimRegistryFromShortcut() {
-        setEditorTarget(null)
-        // The data editor's route outranks the registry too — leaving it set
-        // would keep covering the registry the same way (Codex on PR #57).
-        setDataEditorTarget(null)
-        setRegistryOpen(true)
+    fun openCallingRules() {
+        selectRulesTab(RulesTab.CALLING)
+        showRules()
     }
 
-    fun closeSimRegistry() = setRegistryOpen(false)
+    /** Open the rules list over the home, abandoning any other open sub-screen. */
+    private fun showRules() {
+        setEditorTarget(null)
+        setDataEditorTarget(null)
+        setGroupsOpen(false)
+        setSettingsOpen(false)
+        setLicensesOpen(false)
+        setRulesOpen(true)
+    }
 
-    private fun setRegistryOpen(open: Boolean) {
-        _registryOpen.value = open
-        savedState[KEY_REGISTRY_OPEN] = open
+    private fun setRulesOpen(open: Boolean) {
+        _rulesOpen.value = open
+        savedState[KEY_RULES_OPEN] = open
     }
 
     /**
@@ -956,17 +968,12 @@ class RulesViewModel(
 
     /**
      * The data-watch notification's Rules action (and body tap): land on the
-     * data list itself, so anything covering the rules home closes — the
-     * warning is about now, not about wherever the user last left the app.
+     * data list itself, so anything covering it closes — the warning is about
+     * now, not about wherever the user last left the app.
      */
     fun openDataRules() {
         selectRulesTab(RulesTab.DATA)
-        setEditorTarget(null)
-        setDataEditorTarget(null)
-        setRegistryOpen(false)
-        setGroupsOpen(false)
-        setSettingsOpen(false)
-        setLicensesOpen(false)
+        showRules()
     }
 
     /** The data editor's route, held like [editorTarget] for the same reasons. */
@@ -1061,7 +1068,7 @@ class RulesViewModel(
         const val KEY_EDITOR_TARGET = "editor_target"
         const val KEY_DATA_EDITOR_TARGET = "data_editor_target"
         const val KEY_RULES_TAB = "rules_tab"
-        const val KEY_REGISTRY_OPEN = "registry_open"
+        const val KEY_RULES_OPEN = "rules_open"
         const val KEY_GROUPS_OPEN = "groups_open"
         const val KEY_SETTINGS_OPEN = "settings_open"
         const val KEY_LICENSES_OPEN = "licenses_open"

@@ -53,10 +53,12 @@ Apply takes the place of the header button whenever *any* deletion is pending �
 calling rule, a data rule, or a custom group — and commits all three at once, so it
 surfaces on both the rules and groups screens and flushes the struck-through entries in
 place (the affected list compacts) without leaving. With nothing pending the button is
-the screen's ordinary exit: **Done** on the rules home, which simply closes the UI (the
-redirection service keeps running); **Back** on the Country groups screen, which — being
-a Settings sub-screen, not the app's home — returns to Settings rather than closing the
-app (matching the system back gesture). Until a purge,
+the screen's ordinary exit — a **Back** to the screen it was opened from, since the
+rules list and the Country groups screen are both sub-screens of the home now (the
+SIMs screen; see "SIMs screen"): the rules list returns to the home, the groups screen
+to Settings, neither closing the app (matching the system back gesture). The app is
+left from the home itself, and *that* — not an in-app Back — is what triggers the
+purge. Until a purge,
 the delete is fully reversible — any number of deletions can be undone. The same model
 covers data rules and custom
 groups, with one deliberate difference for groups: a struck-through group **still
@@ -283,7 +285,8 @@ the user inside system Settings, never by Simmo.
 
 ### SIMs screen
 
-The SIMs screen is Simmo's at-a-glance view of the phone's SIM setup. It leads with
+The SIMs screen is **the app's home** — Simmo's at-a-glance view of the phone's SIM
+setup, shown once onboarding's grants are in place. It leads with
 the **current country** (where the user is now — the data subscription's network
 country, the same "where am I" the roaming watch reads, so a roaming SIM's home can't
 mask it), then lists **every SIM Simmo has ever seen, active ones first** (SPEC
@@ -302,10 +305,15 @@ gets a separate **"Data · temporary"** chip (the active data sub differs from t
 default) — so the override is visible rather than silently masquerading as primary. It
 is a
 status view, not a control: Simmo cannot change either primary, so the screen carries
-two buttons — **Edit rules** (to the rules list, where *preferred* is set) and
-**Change SIMs** (the jump to Android's SIM settings, where *primary* is set). (This is
-step one toward making the SIMs screen the app's home; promoting it above the rules
-list is deferred.)
+two buttons — **Edit rules** (opens the rules list, where *preferred* is set) and
+**Change SIMs** (the jump to Android's SIM settings, where *primary* is set) — plus the
+**Settings** gear (app-level options, moved here from the rules header now that this is
+the home). As the home, it is also where the **"add a rule for this new SIM?"** prompt
+surfaces (SPEC "On SIM change") — the card shows both here, where a freshly inserted SIM
+is most visible, and on the rules Calling list; the new-SIM notification opens the
+latter. The rules list and Settings are **sub-screens** reached from here, and Back
+from either returns to this home; leaving the app is done from the home, which is what
+purges pending deletes (see "Calling rules").
 
 The primary/temporary chips stay live while the app is foregrounded: an
 active-data-subscription listener (API 31+) registered on the activity's start and

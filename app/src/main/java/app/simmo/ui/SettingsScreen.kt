@@ -67,7 +67,6 @@ fun SettingsScreen(
     viewModel: RulesViewModel,
     contactsGranted: Boolean,
     onContactsGranted: () -> Unit,
-    onOpenSims: () -> Unit,
     onOpenGroups: () -> Unit,
     onOpenLicenses: () -> Unit,
     onBack: () -> Unit,
@@ -107,7 +106,6 @@ fun SettingsScreen(
         onGuardOverseasChange = viewModel::setGuardOverseasHandsFree,
         onGuardDisabledSimChange = viewModel::setGuardDisabledSimHandsFree,
         onAnalyticsOptInChange = viewModel::setAnalyticsOptIn,
-        onOpenSims = onOpenSims,
         onOpenGroups = onOpenGroups,
         onOpenLicenses = onOpenLicenses,
         onShareDebugLog = { DebugReport.share(context) },
@@ -128,7 +126,6 @@ internal fun SettingsContent(
     onGuardOverseasChange: (Boolean) -> Unit = {},
     onGuardDisabledSimChange: (Boolean) -> Unit = {},
     onAnalyticsOptInChange: (Boolean) -> Unit = {},
-    onOpenSims: () -> Unit = {},
     onOpenGroups: () -> Unit = {},
     onOpenLicenses: () -> Unit = {},
     onShareDebugLog: () -> Unit = {},
@@ -148,25 +145,6 @@ internal fun SettingsContent(
                 style = MaterialTheme.typography.headlineMedium,
                 modifier = Modifier.padding(bottom = 16.dp),
             )
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable(onClick = onOpenSims)
-                    .padding(vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = stringResource(R.string.sim_registry_title),
-                        style = MaterialTheme.typography.titleMedium,
-                    )
-                    Text(
-                        text = stringResource(R.string.settings_sims_description),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
             // Country groups management lives here — most groups are built inline
             // from the rule editor's picker, so this is the edit/delete surface.
             Row(
