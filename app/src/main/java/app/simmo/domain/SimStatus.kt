@@ -33,6 +33,13 @@ data class SimStatus(
  * the data side — the current network country, every active subscription
  * (data-only travel eSIMs included), and which one carries data now.
  *
+ * The **primary** roles are the user-selected defaults ([defaultCallSubscriptionId],
+ * [defaultDataSubscriptionId]) — what Android's own "Your primary SIMs" shows —
+ * NOT the SIM transiently carrying data ([DataSnapshot.dataSubscriptionId]),
+ * which automatic data switching can move without the user changing anything
+ * (Codex on PR #79). The **preferred** roles still read the active data sub,
+ * since they mirror what the rules would actually do to the live arrangement.
+ *
  * A subscription absent from the returned map has no role in this country; the
  * caller renders no chips for it. Inactive/registered-only SIMs never appear —
  * they are neither a live default nor a resolvable rule target.
@@ -41,13 +48,13 @@ fun simStatuses(
     callingBook: CallingRuleBook,
     callingActiveSims: List<ActiveSim>,
     defaultCallSubscriptionId: Int,
+    defaultDataSubscriptionId: Int,
     dataBook: DataRuleBook,
     dataSnapshot: DataSnapshot,
 ): Map<Int, SimStatus> {
     val country = dataSnapshot.networkCountry.trim().uppercase().ifEmpty { null }
     val callingPreferred = preferredCallingSubId(callingBook, callingActiveSims, country, dataSnapshot.customGroups)
     val dataPreferred = preferredDataSubId(dataBook, dataSnapshot)
-    val dataPrimary = dataSnapshot.dataSubscriptionId
 
     val ids = buildSet {
         callingActiveSims.forEach { add(it.subscriptionId) }
@@ -57,7 +64,7 @@ fun simStatuses(
         SimStatus(
             callingPrimary = id == defaultCallSubscriptionId,
             callingPreferred = id == callingPreferred,
-            dataPrimary = id == dataPrimary,
+            dataPrimary = id == defaultDataSubscriptionId,
             dataPreferred = id == dataPreferred,
         )
     }.filterValues { !it.isEmpty }

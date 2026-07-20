@@ -178,6 +178,7 @@ class SimStatusTest {
             callingBook = CallingRuleBook(),
             callingActiveSims = listOf(telstra, tmobile),
             defaultCallSubscriptionId = telstra.subscriptionId,
+            defaultDataSubscriptionId = tmobile.subscriptionId,
             dataBook = dataBook,
             dataSnapshot = dataSnapshot(dataSim = tmobile),
         )
@@ -192,6 +193,24 @@ class SimStatusTest {
     }
 
     @Test
+    fun `data primary follows the default SIM, not a temporary active switch`() {
+        // Automatic data switching moved the active data sub to T-Mobile, but
+        // the user's chosen primary data SIM is still Telstra — the chip must
+        // name Telstra (Codex on PR #79).
+        val statuses = simStatuses(
+            callingBook = CallingRuleBook(),
+            callingActiveSims = listOf(telstra, tmobile),
+            defaultCallSubscriptionId = SimRef.INVALID_SUBSCRIPTION_ID,
+            defaultDataSubscriptionId = telstra.subscriptionId,
+            dataBook = DataRuleBook(emptyList()),
+            dataSnapshot = dataSnapshot(dataSim = tmobile),
+        )
+        assertTrue(statuses.getValue(telstra.subscriptionId).dataPrimary)
+        // T-Mobile only carries data transiently, so it holds no role.
+        assertFalse(statuses.containsKey(tmobile.subscriptionId))
+    }
+
+    @Test
     fun `SIMs with no role are omitted from the status map`() {
         // In France with a data-only Orange eSIM carrying data; no calling rule
         // resolves (no FR calling SIM) and Telstra/T-Mobile hold no role there.
@@ -199,6 +218,7 @@ class SimStatusTest {
             callingBook = CallingRuleBook(),
             callingActiveSims = listOf(telstra, tmobile),
             defaultCallSubscriptionId = SimRef.INVALID_SUBSCRIPTION_ID,
+            defaultDataSubscriptionId = orangeData.subscriptionId,
             dataBook = DataRuleBook(emptyList()),
             dataSnapshot = dataSnapshot(
                 networkCountry = "FR",
