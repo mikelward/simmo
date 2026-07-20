@@ -91,6 +91,17 @@ class DebugReportTest {
     }
 
     @Test
+    fun `describeSim redacts a display name that is itself a phone number`() {
+        val sim = RegisteredSim(
+            subscriptionId = 4, carrierName = "Verizon", displayName = "+15551234567",
+            lastSeenEpochMillis = 0L, countryIso = "US", phoneNumber = "",
+        )
+        val line = describeSim(sim)
+        assertTrue("phone-number display name is redacted", line.contains("•"))
+        assertFalse("the full number must not appear", line.contains("15551234567"))
+    }
+
+    @Test
     fun `report notes when state has not loaded yet`() {
         val text = payload(state = null)
         assertTrue(text.contains("(state not loaded yet)"))

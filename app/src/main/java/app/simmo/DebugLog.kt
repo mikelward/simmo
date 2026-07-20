@@ -37,7 +37,10 @@ internal object SimmoDebugLog {
     }
 
     fun event(message: String) {
-        record('D', message, throwable = null)
+        // Recording must never throw: these run on the decision path (see
+        // RedirectionCoordinator), so an exception here must not preempt the
+        // service's safe verdict. The in-memory buffer is best-effort (Codex #83).
+        runCatching { record('D', message, throwable = null) }
         // Best-effort mirror to logcat: the in-memory buffer above is the
         // source of truth, and android.util.Log is unavailable (throws) in
         // plain JUnit tests that exercise the decision path.
@@ -45,7 +48,7 @@ internal object SimmoDebugLog {
     }
 
     fun warning(message: String, throwable: Throwable? = null) {
-        record('W', message, throwable)
+        runCatching { record('W', message, throwable) }
         runCatching { Log.w(SIMMO_DEBUG_TAG, message, throwable) }
     }
 
@@ -62,7 +65,7 @@ internal object SimmoDebugLog {
         val entry = if (throwable == null) {
             "$timestamp $level $SIMMO_DEBUG_TAG: $message"
         } else {
-            "$timestamp $level $SIMMO_DEBUG_TAG: $message\n${throwable.typeAndFramesOnly().trimEnd()}"
+            "$timestamp $level $SIMMO_DEBUG_TAG: $message\n${throwable.sanitizedTrace().trimEnd()}"
         }
         val bounded = if (entry.length > DEBUG_LOG_MAX_ENTRY_CHARS) {
             entry.take(DEBUG_LOG_MAX_ENTRY_CHARS) + "…(truncated)"
@@ -75,21 +78,30 @@ internal object SimmoDebugLog {
         }
     }
 
-    // Render only the exception type and stack frames — never the throwable's
-    // own message. A platform exception can populate its message with a tel:
-    // URI or a raw PhoneAccountHandle, which would land in the shareable buffer
-    // unredacted (Codex on PR #76); the developer-supplied [message] above
-    // carries the human context instead. Also avoids android.util.Log.
-    // getStackTraceString (which throws under plain JUnit) and guards against a
-    // cyclic cause chain.
-    private fun Throwable.typeAndFramesOnly(): String = buildString {
+    // Render the exception type, its message, and stack frames. A platform
+    // exception can put a tel: URI, a number, or a sip:/email account id in its
+    // message, so the message is run through [scrubPii] rather than dropped —
+    // keeping the useful "why" (e.g. "permission denied") while masking those
+    // (Codex on PR #76/#83). Avoids android.util.Log.getStackTraceString (which
+    // throws under plain JUnit) and guards against a cyclic cause chain.
+    private fun Throwable.sanitizedTrace(): String = buildString {
         val seen = java.util.Collections.newSetFromMap(IdentityHashMap<Throwable, Boolean>())
         var prefix = ""
-        var t: Throwable? = this@typeAndFramesOnly
+        var t: Throwable? = this@sanitizedTrace
         while (true) {
             val cur = t ?: break
             if (!seen.add(cur)) break
-            appendLine("$prefix${cur.javaClass.name}")
+            // Bound the message before scrubbing: the whole entry is capped
+            // below anyway, and scrubbing an unbounded message (a huge non-email
+            // token backtracks the identifier regex) would burn CPU on the
+            // decision path before the watchdog fires (Codex on PR #83).
+            // Read the message defensively — a getMessage() override can throw,
+            // and this trace is rendered while logging another exception on the
+            // decision path, so we keep the type + frames rather than let it
+            // escape (Codex on PR #83). null message → type + frames only.
+            val msg = runCatching { cur.message }.getOrNull()
+                ?.take(DEBUG_LOG_MAX_ENTRY_CHARS)?.let { scrubPii(it) }
+            appendLine(prefix + cur.javaClass.name + (msg?.let { ": $it" } ?: ""))
             for (frame in cur.stackTrace) appendLine("\tat $frame")
             t = cur.cause
             prefix = "Caused by: "
@@ -119,6 +131,51 @@ internal fun redactNumber(number: String): String {
     return "${trimmed.take(keepPrefix)}${"•".repeat(maskedLen)}${trimmed.takeLast(keepSuffix)} " +
         "(len=${trimmed.length})"
 }
+
+// `(?U)` puts the matcher in Unicode mode so `\d`/`\s` cover localized digits
+// (Arabic-Indic, Devanagari, …) and Unicode spaces, not just ASCII; the class
+// also spells out Unicode space separators (`\p{Zs}`), dashes (`\p{Pd}`), and
+// open/close punctuation (`\p{Ps}`/`\p{Pe}`, which covers both ASCII `()` and
+// full-width `（）` U+FF08/FF09), plus full-width dot/slash. So a number
+// formatted for any locale — separators or digits, ASCII or full-width — can't
+// slip past the redaction (Codex on PR #83: full-width parens split the run and
+// each fragment fell under the gate). The 6+-digit gate below decides a match.
+private val PHONE_LIKE = Regex("""(?U)\+?\d[\d\s\p{Zs}\p{Pd}\p{Ps}\p{Pe}./．／]{3,}\d""")
+// `tel:`/`sip:` URIs are masked whole (`(?:tel|sip):\S+`), so a vanity number
+// whose letters would otherwise split the digit run below the gate — e.g.
+// tel:1-800-FLOWERS — is still redacted (Codex on PR #83).
+// `(?U)` so `\w` covers Unicode letters too — an internationalized email/SIP id
+// (álîçé@example.com, alice@例え.テスト) must be masked like an ASCII one (Codex #83).
+// The host part does not require a dot, so a single-label SIP host (alice@pbx, an
+// internal PBX) is masked too, not just dotted domains (Codex on PR #83).
+private val IDENTIFIER_LIKE = Regex("""(?U)(?:tel|sip):\S+|[\w.+-]+@[\w.-]+""", RegexOption.IGNORE_CASE)
+
+/**
+ * Masks personal identifiers inside free text — e.g. an exception message that
+ * rendered a `tel:` URI, a raw number, a `sip:` URI, or an email/SIP username —
+ * so a message can be kept for its context without leaking one. Phone-number-like
+ * runs (6+ digits — the shortest a subscriber number reaches; [redactNumber]
+ * masks that safely) go through [redactNumber]; `sip:`/email-style account ids
+ * are masked whole. Shorter digit runs (line numbers, subscription ids, short
+ * codes) and ordinary words are left alone. Best-effort: a bare opaque token with
+ * no recognizable shape can't be detected — the airtight alternative is dropping
+ * messages entirely (Codex on PR #83).
+ */
+internal fun scrubPii(text: String): String {
+    val idsMasked = IDENTIFIER_LIKE.replace(text) { "•••" }
+    return PHONE_LIKE.replace(idsMasked) { match ->
+        if (match.value.count(Char::isDigit) >= 6) redactNumber(match.value) else match.value
+    }
+}
+
+/**
+ * A SIM display name or rule label with any embedded phone number / identifier
+ * masked. Platform display names are free-form — a carrier may set the SIM's own
+ * number as the name, or "Work +1 555 123 4567" — so numbers are scrubbed
+ * wherever they appear, not only when the whole label is a number (Codex on
+ * PR #83). Ordinary labels ("Personal", "Telstra", "SIM 2") pass through.
+ */
+internal fun redactLabel(label: String): String = scrubPii(label)
 
 /**
  * A stable, non-identifying fingerprint of a Telecom account id. A third-party

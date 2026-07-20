@@ -232,9 +232,13 @@ internal fun describeAction(action: RuleAction): String = when (action) {
     RuleAction.SystemDefault -> "no change"
 }
 
-/** A registry SIM as one line; its own number appears only redacted, like dialed ones. */
+/**
+ * A registry SIM as one line. Every phone number is redacted: the dedicated
+ * own-number field always, and the display name too when it is itself a number
+ * (via [redactLabel]) — some carriers set the display name to the SIM's number.
+ */
 internal fun describeSim(sim: RegisteredSim): String {
-    val name = sim.displayName.ifBlank { "(no name)" }
+    val name = redactLabel(sim.displayName).ifBlank { "(no name)" }
     val country = sim.countryIso.ifBlank { "?" }
     val dataOnly = if (!sim.callCapable) " [data-only]" else ""
     val number = if (sim.phoneNumber.isNotBlank()) ", ${redactNumber(sim.phoneNumber)}" else ""
@@ -242,7 +246,8 @@ internal fun describeSim(sim: RegisteredSim): String {
 }
 
 private fun simRefLabel(sim: SimRef): String {
-    val name = sim.displayName.ifBlank { sim.carrierName }.ifBlank { "SIM" }
+    // Redact a display name that is itself a phone number, like describeSim.
+    val name = redactLabel(sim.displayName.ifBlank { sim.carrierName }).ifBlank { "SIM" }
     return "$name (${subLabel(sim.subscriptionId)})"
 }
 
