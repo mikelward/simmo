@@ -4,7 +4,6 @@ import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.os.Build
 import android.provider.Settings
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -1086,14 +1085,12 @@ internal fun areNotificationsEnabled(context: Context): Boolean {
 }
 
 /**
- * Whether the POST_NOTIFICATIONS dialog can be requested at all: the runtime
- * permission exists only from API 33, and re-requesting a granted one is a
- * no-op (notifications can still be off in settings — the hint's settings
- * fallback covers that).
+ * Whether the POST_NOTIFICATIONS dialog can be requested at all: re-requesting an
+ * already-granted permission is a no-op (notifications can still be off in
+ * settings — the hint's settings fallback covers that).
  */
 private fun canRequestNotifications(context: Context): Boolean =
-    Build.VERSION.SDK_INT >= 33 &&
-        ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
+    ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
         PackageManager.PERMISSION_GRANTED
 
 /** Persists the rule's chosen countries across recreation. */

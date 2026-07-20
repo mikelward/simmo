@@ -3,7 +3,6 @@ package app.simmo.tile
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
-import android.os.Build
 import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
 import app.simmo.MainActivity
@@ -41,20 +40,14 @@ class ManageSimsTileService : TileService() {
 
     private fun launchManageSims() {
         val intent = manageSimsIntent(this)
-        if (Build.VERSION.SDK_INT >= 34) {
-            startActivityAndCollapse(
-                PendingIntent.getActivity(
-                    this,
-                    0,
-                    intent,
-                    PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
-                ),
-            )
-        } else {
-            // The Intent overload throws on 34+ but remains the only path below.
-            @Suppress("DEPRECATION", "StartActivityAndCollapseDeprecated")
-            startActivityAndCollapse(intent)
-        }
+        startActivityAndCollapse(
+            PendingIntent.getActivity(
+                this,
+                0,
+                intent,
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+            ),
+        )
     }
 
     companion object {
