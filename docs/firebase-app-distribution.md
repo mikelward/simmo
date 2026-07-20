@@ -6,17 +6,16 @@ upload is wired into the `deploy` job in `.github/workflows/android-ci.yml` usin
 
 ## What gets uploaded
 
-The action uploads the **firebase** APK that `assembleFirebase` produced
-(`app/build/outputs/apk/firebase/app-firebase.apk`). The `firebase` build type
-inherits the release build's R8 pipeline (`isMinifyEnabled` +
-`proguard-rules.pro`), so testers exercise — and catch regressions in — the same
-shrinking and obfuscation a Play release would, instead of an unminified debug
-APK that never runs R8. It is **debug-signed** (see below), so it stays
-installable without a release keystore or any Play setup.
-
-The build type is named for its distribution channel: `alpha`/`beta` would
-collide with Play's track names, and AGP reserves build-type names starting with
-`test`.
+The action uploads the **debug** APK that `assembleDebug` produced
+(`app/build/outputs/apk/debug/app-debug.apk`). The `debug` build type carries an
+`applicationIdSuffix = ".debug"`, so the tester package is `app.simmo.debug` and
+co-installs beside a release-signed Play build (`app.simmo`) instead of colliding
+on the package name. In CI it runs the same shrink-only R8 as the release build
+(`isMinifyEnabled = isCiBuild` + `proguard-rules.pro`), so testers exercise — and
+catch regressions in — the same shrinking a Play release would; local debug builds
+skip R8 to keep the edit-install loop fast. It is **debug-signed** (see below), so
+it stays installable without a release keystore or any Play setup. This mirrors the
+clothescast and typelauncher tester builds.
 
 ## Stable debug signing key
 
@@ -78,9 +77,9 @@ in that environment; restrict its deployment branches to `main`):
 
 | Secret | Description |
 | --- | --- |
-| `FIREBASE_APP_ID` | Firebase App ID for the Android app, e.g. `1:1234567890:android:abcdef`. |
+| `FIREBASE_APP_ID` | Firebase App ID of the **`app.simmo.debug`** Android app (the distributed artifact is `app-debug.apk`), e.g. `1:1234567890:android:abcdef`. Not the `app.simmo` production app — Firebase App Distribution rejects a package-name mismatch. |
 | `FIREBASE_SERVICE_ACCOUNT_JSON` | Full JSON of a service account with the `Firebase App Distribution Admin` role. |
-| `GOOGLE_SERVICES_JSON` | Contents of `app/google-services.json`, so Crashlytics/Analytics ship in distributed builds (see `SETUP.md`). |
+| `GOOGLE_SERVICES_JSON` | Contents of `app/google-services.json`, so Crashlytics/Analytics ship in distributed builds. Must include the `app.simmo.debug` client, or the Google Services plugin fails `assembleDebug` (see `SETUP.md`). |
 | `DEBUG_KEYSTORE_BASE64` | Base64-encoded PKCS12 keystore bytes (`base64 -w0 debug.keystore`). |
 | `DEBUG_KEYSTORE_PASSWORD` | Random hex string set when the keystore was generated. |
 | `DEBUG_KEY_PASSWORD` | Same value as `DEBUG_KEYSTORE_PASSWORD` (PKCS12 convention). |
@@ -115,9 +114,12 @@ new".
 Install the [Firebase CLI](https://firebase.google.com/docs/cli) and run:
 
 ```sh
-./gradlew assembleFirebase
-firebase appdistribution:distribute app/build/outputs/apk/firebase/app-firebase.apk \
+CI=true ./gradlew assembleDebug
+firebase appdistribution:distribute app/build/outputs/apk/debug/app-debug.apk \
   --app "$FIREBASE_APP_ID" \
   --groups testers \
   --release-notes "Local upload from $(git rev-parse --short HEAD)"
 ```
+
+`--app` must be the Firebase App ID of the `app.simmo.debug` app (matching
+`app-debug.apk`), not the `app.simmo` production app.

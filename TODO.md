@@ -453,15 +453,26 @@ Android Auto safeguards").
       typelauncher builds (typelauncher `AGENTS.md` is the convention tiebreaker). The
       `debug` build is both the local build and the tester build distributed to Firebase;
       the release build stays unbadged.
-- [ ] Before the first Google Play publish, match typelauncher and clothescast:
-      distribute a non-R8 `debug` build with a `.debug` `applicationIdSuffix` to Firebase
-      instead of the R8 `firebase` build type. Add `applicationIdSuffix = ".debug"` to the
-      `debug` build type, point CI's Firebase step at `assembleDebug`, and drop the
-      `firebase` build type. The tester package becomes `app.simmo.debug`, co-installable
-      beside the release-signed Play `app.simmo`. Register an `app.simmo.debug` Firebase
-      Android app and repoint CI's `GOOGLE_SERVICES_JSON` / `FIREBASE_APP_ID` secrets at
-      it. Doing this before the first Play publish avoids a tester migration off the
-      current unsuffixed `app.simmo` build.
+- [x] Converge the tester build on the Type Launcher model (code side): distribute the
+      `debug` build with `applicationIdSuffix = ".debug"` instead of the dedicated R8
+      `firebase` type, so the tester package is `app.simmo.debug`, co-installable beside
+      the release-signed Play `app.simmo`. R8 is shrink-only (`-dontoptimize
+      -dontobfuscate`) and CI-only (`isMinifyEnabled = isCiBuild`) on both `debug` and
+      `release`, so testers and every PR exercise the exact pipeline the Play build ships
+      while local builds skip R8. CI builds/distributes `assembleDebug`; the `firebase`
+      build type is gone. Resource shrinking stays off (libphonenumber metadata).
+- [ ] Firebase console + secrets for the `.debug` tester package — **must land before the
+      next `main` deploy or the `deploy` job's `assembleDebug` fails** once
+      `google-services.json` is materialized: register an `app.simmo.debug` Firebase
+      Android app, add its client to the `GOOGLE_SERVICES_JSON` secret (the Google
+      Services plugin fails the build if no client matches the new applicationId), and
+      repoint the `FIREBASE_APP_ID` secret to the new app. Doing this before the first
+      Play publish also avoids a tester migration off the current unsuffixed `app.simmo`
+      build. (Ops-only — not a code change.)
+- [ ] Converge clothescast onto the same model in a follow-up (its own repo): today it
+      runs full optimize+obfuscate R8 always (slow local loop); switching to shrink-only
+      + `isCiBuild` changes a *shipping* app's release artifact, so it needs a deliberate,
+      device-checked release rather than folding in here.
 - [x] Release keystore signing config + Play internal track upload
       (`docs/play-store-internal-track.md`; skips quietly until secrets are
       populated).

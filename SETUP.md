@@ -13,10 +13,16 @@ Firebase never initializes and nothing is collected.
 To enable it for your builds:
 
 1. In the [Firebase console](https://console.firebase.google.com/), create (or
-   open) the Simmo project and register an Android app with package name
-   `app.simmo`. Enable Crashlytics under **Release & Monitor → Crashlytics**.
-2. Download the app's `google-services.json` and place it at
-   `app/google-services.json`. It is gitignored — never commit it.
+   open) the Simmo project and register **two** Android apps in it — package
+   names `app.simmo` (the release / Play build) and `app.simmo.debug` (the debug
+   and tester build, which carries an `applicationIdSuffix = ".debug"`). Both are
+   needed: the Google Services Gradle plugin fails any build whose application ID
+   has no matching client, so without the `.debug` app a Firebase-enabled
+   `assembleDebug` won't build. Enable Crashlytics under **Release & Monitor →
+   Crashlytics**.
+2. Download `google-services.json` and place it at `app/google-services.json` — a
+   single file covers every app registered in the project, so this one contains
+   both clients. It is gitignored — never commit it.
 3. Build as usual. When the file is present, `app/build.gradle.kts`
    automatically applies the Google services and Crashlytics Gradle plugins,
    which compile the config in and (for minified release builds) upload the R8
