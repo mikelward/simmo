@@ -536,9 +536,11 @@ Key platform constraints the design honors:
   `TelecomManager` call-capable phone accounts) needs `READ_PHONE_STATE`.
 - **Enabling SIMs is Settings' job.** `EuiccManager.switchToSubscription` and inactive
   profile enumeration require carrier privileges, which Simmo does not and cannot have.
-  The assist flow deep-links to the system's embedded-SIM management screen
-  (`EuiccManager.ACTION_MANAGE_EMBEDDED_SUBSCRIPTIONS`, with a generic SIM settings
-  fallback) and detects the result via subscription-change callbacks.
+  The assist flow deep-links to the system's SIMs settings page
+  (`Settings.ACTION_MANAGE_ALL_SIM_PROFILES_SETTINGS` — where the default
+  calling/data SIM and per-SIM enable toggles live — falling back to the
+  embedded-SIM management screen and then generic SIM settings) and detects the
+  result via subscription-change callbacks.
 
 ### Data-roaming visibility (no foreground service)
 
