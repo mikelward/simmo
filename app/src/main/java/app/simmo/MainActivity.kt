@@ -45,6 +45,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.LocalActivity
 import androidx.lifecycle.compose.LifecycleEventEffect
+import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.flow.filterNotNull
@@ -171,6 +172,15 @@ class MainActivity : ComponentActivity() {
                     // purge them then (Codex on PR #61).
                     LifecycleEventEffect(Lifecycle.Event.ON_STOP) {
                         if (activity?.isChangingConfigurations != true) vm.purgePendingRemovals()
+                    }
+                    // Keep the SIMs screen's data chips (and the Data-tab triage
+                    // card) live while the app is foregrounded: an automatic-data
+                    // switch refreshes telephony. Foreground-only — registered on
+                    // start, dropped on stop — never a resident callback (SPEC
+                    // "SIMs screen"); elsewhere the chips refresh on resume.
+                    LifecycleStartEffect(Unit) {
+                        (application as SimmoApp).startActiveDataWatch()
+                        onStopOrDispose { (application as SimmoApp).stopActiveDataWatch() }
                     }
                     // Routes live in the ViewModel so a rotation mid-edit (or
                     // mid-registry-browse) keeps the user where they were.

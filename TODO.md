@@ -203,6 +203,15 @@ small stack), fully unit-tested, with `./gradlew test` and `./gradlew lint` gree
       rules would use here), split across calling and data — computed by pure
       helpers mirroring the decision engine and the roaming watch (`SimStatus.kt`,
       unit-tested); add **Edit rules** and **Change SIMs** buttons.
+  - [x] "Data · temporary" chip: when automatic data switching moves data off
+        the primary, tag the SIM carrying it (active data sub ≠ default), so the
+        override is visible (Codex flagged the active/default conflation on PR
+        #80).
+  - [x] Keep the primary/temporary chips live while foregrounded: a
+        foreground-only `ActiveDataSubscriptionIdListener` (API 31+), registered
+        on the activity's start and dropped on stop, refreshes telephony on an
+        active-data switch — never a resident callback (Codex on PR #80). Device
+        QA owed: the callback actually firing on a real auto-switch.
   - [ ] Step 2: promote the SIMs screen to the app's home (above the rules list).
         Deferred — decide the navigation, the Settings gear's new home, and the
         Quick Settings tile landing; needs its own screenshot + nav pass.
