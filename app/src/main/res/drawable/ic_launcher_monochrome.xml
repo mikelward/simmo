@@ -14,7 +14,7 @@
             android:strokeWidth="16"
             android:strokeLineJoin="round"
             android:fillColor="#00000000"
-            android:pathData="M 210,145 L 340,145 L 390,195 L 390,375 C 390,386.045 381.045,395 370,395 L 230,395 C 218.954,395 210,386.045 210,375 Z" />
+            android:pathData="M 210,145 L 340,145 L 390,195 L 390,355 C 390,366.045 381.045,375 370,375 L 230,375 C 218.954,375 210,366.045 210,355 Z" />
 
         <!-- Foreground SIM -->
         <path
@@ -22,7 +22,7 @@
             android:strokeWidth="16"
             android:strokeLineJoin="round"
             android:fillColor="#00000000"
-            android:pathData="M 140,190 L 270,190 L 320,240 L 320,420 C 320,431.045 311.045,440 300,440 L 160,440 C 148.954,440 140,431.045 140,420 Z" />
+            android:pathData="M 140,190 L 270,190 L 320,240 L 320,400 C 320,411.045 311.045,420 300,420 L 160,420 C 148.954,420 140,411.045 140,400 Z" />
 
         <!-- Checkmark -->
         <path
