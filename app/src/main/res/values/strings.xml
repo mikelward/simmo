@@ -199,8 +199,6 @@
     <!-- TODO: translate -->
     <string name="settings_open" tools:ignore="MissingTranslation">Settings</string>
     <!-- TODO: translate -->
-    <string name="settings_sims_description" tools:ignore="MissingTranslation">Every SIM Simmo has seen</string>
-    <!-- TODO: translate -->
     <string name="settings_groups_description" tools:ignore="MissingTranslation">Custom sets of countries a rule can match</string>
     <!-- TODO: translate -->
     <string name="settings_privacy_policy" tools:ignore="MissingTranslation">Privacy policy</string>

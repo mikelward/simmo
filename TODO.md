@@ -212,9 +212,14 @@ small stack), fully unit-tested, with `./gradlew test` and `./gradlew lint` gree
         on the activity's start and dropped on stop, refreshes telephony on an
         active-data switch — never a resident callback (Codex on PR #80). Device
         QA owed: the callback actually firing on a real auto-switch.
-  - [ ] Step 2: promote the SIMs screen to the app's home (above the rules list).
-        Deferred — decide the navigation, the Settings gear's new home, and the
-        Quick Settings tile landing; needs its own screenshot + nav pass.
+  - [x] Step 2: the SIMs screen is the app's home (SPEC "SIMs screen"). The rules
+        list and Settings are sub-screens reached from it; the Settings gear moved
+        onto the home header; the rules list's "Done" became a Back to the home
+        (leaving the app still purges pending deletes). The new-SIM prompt card
+        shows on the home too (not only the rules list); its notification opens
+        the rules Calling list (`ACTION_CALLING_RULES`). The Quick Settings tile
+        now just lands on the home. Device QA owed: the tile from a locked device,
+        and Back-stack behavior from each sub-screen on a real device.
 - [x] Standardize every jump out to Android's SIM settings on one label,
       **"Change SIMs"** (SPEC "Product behavior") — retiring "System settings"
       and the triage card's "Change SIM" one-off across the chooser, the SIMs

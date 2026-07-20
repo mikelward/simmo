@@ -8,6 +8,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import app.simmo.domain.SimRef
 import com.github.takahirom.roborazzi.captureRoboImage
@@ -19,8 +20,10 @@ import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
 /**
- * Renders the SIMs screen (SPEC "Disabled-SIM assist"): active SIMs first,
- * stale entries below with their last-seen dates and delete affordances.
+ * Renders the SIMs screen — the app's home (SPEC "SIMs screen"): current
+ * country, the Settings gear, Edit rules / Change SIMs actions, the new-SIM
+ * prompt, then active SIMs first with their status chips and stale entries
+ * below with last-seen dates and delete affordances.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [36], qualifiers = "w411dp-h914dp-420dpi")
@@ -81,6 +84,15 @@ class SimRegistryScreenshotTest {
                             lastSeenLabel = "Mar 2, 2026",
                         ),
                     ),
+                    // The new-SIM prompt shows on the home too, not only the
+                    // rules list.
+                    newSimPrompts = listOf(
+                        NewSimPromptUi(
+                            ref = SimRef(5, "Orange", "Orange Holiday"),
+                            label = "Orange Holiday",
+                            homeRegion = "FR",
+                        ),
+                    ),
                 )
             }
         }
@@ -99,9 +111,12 @@ class SimRegistryScreenshotTest {
         composeRule.onNodeWithText("Data · preferred").assertExists()
         // The auto-data-switch chip on the SIM currently carrying data.
         composeRule.onNodeWithText("Data · temporary").assertExists()
-        // The two top actions: the rules list, and the one jump-out label.
+        // The home actions: the Settings gear, Edit rules, and the jump-out.
+        composeRule.onNodeWithContentDescription("Settings").assertExists()
         composeRule.onNodeWithText("Edit rules").assertExists()
         composeRule.onNodeWithText("Change SIMs").assertExists()
+        // The new-SIM prompt card, surfaced on the home.
+        composeRule.onNodeWithText("New SIM: Orange Holiday").assertExists()
         captureSnapshot("sim_registry.png")
     }
 

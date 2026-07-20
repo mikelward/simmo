@@ -82,6 +82,13 @@ class MainActivity : ComponentActivity() {
      */
     private var dataRulesRequested by mutableStateOf(false)
 
+    /**
+     * Set when the new-SIM notification asked for the calling rules list (where
+     * its "add a rule for this SIM" prompt shows); same lifecycle rules as
+     * [dataRulesRequested].
+     */
+    private var callingRulesRequested by mutableStateOf(false)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -91,6 +98,12 @@ class MainActivity : ComponentActivity() {
             STATE_DATA_RULES_REQUESTED,
             intent?.action,
             ACTION_DATA_RULES,
+        )
+        callingRulesRequested = pendingRequest(
+            savedInstanceState,
+            STATE_CALLING_RULES_REQUESTED,
+            intent?.action,
+            ACTION_CALLING_RULES,
         )
         setContent {
             MaterialTheme {
@@ -185,7 +198,7 @@ class MainActivity : ComponentActivity() {
                     // Routes live in the ViewModel so a rotation mid-edit (or
                     // mid-registry-browse) keeps the user where they were.
                     val target by vm.editorTarget.collectAsStateWithLifecycle()
-                    val registryOpen by vm.registryOpen.collectAsStateWithLifecycle()
+                    val rulesOpen by vm.rulesOpen.collectAsStateWithLifecycle()
                     val groupsOpen by vm.groupsOpen.collectAsStateWithLifecycle()
                     val settingsOpen by vm.settingsOpen.collectAsStateWithLifecycle()
                     val licensesOpen by vm.licensesOpen.collectAsStateWithLifecycle()
@@ -204,20 +217,30 @@ class MainActivity : ComponentActivity() {
                             notificationsLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                         }
                     }
-                    // The tile's request waits here until onboarding is done:
-                    // a tap before the grants exist still lands on the SIMs
-                    // screen once they're in place.
+                    // The tile's request waits here until onboarding is done: a
+                    // tap before the grants exist still lands on the SIMs home
+                    // (now the app's home screen) once they're in place. Popping
+                    // any open sub-screen reveals it.
                     LaunchedEffect(manageSimsRequested) {
                         if (manageSimsRequested) {
                             manageSimsRequested = false
-                            vm.openSimRegistryFromShortcut()
+                            vm.goHome()
                         }
                     }
-                    // The notification's request likewise waits out onboarding.
+                    // The data-watch notification's request likewise waits out
+                    // onboarding, then lands on the data rules list.
                     LaunchedEffect(dataRulesRequested) {
                         if (dataRulesRequested) {
                             dataRulesRequested = false
                             vm.openDataRules()
+                        }
+                    }
+                    // The new-SIM notification lands on the rules Calling list,
+                    // where its "add a rule for this SIM" prompt card also shows.
+                    LaunchedEffect(callingRulesRequested) {
+                        if (callingRulesRequested) {
+                            callingRulesRequested = false
+                            vm.openCallingRules()
                         }
                     }
                     val editing = target
@@ -225,7 +248,7 @@ class MainActivity : ComponentActivity() {
                     val editingData = dataEditing
                     when {
                         // The editor wins: it can only be open from the rules
-                        // list, and registry state is preserved beneath it.
+                        // list, whose state is preserved beneath it.
                         editing != null -> {
                             BackHandler { vm.closeEditor() }
                             RuleEditorScreen(
@@ -244,26 +267,6 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
-                        // Above Settings: the SIMs screen is opened from it,
-                        // so closing lands back on Settings. Except in an
-                        // instance the tile itself created — that one exists
-                        // only for the SIMs screen, so Back dismisses the
-                        // whole activity, revealing what was beneath it (in
-                        // the worst case the mid-call Ask chooser, which must
-                        // not hide behind a screen the user never visited —
-                        // Codex on PR #22). An instance that merely received
-                        // the tile action via onNewIntent keeps in-app Back.
-                        registryOpen -> SimRegistryScreen(
-                            viewModel = vm,
-                            onBack = if (intent?.action == ACTION_MANAGE_SIMS) {
-                                ::finish
-                            } else {
-                                vm::closeSimRegistry
-                            },
-                            onOpenSimSettings = openSimSettingsAskingNotifications,
-                            onEditRules = vm::openRules,
-                        )
-
                         // A Settings sub-screen: both the header Back button and
                         // the system back gesture land back on Settings (which
                         // stays open beneath it), never finishing the activity.
@@ -272,7 +275,7 @@ class MainActivity : ComponentActivity() {
                             onBack = vm::closeGroups,
                         )
 
-                        // Above Settings, like the SIMs screen: opened from it,
+                        // Above Settings, like the groups screen: opened from it,
                         // so Back lands back on Settings.
                         licensesOpen -> LicensesScreen(onBack = vm::closeLicenses)
 
@@ -286,17 +289,33 @@ class MainActivity : ComponentActivity() {
                                 contactsGranted = isContactsPermissionGranted()
                                 (application as SimmoApp).refreshContacts()
                             },
-                            onOpenSims = vm::openSimRegistry,
                             onOpenGroups = vm::openGroups,
                             onOpenLicenses = vm::openLicenses,
                             onBack = vm::closeSettings,
                         )
 
-                        else -> RulesScreen(
+                        // The rules list, a sub-screen of the SIMs home now:
+                        // Back (header and gesture) returns home; Apply still
+                        // commits pending deletes in place. Leaving the app (from
+                        // the home) is what purges, as before.
+                        rulesOpen -> {
+                            BackHandler { vm.closeRules() }
+                            RulesScreen(
+                                viewModel = vm,
+                                onAddRule = vm::openNewRule,
+                                onEditRule = vm::openEditRule,
+                                onBack = vm::closeRules,
+                            )
+                        }
+
+                        // The home screen (SPEC "SIMs screen"): back finishes the
+                        // activity (leaving purges any pending deletes on ON_STOP).
+                        else -> SimRegistryScreen(
                             viewModel = vm,
-                            onAddRule = vm::openNewRule,
-                            onEditRule = vm::openEditRule,
-                            onDone = { activity?.finish() },
+                            onBack = { activity?.finish() },
+                            onOpenSimSettings = openSimSettingsAskingNotifications,
+                            onEditRules = vm::openRules,
+                            onOpenSettings = vm::openSettings,
                         )
                     }
                 } else {
@@ -357,12 +376,16 @@ class MainActivity : ComponentActivity() {
         if (intent.action == ACTION_DATA_RULES) {
             dataRulesRequested = true
         }
+        if (intent.action == ACTION_CALLING_RULES) {
+            callingRulesRequested = true
+        }
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         outState.putBoolean(STATE_MANAGE_SIMS_REQUESTED, manageSimsRequested)
         outState.putBoolean(STATE_DATA_RULES_REQUESTED, dataRulesRequested)
+        outState.putBoolean(STATE_CALLING_RULES_REQUESTED, callingRulesRequested)
     }
 
     private fun isRedirectionRoleHeld(): Boolean =
@@ -392,8 +415,12 @@ class MainActivity : ComponentActivity() {
         /** Sent by the data-watch notification: land on the data rules list. */
         const val ACTION_DATA_RULES = "app.simmo.action.DATA_RULES"
 
+        /** Sent by the new-SIM notification: land on the calling rules list. */
+        const val ACTION_CALLING_RULES = "app.simmo.action.CALLING_RULES"
+
         private const val STATE_MANAGE_SIMS_REQUESTED = "manage_sims_requested"
         private const val STATE_DATA_RULES_REQUESTED = "data_rules_requested"
+        private const val STATE_CALLING_RULES_REQUESTED = "calling_rules_requested"
 
         /**
          * Whether a tile request is pending at creation. A fresh launch reads
