@@ -289,6 +289,7 @@ class MainActivity : ComponentActivity() {
                                 contactsGranted = isContactsPermissionGranted()
                                 (application as SimmoApp).refreshContacts()
                             },
+                            onOpenRules = vm::openRules,
                             onOpenGroups = vm::openGroups,
                             onOpenLicenses = vm::openLicenses,
                             onBack = vm::closeSettings,

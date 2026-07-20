@@ -313,7 +313,8 @@ surfaces (SPEC "On SIM change") — the card shows both here, where a freshly in
 is most visible, and on the rules Calling list; the new-SIM notification opens the
 latter. The rules list and Settings are **sub-screens** reached from here, and Back
 from either returns to this home; leaving the app is done from the home, which is what
-purges pending deletes (see "Calling rules").
+purges pending deletes (see "Calling rules"). The Settings screen also leads with a
+**Rules** entry, a second way into the rules list beside the **Edit rules** button.
 
 The primary/temporary chips stay live while the app is foregrounded: an
 active-data-subscription listener (API 31+) registered on the activity's start and

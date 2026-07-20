@@ -44,8 +44,10 @@ class SettingsScreenshotTest {
         composeRule.waitForIdle()
 
         composeRule.onNodeWithText("Settings").assertExists()
-        // The SIMs screen is the app's home now, so Settings no longer links to
-        // it; Country groups leads the list.
+        // Rules leads the list (the SIMs screen is the home, so Settings no
+        // longer links to it); Country groups follows.
+        composeRule.onNodeWithText("Rules").assertExists()
+        composeRule.onNodeWithText("Calling and data rules").assertExists()
         composeRule.onNodeWithText("Country groups").assertExists()
         composeRule.onNodeWithText("Custom sets of countries a rule can match").assertExists()
         composeRule.onNodeWithText("Show which SIM or app is used").assertExists()
@@ -65,6 +67,18 @@ class SettingsScreenshotTest {
         // Tall enough to show the whole scrolling page, including the footer
         // (the new "Share debug logs" row pushed the version line down).
         captureSnapshot("settings.png", heightPx = 2500)
+    }
+
+    @Test
+    fun tappingRulesOpensThem() {
+        var opened = false
+        composeRule.setContent {
+            MaterialTheme {
+                SettingsContent(onOpenRules = { opened = true })
+            }
+        }
+        composeRule.onNodeWithText("Rules").performClick()
+        composeRule.runOnIdle { assertEquals(true, opened) }
     }
 
     @Test
