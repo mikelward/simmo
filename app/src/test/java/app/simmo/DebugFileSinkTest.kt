@@ -216,6 +216,34 @@ class DebugFileSinkTest {
         assertFalse("a shared crash leaves no banner", runB.hasUnacknowledgedCrash())
     }
 
+    @Test
+    fun `the crash marker survives the registered sink's fan-out write`() {
+        val dir = folder.newFolder()
+        Thread.setDefaultUncaughtExceptionHandler { _, _ -> }
+
+        val runA = DebugFileSink(dir)
+        runA.start()
+        // Production registers the sink, so warning()/event() fan out to it and it
+        // queues a mirror write — the exact path the plain crash tests skip by not
+        // registering. The crash handler must still land the marker without a
+        // redundant snapshot racing ahead of it on the FIFO worker, or the next
+        // start misclassifies the crash as a routine kill (Codex on PR #94).
+        SimmoDebugLog.addSink(runA)
+        SimmoDebugLog.event("Decision +614••78 -> Ask")
+        runA.awaitIdleForTest()
+        triggerCrash()
+        runA.awaitIdleForTest()
+        SimmoDebugLog.removeSink(runA)
+
+        val runB = DebugFileSink(dir)
+        runB.start()
+        assertTrue(
+            "the crash is classified as a crash despite the registered sink's fan-out",
+            runB.hasUnacknowledgedCrash(),
+        )
+        assertTrue(runB.readPreviousRun()!!.contains("Uncaught exception in thread"))
+    }
+
     /** Fires the currently-installed default handler, as an OS crash would. */
     private fun triggerCrash(message: String = "boom") {
         Thread.getDefaultUncaughtExceptionHandler()!!

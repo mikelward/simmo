@@ -34,6 +34,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -47,6 +48,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.simmo.DebugReport
 import app.simmo.R
 import app.simmo.domain.SimRef
+import kotlinx.coroutines.launch
 
 /**
  * One row of the SIMs screen (SPEC "Disabled-SIM assist"): every SIM Simmo
@@ -98,6 +100,7 @@ fun SimRegistryScreen(
     // already held: same permission group, so the request is granted silently
     // — no dialog interrupting the screen — and a refresh fills the numbers in.
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     val numbersLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
     ) { granted ->
@@ -126,10 +129,13 @@ fun SimRegistryScreen(
         onAddRuleForSim = viewModel::openNewRuleForSim,
         onDismissNewSimPrompt = viewModel::dismissNewSimPrompt,
         onShareCrashReport = {
-            // Same share path as Settings' "Share debug logs"; it consumes and
-            // clears the prior run, so the banner won't return.
-            DebugReport.share(context)
-            viewModel.onDebugReportShared()
+            // Same share path as Settings' "Share debug logs"; it consumes the
+            // prior run when the report is retained, and onDebugReportShared
+            // re-checks so the banner clears only then (Codex #92).
+            scope.launch {
+                DebugReport.share(context)
+                viewModel.onDebugReportShared()
+            }
         },
         onDismissCrashBanner = viewModel::dismissCrashBanner,
     )

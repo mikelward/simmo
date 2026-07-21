@@ -13,6 +13,9 @@ import app.simmo.domain.RuleAction
 import app.simmo.domain.RuleMatcher
 import app.simmo.domain.SimRef
 import app.simmo.store.SimmoState
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -31,17 +34,46 @@ import java.util.Locale
  * summary reports counts, not the rules' contents.
  */
 internal object DebugReport {
-    /** Builds the payload, copies it to the clipboard, and fires the share chooser. */
-    fun share(context: Context) {
+    /**
+     * Builds the payload, copies it to the clipboard, and fires the share chooser.
+     *
+     * [mainDispatcher] and [clipboardWrite] are injectable test seams (production
+     * uses the defaults): the conditional clear below is behavior a test must be
+     * able to drive both ways — clipboard lands vs. fails — without a real
+     * Activity or `ClipboardManager` (`DebugReportShareTest`, AGENTS regression
+     * rule).
+     */
+    suspend fun share(
+        context: Context,
+        mainDispatcher: CoroutineDispatcher = Dispatchers.Main,
+        clipboardWrite: (Context, String) -> Boolean = ::copyToClipboard,
+    ) {
         val appContext = context.applicationContext
         val state = (appContext as? SimmoApp)?.stateHolder()?.current
-        val text = collectPayload(appContext, state)
-        copyToClipboard(appContext, text)
-        startShare(context, text)
+        val fileSink = (appContext as? SimmoApp)?.debugFileSink
+        // Build the payload off the main thread: it reads persisted settings and,
+        // via the sink's worker, up to a few prior-run log files — and share() runs
+        // from a UI click scope, so it must not block the main thread (Codex #92).
+        val text = withContext(Dispatchers.IO) { collectPayload(appContext, state, fileSink) }
+        // Clipboard + chooser touch the Activity/context, so run them on the main
+        // thread; the payload build above hopped to IO.
+        val clipboardOk = withContext(mainDispatcher) {
+            val copied = clipboardWrite(appContext, text)
+            // Fire the chooser for its side effect; ACTION_SEND gives no send/
+            // selection callback, so its launch is not proof the report was sent
+            // and does not gate the clear below.
+            startShare(context, text)
+            copied
+        }
+        // Clear the prior run only once the report is retained where the user can
+        // still get it — the clipboard copy landed. If that failed, keep the crash
+        // log for the next attempt instead of losing it (Codex #92 / TL #593).
+        if (clipboardOk) {
+            withContext(Dispatchers.IO) { fileSink?.clearPreviousRun() }
+        }
     }
 
-    private fun collectPayload(context: Context, state: SimmoState?): String {
-        val fileSink = (context.applicationContext as? SimmoApp)?.debugFileSink
+    private fun collectPayload(context: Context, state: SimmoState?, fileSink: DebugFileSink?): String {
         val payload = buildDebugReportPayload(
             nowMillis = System.currentTimeMillis(),
             versionName = BuildConfig.VERSION_NAME,
@@ -58,11 +90,11 @@ internal object DebugReport {
             state = state,
             recentLog = SimmoDebugLog.snapshot(),
             // The previous run's log if it ended without a clean exit (a crash or
-            // a silent kill) — read once and cleared, so it rides along in this
-            // report and this report only.
+            // a silent kill). Read here (on Dispatchers.IO via share()); cleared by
+            // share() only after the clipboard handoff, so a canceled or failed
+            // share can't lose it.
             previousRun = fileSink?.readPreviousRun(),
         )
-        fileSink?.clearPreviousRun()
         return payload
     }
 
@@ -85,12 +117,21 @@ internal object DebugReport {
             .onFailure { SimmoDebugLog.warning("DebugReport share intent failed", it) }
     }
 
-    private fun copyToClipboard(context: Context, text: String) {
+    /** Returns whether the report actually landed on the clipboard — the durable
+     * retained delivery [share] gates its clear on. */
+    private fun copyToClipboard(context: Context, text: String): Boolean =
         runCatching {
-            val cm = context.getSystemService(ClipboardManager::class.java) ?: return
-            cm.setPrimaryClip(ClipData.newPlainText("Simmo debug log", text))
-        }.onFailure { SimmoDebugLog.warning("DebugReport clipboard copy failed", it) }
-    }
+            val cm = context.getSystemService(ClipboardManager::class.java)
+            if (cm == null) {
+                false
+            } else {
+                cm.setPrimaryClip(ClipData.newPlainText("Simmo debug log", text))
+                true
+            }
+        }.getOrElse {
+            SimmoDebugLog.warning("DebugReport clipboard copy failed", it)
+            false
+        }
 }
 
 /**

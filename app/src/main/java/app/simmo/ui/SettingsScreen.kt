@@ -26,6 +26,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -41,6 +42,7 @@ import app.simmo.DebugReport
 import app.simmo.R
 import app.simmo.store.SimmoState
 import kotlin.math.roundToInt
+import kotlinx.coroutines.launch
 
 /** The Settings screen's options, mirroring persisted state. */
 data class SettingsUi(
@@ -74,6 +76,7 @@ fun SettingsScreen(
 ) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     // A compile-time constant — no PackageManager IPC on the composition path
     // (Codex on PR #68).
     val versionName = BuildConfig.VERSION_NAME
@@ -111,10 +114,12 @@ fun SettingsScreen(
         onOpenGroups = onOpenGroups,
         onOpenLicenses = onOpenLicenses,
         onShareDebugLog = {
-            DebugReport.share(context)
-            // Sharing consumes the prior run, so clear the SIMs-screen crash
-            // banner too if it was up (Codex on PR #91).
-            viewModel.onDebugReportShared()
+            scope.launch {
+                DebugReport.share(context)
+                // Re-check the SIMs-screen crash banner: a share consumes the prior
+                // run only if the report was actually retained (Codex #92).
+                viewModel.onDebugReportShared()
+            }
         },
         onBack = onBack,
     )
