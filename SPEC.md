@@ -754,7 +754,10 @@ UI is forbidden).
   immediately" case). A chained `UncaughtExceptionHandler` forces a final synchronous
   write on a crash and still lets Crashlytics run. At the next start the prior run's file
   is rotated aside and folded into the report under a "Previous run" section, then deleted
-  once read, so it is reported once. This is off the decision path — the decision answers
+  once the report actually reaches the user — the clipboard copy lands — so it is reported
+  once; a share that never lands (both the chooser and the clipboard fallback fail, or the
+  attempt is canceled) keeps it for the next attempt rather than losing the only copy. This
+  is off the decision path — the decision answers
   from the in-memory snapshot and the mirror write is a fire-and-forget background append
   (see "The decision deadline") — and the file holds the same redacted content as the log.
   Every phone number that appears — a dialed number, or a SIM's own number — is redacted
@@ -769,7 +772,9 @@ UI is forbidden).
   leaves a marker that the next start rotates into a distinct file name, so an ordinary
   process death (OS reclaim, force-stop, app update) or a silent kill never shows "Simmo
   crashed" — those runs' logs still persist and remain shareable from Settings, they just
-  don't nag. Sharing (from the banner or Settings) consumes the prior run; Dismiss renames
+  don't nag. Sharing (from the banner or Settings) consumes the prior run once the report
+  reaches the user — a share that never lands keeps it for a retry (see the "Previous run"
+  note above); Dismiss renames
   the crash log off the crash-suffixed name (keeping it shareable) so it no longer raises
   the banner — a rename in the same cache, not a separate ack marker that eviction could
   drop while keeping the crash file — while a later crash raises the banner again.

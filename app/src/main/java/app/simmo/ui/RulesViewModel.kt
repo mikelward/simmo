@@ -667,14 +667,19 @@ class RulesViewModel(
     }
 
     /**
-     * A debug report was just shared — from the banner *or* from Settings' "Share
-     * debug logs". Either path consumes and clears the prior run (see
-     * [DebugReport]), so the banner is now stale: hide it. Both share entry points
-     * route through here so the banner clears no matter which one is used (Codex
-     * on PR #91).
+     * A debug report share was just attempted — from the banner *or* from
+     * Settings' "Share debug logs". A share consumes the prior run only if the
+     * report was actually retained (the clipboard copy landed); if that failed the
+     * crash file survives, so re-check [DebugFileSink.hasUnacknowledgedCrash]
+     * rather than blindly hiding, and the banner stays up for a retry (Codex #92 /
+     * TL #593). On [SimmoApp.appScope] so the check finishes even if the activity
+     * leaves right after the tap; off the main thread since it blocks on the sink's
+     * worker. Both share entry points route through here.
      */
     fun onDebugReportShared() {
-        _crashBannerVisible.value = false
+        app.appScope.launch(Dispatchers.Default) {
+            _crashBannerVisible.value = app.debugFileSink?.hasUnacknowledgedCrash() ?: false
+        }
     }
 
     /**
