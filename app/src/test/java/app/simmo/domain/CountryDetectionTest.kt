@@ -1,5 +1,6 @@
 package app.simmo.domain
 
+import java.util.Locale
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -55,6 +56,21 @@ class CountryDetectionTest {
         // libphonenumber use upper-case ISO codes.
         assertEquals(CountryVerdict.Country("AU"), detect("0412 345 678", defaultRegion = "au"))
         assertEquals(CountryVerdict.Emergency, detect("000", defaultRegion = " au "))
+    }
+
+    @Test
+    fun `lower-case region normalization is independent of the device locale`() {
+        val original = Locale.getDefault()
+        try {
+            Locale.setDefault(Locale.forLanguageTag("tr-TR"))
+            assertEquals(
+                CountryVerdict.Country("SI"),
+                detect("01 234 56 78", defaultRegion = "si"),
+            )
+            assertEquals(CountryVerdict.Emergency, detect("112", defaultRegion = "si"))
+        } finally {
+            Locale.setDefault(original)
+        }
     }
 
     @Test

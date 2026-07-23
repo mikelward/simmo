@@ -3,6 +3,7 @@ package app.simmo.domain
 import com.google.i18n.phonenumbers.NumberParseException
 import com.google.i18n.phonenumbers.PhoneNumberUtil
 import com.google.i18n.phonenumbers.ShortNumberInfo
+import java.util.Locale
 
 /** Where a dialed number is going, as far as routing rules care (SPEC "Country detection"). */
 sealed interface CountryVerdict {
@@ -41,7 +42,11 @@ class PhoneNumberCountryDetector(
         // Android telephony APIs report regions lower-case ("au"); libphonenumber
         // expects upper-case ISO codes. Normalize at this boundary so no caller
         // has to remember.
-        val region = defaultRegion.trim().uppercase()
+        // Region codes are protocol identifiers, not natural-language text.
+        // Locale-sensitive casing turns Slovenian "si" into "Sİ" under a
+        // Turkish locale, which makes both emergency detection and national
+        // number parsing miss the intended region.
+        val region = defaultRegion.trim().uppercase(Locale.ROOT)
         if (shortNumbers.isEmergencyNumber(dialedNumber, region)) {
             return CountryVerdict.Emergency
         }
