@@ -188,13 +188,16 @@ class ContactNumberIndex(
         util: PhoneNumberUtil = PhoneNumberUtil.getInstance(),
     ): List<String> {
         val contactsByRegion = LinkedHashMap<String, MutableSet<String>>()
-        for ((e164, match) in byE164) {
+        for (e164 in byE164.keys) {
             // Keys are already E.164 (leading +), so no default region is needed.
             val region = runCatching { util.getRegionCodeForNumber(util.parse(e164, null)) }
                 .getOrNull()
                 ?.takeUnless { it.isBlank() || it == "ZZ" }
                 ?: continue
-            contactsByRegion.getOrPut(region) { HashSet() }.add(match.lookupKey)
+            // A number can belong to several contacts (a household landline).
+            // [byE164] deliberately keeps only the first contact for lookup,
+            // but suggestions count people, so use the complete owner index.
+            contactsByRegion.getOrPut(region) { HashSet() }.addAll(ownersByE164[e164].orEmpty())
         }
         return contactsByRegion.entries
             .sortedWith(compareByDescending<Map.Entry<String, Set<String>>> { it.value.size }.thenBy { it.key })
