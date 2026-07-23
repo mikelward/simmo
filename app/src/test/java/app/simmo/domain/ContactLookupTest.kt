@@ -124,6 +124,23 @@ class ContactLookupTest {
     }
 
     @Test
+    fun `suggested regions count every contact that shares a number`() {
+        val index = buildContactNumberIndex(
+            numbers = listOf(
+                number("Mum", "+442071234567", key = "mum"),
+                number("Dad", "+442071234567", key = "dad"),
+                number("Nan", "+442071234567", key = "nan"),
+                number("Al", "+61412345678", key = "al"),
+                number("Bea", "+61498765432", key = "bea"),
+            ),
+            callActions = emptyList(),
+            defaultRegion = "AU",
+        )
+
+        assertEquals(listOf("GB", "AU"), index.regionsByContactCount())
+    }
+
+    @Test
     fun `an empty index suggests no regions`() {
         assertEquals(emptyList<String>(), ContactNumberIndex.EMPTY.regionsByContactCount())
     }
