@@ -8,11 +8,17 @@ import org.junit.Test
 class CustomGroupTest {
 
     @Test
-    fun `groupMembers resolves built-in ids from the static table`() {
+    fun `groupMembers resolves a preseeded id from the snapshot`() {
+        val snapshot = mapOf(CountryGroups.EU_EEA to listOf("FR", "DE"))
         assertEquals(
-            CountryGroups.members(CountryGroups.EU_EEA),
-            groupMembers(CountryGroups.EU_EEA, customGroups = emptyMap()),
+            listOf("FR", "DE"),
+            groupMembers(CountryGroups.EU_EEA, customGroups = snapshot),
         )
+    }
+
+    @Test
+    fun `a preseeded id has no static fallback after deletion`() {
+        assertEquals(emptyList<String>(), groupMembers(CountryGroups.EU_EEA, customGroups = emptyMap()))
     }
 
     @Test

@@ -20,10 +20,9 @@ sealed interface RuleMatcher {
 
     /**
      * A set of destinations: individual countries (ISO regions) and/or
-     * [CountryGroups] ids, any of which matches. A group is stored by id and
-     * resolved to its member regions at decision time, so one "EU/EEA" entry
-     * tracks membership across app updates — and countries can sit alongside
-     * it (e.g. EU/EEA + UK when a plan covers the UK too).
+     * country-group ids, any of which matches. A group is stored by id and
+     * resolved to its user-configurable members at decision time; countries can
+     * sit alongside it (e.g. EU/EEA + UK).
      */
     @Serializable
     @SerialName("countries")
@@ -51,10 +50,9 @@ fun RuleMatcher.groupIds(): List<String> = (this as? RuleMatcher.Countries)?.gro
 /**
  * Whether this matcher matches [region] (ISO code, any case; null for an
  * undetermined destination — only [RuleMatcher.AnyDestination] matches then).
- * Group membership resolves at evaluation time from the in-memory tables —
- * built-ins from the static table, the user's custom groups from
- * [customGroups] — so one stored group entry tracks membership across app
- * updates and edits alike. Shared by the calling-rule engine (matching the
+ * Group membership resolves at evaluation time from [customGroups], the
+ * persisted in-memory snapshot, so one stored group entry tracks user edits.
+ * Shared by the calling-rule engine (matching the
  * call's destination) and the roaming watch (matching the current network
  * country).
  */

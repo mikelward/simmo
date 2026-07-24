@@ -23,7 +23,8 @@ class DataWatchTest {
         activeSims: List<ActiveSim> = listOf(telstra, tmobile),
         roaming: Set<Int> = setOf(dataSim.subscriptionId),
         dataRoamingEnabled: Set<Int> = setOf(dataSim.subscriptionId),
-        customGroups: Map<String, List<String>> = emptyMap(),
+        customGroups: Map<String, List<String>> = CountryGroups.preseededGroups()
+            .associate { it.id to it.regionCodes },
         registeredSims: List<RegisteredSim> = emptyList(),
     ) = DataSnapshot(
         networkCountry = networkCountry,

@@ -129,14 +129,10 @@ fun roamingOkRule(country: String, groupId: String?, dataSim: SimRef): DataRule 
 }
 
 /**
- * The shipped and custom groups that contain [country], for the widen
- * suggestions — shipped first (stable order), then custom in definition
- * order. [customGroups] is id → member regions (upper-case), as carried by
- * [DataSnapshot].
+ * The user-configurable groups that contain [country], in definition order.
+ * [customGroups] is id → member regions (upper-case), as carried by [DataSnapshot].
  */
 private fun groupsContaining(country: String, customGroups: Map<String, List<String>>): List<String> {
     val region = country.trim().uppercase()
-    val shipped = CountryGroups.allIds().filter { region in CountryGroups.members(it).map { m -> m.uppercase() } }
-    val custom = customGroups.filterValues { region in it.map { m -> m.uppercase() } }.keys
-    return shipped + custom
+    return customGroups.filterValues { region in it.map { m -> m.uppercase() } }.keys.toList()
 }

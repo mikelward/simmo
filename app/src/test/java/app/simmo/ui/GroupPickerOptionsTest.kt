@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.test.core.app.ApplicationProvider
 import app.simmo.STATE_LOAD_TIMEOUT_MS
 import app.simmo.SimmoApp
+import app.simmo.domain.CountryGroups
 import app.simmo.domain.CustomGroup
 import app.simmo.domain.withGroupMarkedForRemoval
 import app.simmo.domain.withGroupSaved
@@ -77,7 +78,7 @@ class GroupPickerOptionsTest {
             assertFalse(option("custom:gone")!!.selectable)
             // Still in the raw list too (struck-through in the Groups screen).
             assertEquals(
-                setOf("custom:keep", "custom:gone"),
+                CountryGroups.allIds().toSet() + setOf("custom:keep", "custom:gone"),
                 vm.customGroups.value.mapTo(HashSet()) { it.id },
             )
             collector.cancel()
