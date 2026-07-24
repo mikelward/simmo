@@ -38,7 +38,7 @@
     <!-- TODO: translate -->
     <string name="data_rule_roaming_ok_any" tools:ignore="MissingTranslation">Roaming OK on any SIM</string>
     <!-- TODO: translate -->
-    <string name="data_rule_roaming_ok_homed" tools:ignore="MissingTranslation">Roaming OK on SIMs homed in these countries</string>
+    <string name="data_rule_roaming_ok_homed" tools:ignore="MissingTranslation">Roaming OK on SIMs from these countries</string>
     <!-- TODO: translate -->
     <string name="data_rule_roaming_ok_sims" tools:ignore="MissingTranslation">Roaming OK on %1$s</string>
     <!-- TODO: translate -->
@@ -76,13 +76,13 @@
     <!-- TODO: translate -->
     <string name="rule_action_use_sim" tools:ignore="MissingTranslation">Call with %1$s</string>
     <!-- TODO: translate -->
-    <string name="rule_action_matching_sim" tools:ignore="MissingTranslation">SIM for that country</string>
+    <string name="rule_action_matching_sim" tools:ignore="MissingTranslation">SIM from that country</string>
     <!-- TODO: translate -->
     <string name="rule_action_hand_off" tools:ignore="MissingTranslation">%1$s</string>
     <!-- TODO: translate -->
     <string name="rule_action_ask" tools:ignore="MissingTranslation">Ask which SIM to use</string>
     <!-- TODO: translate -->
-    <string name="rule_action_system_default" tools:ignore="MissingTranslation">No change</string>
+    <string name="rule_action_system_default" tools:ignore="MissingTranslation">Use system settings</string>
     <!-- TODO: translate -->
     <string name="rule_sim_disabled" tools:ignore="MissingTranslation">SIM disabled — rule paused</string>
     <!-- TODO: translate -->
