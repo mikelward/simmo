@@ -42,6 +42,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.simmo.R
@@ -249,11 +250,18 @@ private fun GroupRow(group: CustomGroup, onClick: () -> Unit, onUndoDelete: () -
                 .alpha(if (group.pendingRemoval) 0.4f else 1f),
         ) {
             Text(text = group.name, style = MaterialTheme.typography.titleMedium, textDecoration = strike)
+            // A shipped group like EU/EEA lists dozens of countries; cap the
+            // members preview so one big group can't push the rest of the list
+            // out of the first viewport. Two lines (vs. the picker's one) since
+            // this is the screen for managing groups; the editor shows the full
+            // membership (Codex on PR #104).
             Text(
                 text = group.regionCodes.joinToString { countryDisplayName(it) },
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textDecoration = strike,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
             )
         }
         if (group.pendingRemoval) {
