@@ -249,7 +249,7 @@ internal fun DataRuleEditorContent(
                         ?: entry
                     SelectedCountryRow(
                         label = label,
-                        dimmed = matchesAny,
+                        checked = !matchesAny,
                         onSelect = { matchesAny = false },
                         onRemove = { groups = groups.filterNot { it == entry } },
                     )
@@ -260,7 +260,7 @@ internal fun DataRuleEditorContent(
                         // Where the user is, so the plain country name — no
                         // dialing codes (same as the data list rows).
                         label = countryDisplayName(entry),
-                        dimmed = matchesAny,
+                        checked = !matchesAny,
                         onSelect = { matchesAny = false },
                         onRemove = { regions = regions.filterNot { it == entry } },
                     )

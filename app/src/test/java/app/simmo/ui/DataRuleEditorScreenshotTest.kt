@@ -67,6 +67,47 @@ class DataRuleEditorScreenshotTest {
     }
 
     @Test
+    fun editingDataRule_showsCountrySetAsCheckboxesAndDimsUnderAnywhere() {
+        // Mirrors the calling editor: an existing rule's group + countries
+        // render as a checked set, and choosing "Anywhere" dims and unchecks
+        // them (visible but inactive). Locks in both new paths for this screen.
+        val existing = DataRule(
+            RuleMatcher.Countries(listOf("FR", "DE"), listOf("eu_eea")),
+            DataExpectation.UseSimForData(telstra.ref),
+        )
+        composeRule.setContent {
+            MaterialTheme {
+                DataRuleEditorContent(
+                    target = DataEditorTarget.Existing("r", existing),
+                    simOptions = listOf(telstra),
+                    countryOptions = listOf(
+                        CountryOptionUi("FR", "+33 France"),
+                        CountryOptionUi("DE", "+49 Germany"),
+                    ),
+                    groupOptions = listOf(
+                        CountryGroupOptionUi(
+                            id = "eu_eea",
+                            label = "EU/EEA",
+                            description = "European Union and EEA countries",
+                            memberRegions = emptySet(),
+                            searchTerms = emptyList(),
+                        ),
+                    ),
+                    onSave = { _, _ -> },
+                    onDelete = {},
+                    onCancel = {},
+                )
+            }
+        }
+        composeRule.waitForIdle()
+        captureSnapshot("data_rule_editor_country_set.png")
+
+        composeRule.onNodeWithText("Anywhere").performClick()
+        composeRule.waitForIdle()
+        captureSnapshot("data_rule_editor_anywhere_over_set.png")
+    }
+
+    @Test
     fun savingBuildsTheSingleSimRoamingRule() {
         var saved: DataRule? = null
         var savedGroups: List<CustomGroup>? = null

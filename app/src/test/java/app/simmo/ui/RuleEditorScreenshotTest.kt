@@ -7,6 +7,7 @@ import androidx.activity.ComponentActivity
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import app.simmo.domain.DialHandoffApp
 import app.simmo.domain.PhoneAccountRef
 import app.simmo.domain.CallingRule as SimmoRule
@@ -104,6 +105,41 @@ class RuleEditorScreenshotTest {
         composeRule.onNodeWithText("+39 Italy").assertExists()
         composeRule.onNodeWithText("Add a country or code").assertExists()
         captureSnapshot("rule_editor_multi_country.png")
+    }
+
+    @Test
+    fun editor_anyCountrySelectedDimsTheCountrySet() {
+        val telstra = SimRef(1, "Telstra", "Telstra AU")
+        composeRule.setContent {
+            MaterialTheme {
+                RuleEditorContent(
+                    target = EditorTarget.Existing(
+                        "r",
+                        SimmoRule(
+                            RuleMatcher.Countries(listOf("FR", "DE", "IT")),
+                            RuleAction.UseSim(telstra),
+                        ),
+                    ),
+                    simOptions = listOf(SimOptionUi(telstra, "Telstra AU", active = true)),
+                    countryOptions = listOf(
+                        CountryOptionUi("FR", "+33 France"),
+                        CountryOptionUi("DE", "+49 Germany"),
+                        CountryOptionUi("IT", "+39 Italy"),
+                    ),
+                    onSave = { _, _ -> },
+                    onDelete = {},
+                    onCancel = {},
+                )
+            }
+        }
+        composeRule.waitForIdle()
+
+        // Choosing "Any country" keeps the set visible but dimmed and unchecked,
+        // so it reads as inactive-but-recoverable — one tap on any row (or its
+        // checkbox) switches back to the country set with nothing lost.
+        composeRule.onNodeWithText("Any country").performClick()
+        composeRule.waitForIdle()
+        captureSnapshot("rule_editor_any_country_over_set.png")
     }
 
     @Test
