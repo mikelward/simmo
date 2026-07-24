@@ -121,7 +121,7 @@ class SimmoStateHolderTest {
 
     @Test
     fun `data-rule edits write through, picker groups in the same transaction`() = runTest {
-        val store = FakeDataStore(SimmoState(installId = "install-1"))
+        val store = FakeDataStore(SimmoState(installId = "install-1", countryGroupsVersion = 1))
         val holder = SimmoStateHolder(store, backgroundScope, installId = "install-1")
         val rule = DataRule(RuleMatcher.Country("AU"), DataExpectation.AlwaysWarn)
         holder.updateDataRules { it.withRuleAdded(rule) }
@@ -174,6 +174,7 @@ class SimmoStateHolderTest {
                     CustomGroup("keep-g", "Keep", listOf("AU")),
                     CustomGroup("gone-g", "Gone", listOf("US"), pendingRemoval = true),
                 ),
+                countryGroupsVersion = 1,
                 installId = "install-1",
             ),
         )
@@ -322,7 +323,11 @@ class SimmoStateHolderTest {
         // same transaction as the rule, so the state can never hold a rule
         // pointing at a group that isn't there.
         var writes = 0
-        val start = SimmoState(rules = CallingRuleBook(emptyList()), installId = "install-1")
+        val start = SimmoState(
+            rules = CallingRuleBook(emptyList()),
+            installId = "install-1",
+            countryGroupsVersion = 1,
+        )
         val store = object : DataStore<SimmoState> {
             private val flow = MutableStateFlow(start)
             override val data: Flow<SimmoState> = flow

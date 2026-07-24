@@ -1,10 +1,10 @@
 package app.simmo.domain
 
 /**
- * Country groups a rule can match as a single entry (SPEC "Calling rules"). Rules
- * persist the group *id*; membership is resolved here at decision time, so
- * it tracks app updates instead of being frozen into stored rules — and the
- * decision path resolves it from this in-memory table, never from I/O.
+ * Seed data for the country groups shipped with Simmo (SPEC "Calling rules").
+ * Every group is copied into persisted state once, where the user can rename it,
+ * change its membership, or delete it. Rules retain these stable ids so existing
+ * references point at the editable seeded copy.
  *
  * An id this table no longer knows simply contributes no regions (the rule's
  * other countries still match) — never an error on the decision path.
@@ -101,4 +101,12 @@ object CountryGroups {
 
     /** Every group this version offers, in picker display order. */
     fun allIds(): List<String> = listOf(EU_EEA, USA_TERRITORIES, NORTH_AMERICA, CARIBBEAN_NANP)
+
+    /** Fresh editable copies, in the order shown on the Country groups screen. */
+    fun preseededGroups(): List<CustomGroup> = listOf(
+        CustomGroup(EU_EEA, "EU/EEA", euEea),
+        CustomGroup(USA_TERRITORIES, "USA + territories", usaTerritories),
+        CustomGroup(NORTH_AMERICA, "North America", northAmerica),
+        CustomGroup(CARIBBEAN_NANP, "Caribbean +1", caribbeanNanp),
+    )
 }

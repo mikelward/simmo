@@ -1,6 +1,7 @@
 package app.simmo.store
 
 import app.simmo.domain.CustomGroup
+import app.simmo.domain.CountryGroups
 import app.simmo.domain.DataExpectation
 import app.simmo.domain.DataRuleBook
 import app.simmo.domain.DataSimScope
@@ -21,8 +22,15 @@ import kotlinx.serialization.Serializable
 data class SimmoState(
     val rules: CallingRuleBook = CallingRuleBook(),
     val simRegistry: List<RegisteredSim> = emptyList(),
-    /** User-defined country groups a rule can match by id (SPEC "Calling rules"). */
+    /** User-configurable country groups a rule can match by id (SPEC "Calling rules"). */
     val customGroups: List<CustomGroup> = emptyList(),
+    /**
+     * Seed-data version already applied to [customGroups]. Version 0 includes
+     * state written before shipped groups became editable; version 1 adds the
+     * four original built-ins exactly once. This prevents a later restart from
+     * restoring a preseeded group the user deliberately deleted.
+     */
+    val countryGroupsVersion: Int = 0,
     /** Overrides the network/SIM-derived default region when set (ISO code). */
     val defaultRegionOverride: String? = null,
     /**
@@ -114,15 +122,16 @@ data class SimmoState(
  * state adopts the current install. Idempotent once adopted.
  */
 fun SimmoState.withInstallValidated(currentInstallId: String): SimmoState {
-    if (installId == currentInstallId) return this
-    return copy(
-        rules = rules.copy(
-            rules = rules.rules.map { it.copy(action = it.action.invalidateSimIds()) },
+    val seeded = withCountryGroupsSeeded()
+    if (seeded.installId == currentInstallId) return seeded
+    return seeded.copy(
+        rules = seeded.rules.copy(
+            rules = seeded.rules.rules.map { it.copy(action = it.action.invalidateSimIds()) },
         ),
-        dataRules = dataRules.copy(
-            rules = dataRules.rules.map { it.copy(expectation = it.expectation.invalidateSimIds()) },
+        dataRules = seeded.dataRules.copy(
+            rules = seeded.dataRules.rules.map { it.copy(expectation = it.expectation.invalidateSimIds()) },
         ),
-        simRegistry = simRegistry
+        simRegistry = seeded.simRegistry
             .map { it.copy(subscriptionId = SimRef.INVALID_SUBSCRIPTION_ID) }
             .distinct(),
         // The arrival mark embeds a subscription id too: on the new phone
@@ -135,6 +144,16 @@ fun SimmoState.withInstallValidated(currentInstallId: String): SimmoState {
         // restore could silence the first genuine warning on the new phone.
         dataDismissMarks = emptySet(),
         installId = currentInstallId,
+    )
+}
+
+/** Applies each shipped group seed once while preserving existing user groups. */
+fun SimmoState.withCountryGroupsSeeded(): SimmoState {
+    if (countryGroupsVersion >= 1) return this
+    val existingIds = customGroups.mapTo(HashSet()) { it.id }
+    return copy(
+        customGroups = CountryGroups.preseededGroups().filterNot { it.id in existingIds } + customGroups,
+        countryGroupsVersion = 1,
     )
 }
 
