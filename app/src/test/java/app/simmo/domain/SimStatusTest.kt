@@ -123,6 +123,25 @@ class SimStatusTest {
     }
 
     @Test
+    fun `a use-local-SIM-for-data rule names the unique local SIM`() {
+        val book = DataRuleBook(
+            listOf(DataRule(RuleMatcher.Country("AU"), DataExpectation.UseLocalSimForData)),
+        )
+        // Telstra is the only AU-homed SIM; preferred even while it carries data.
+        assertEquals(telstra.subscriptionId, preferredDataSubId(book, dataSnapshot()))
+    }
+
+    @Test
+    fun `a use-local-SIM-for-data rule names no SIM without a unique local one`() {
+        val telstra2 = telstra.copy(subscriptionId = 3, displayName = "Telstra work")
+        val book = DataRuleBook(
+            listOf(DataRule(RuleMatcher.Country("AU"), DataExpectation.UseLocalSimForData)),
+        )
+        // Two AU-homed SIMs → no unique local one, like the calling default.
+        assertNull(preferredDataSubId(book, dataSnapshot(activeSims = listOf(telstra, telstra2))))
+    }
+
+    @Test
     fun `a covering roaming-OK rule names no preferred data SIM`() {
         val book = DataRuleBook(
             listOf(DataRule(RuleMatcher.Country("AU"), DataExpectation.RoamingOk(DataSimScope.AnySim))),

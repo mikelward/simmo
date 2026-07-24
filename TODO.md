@@ -531,6 +531,14 @@ System settings.
       system SIM settings, Rules (and the body tap) deep-links to the data
       rules list (the triage card is also the notifications-off degradation,
       owed with that slice).
+- [x] "Use a local SIM for data" expectation (SPEC "Data rules" #2): the
+      data-side sibling of the calling matching-country action — whichever SIM is
+      homed in the current country should carry data, naming no specific SIM.
+      Satisfied when any home-country SIM carries data; nudges to switch when a
+      unique local SIM exists and a foreign SIM has data; skips on zero/several
+      (no single target) so the default warning still catches a roaming data SIM.
+      Landed as `DataExpectation.UseLocalSimForData` + its editor row, list label,
+      and `preferredDataSubId` chip; reuses the `WrongDataSim` verdict/notification.
 - [ ] Let users turn off the "Using non-preferred SIM" nudge (maintainer: it
       fires on every arrival where a use-SIM rule is unmet, which could get
       annoying) — an in-app Settings toggle, or its own notification channel so

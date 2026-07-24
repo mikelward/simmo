@@ -59,6 +59,7 @@ class DataRuleEditorScreenshotTest {
         composeRule.onNodeWithText("New data rule").assertExists()
         composeRule.onNodeWithText("Use Telstra AU for data").assertExists()
         composeRule.onNodeWithText("Use Orange Holiday (disabled) for data").assertExists()
+        composeRule.onNodeWithText("Use a local SIM for data").assertExists()
         composeRule.onNodeWithText("Roaming OK on any SIM").assertExists()
         composeRule.onNodeWithText("Roaming OK on SIMs homed in these countries").assertExists()
         composeRule.onNodeWithText("Always warn").assertExists()
@@ -94,6 +95,34 @@ class DataRuleEditorScreenshotTest {
                 saved,
             )
             assertEquals(emptyList<CustomGroup>(), savedGroups)
+        }
+    }
+
+    @Test
+    fun savingBuildsTheUseLocalSimRule() {
+        var saved: DataRule? = null
+        composeRule.setContent {
+            MaterialTheme {
+                DataRuleEditorContent(
+                    target = DataEditorTarget.New,
+                    simOptions = listOf(telstra),
+                    countryOptions = emptyList(),
+                    onSave = { _, rule -> saved = rule },
+                    onDelete = null,
+                    onCancel = {},
+                )
+            }
+        }
+
+        // No SIM to pick: the choice alone enables Save.
+        composeRule.onNodeWithText("Anywhere").performClick()
+        composeRule.onNodeWithText("Use a local SIM for data").performClick()
+        composeRule.onNodeWithText("Save").performClick()
+        composeRule.runOnIdle {
+            assertEquals(
+                DataRule(RuleMatcher.AnyDestination, DataExpectation.UseLocalSimForData),
+                saved,
+            )
         }
     }
 

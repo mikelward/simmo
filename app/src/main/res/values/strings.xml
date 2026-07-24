@@ -34,6 +34,8 @@
     <!-- TODO: translate -->
     <string name="data_rule_use_sim" tools:ignore="MissingTranslation">Use %1$s for data</string>
     <!-- TODO: translate -->
+    <string name="data_rule_use_local" tools:ignore="MissingTranslation">Use a local SIM for data</string>
+    <!-- TODO: translate -->
     <string name="data_rule_roaming_ok_any" tools:ignore="MissingTranslation">Roaming OK on any SIM</string>
     <!-- TODO: translate -->
     <string name="data_rule_roaming_ok_homed" tools:ignore="MissingTranslation">Roaming OK on SIMs homed in these countries</string>

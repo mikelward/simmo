@@ -147,7 +147,8 @@ private fun DataExpectation.invalidateSimIds(): DataExpectation = when (this) {
         )
         DataSimScope.AnySim, DataSimScope.HomedInMatchedCountries -> this
     }
-    DataExpectation.AlwaysWarn -> this
+    // No stored SimRef to invalidate — the local SIM is resolved at evaluation.
+    DataExpectation.UseLocalSimForData, DataExpectation.AlwaysWarn -> this
 }
 
 private fun RuleAction.invalidateSimIds(): RuleAction = when (this) {

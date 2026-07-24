@@ -348,11 +348,20 @@ country group, the same picker and groups as calling rules, but matched against
    guides the switch. (The stranded shape — no data at all because roaming is off on
    a non-local data SIM — is handled even without a rule; see the no-data nudge
    below.)
-2. **Roaming OK** — data roaming here is expected (paid for, or free); no warning.
+2. **Use a local SIM for data** — whichever SIM is homed in the current country should
+   carry data, naming no specific SIM: the data-side sibling of the calling side's
+   "SIM whose home country matches the destination" action, and a natural *anywhere*
+   rule ("wherever I am, prefer the local SIM for data"). "Any local SIM" means the
+   arrival is satisfied whenever a home-country SIM carries data, whichever one; when a
+   different SIM does and exactly one local SIM is active, Simmo warns and guides the
+   switch to it. Zero or several active local SIMs make the rule skip (no single switch
+   target), the same unique-match discipline the calling action uses — the default
+   roaming warning still catches a roaming data SIM below.
+3. **Roaming OK** — data roaming here is expected (paid for, or free); no warning.
    Optionally scoped to specific SIMs, because roaming agreements are per plan: "in
    EU/EEA, roaming OK on Vodafone" stays quiet for the Vodafone SIM but still warns
    if the US SIM ends up carrying data there.
-3. **Warn** — always warn here: the guard shape, placed above a broader Roaming OK
+4. **Warn** — always warn here: the guard shape, placed above a broader Roaming OK
    rule the same way "Caribbean +1 → Ask" sits above a US calling rule.
 
 Data rules are an ordered list, first match wins, with the same editing surface as

@@ -52,9 +52,10 @@ sealed interface DataTriage {
     ) : DataTriage
 
     /**
-     * A [DataExpectation.UseSimForData] rule wants [wantedSim] carrying data
-     * here, but [dataSim] is: the resolution is Change SIMs (switch the
-     * data SIM), not a new rule.
+     * A rule wants [wantedSim] carrying data here, but [dataSim] is: the
+     * resolution is Change SIMs (switch the data SIM), not a new rule. Raised by
+     * [DataExpectation.UseSimForData] (a named SIM) or
+     * [DataExpectation.UseLocalSimForData] (the unique local SIM).
      */
     data class WrongSim(
         override val dataSim: ActiveSim,
