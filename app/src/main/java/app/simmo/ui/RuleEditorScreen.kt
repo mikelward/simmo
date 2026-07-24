@@ -53,6 +53,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
@@ -942,10 +943,15 @@ private fun GroupRow(
         RadioButton(selected = selected, onClick = onSelect)
         Column {
             Text(label, style = MaterialTheme.typography.bodyLarge)
+            // A group's members are its subtitle; an editable shipped group like
+            // EU/EEA lists dozens of countries, so bound it to one line so the
+            // blank picker stays quickly scannable (Codex on PR #104).
             Text(
                 text = description,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
         }
     }
