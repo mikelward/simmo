@@ -45,6 +45,18 @@ class GroupPickerOptionsTest {
     }
 
     @Test
+    fun `no group options are offered until the persisted snapshot loads`() {
+        val app = ApplicationProvider.getApplicationContext<SimmoApp>()
+        vm = RulesViewModel(app, SavedStateHandle())
+        // With nothing collecting groupOptions, its WhileSubscribed value is the
+        // seed. It must be empty — the static shipped list is never offered as
+        // selectable before load, so a group the user deleted can't be picked in
+        // the cold-start window and saved into a match-nothing rule (Codex on
+        // PR #104).
+        assertEquals(emptyList<CountryGroupOptionUi>(), vm.groupOptions.value)
+    }
+
+    @Test
     fun `a soft-deleted group stays for its label but is not selectable`() = runBlocking {
         withTimeout(STATE_LOAD_TIMEOUT_MS) {
             val app = ApplicationProvider.getApplicationContext<SimmoApp>()
