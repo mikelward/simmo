@@ -58,6 +58,40 @@ fun List<CustomGroup>.withGroupRemovalUndone(id: String): List<CustomGroup> =
 /** Purges every soft-deleted group — the point at which referencing rules stop matching them. */
 fun List<CustomGroup>.withPendingGroupRemovalsPurged(): List<CustomGroup> = filterNot { it.pendingRemoval }
 
+/** Whether this group already equals the shipped [default] — same name and members. */
+fun CustomGroup.matchesDefault(default: CustomGroup): Boolean =
+    name == default.name && regionCodes.map { it.uppercase() }.toSet() == default.regionCodes.toSet()
+
+/**
+ * Restores the shipped group [id] to its default name and members: resets an
+ * edited (or soft-deleted) copy in place, or re-adds a purged one among the
+ * shipped groups in their canonical order — so the list keeps the same order the
+ * first-run seed produced. A no-op for an id Simmo doesn't ship.
+ */
+fun List<CustomGroup>.withDefaultGroupRestored(id: String): List<CustomGroup> {
+    val default = CountryGroups.preseededGroup(id) ?: return this
+    if (any { it.id == id }) return map { if (it.id == id) default else it }
+    // Re-add a deleted seed before the first later shipped group or the first
+    // user group, i.e. after every earlier shipped group — the seed's canonical
+    // slot.
+    val order = CountryGroups.allIds()
+    val rank = order.indexOf(id)
+    val insertAt = indexOfFirst { order.indexOf(it.id).let { r -> r == -1 || r > rank } }
+        .let { if (it == -1) size else it }
+    return take(insertAt) + default + drop(insertAt)
+}
+
+/**
+ * Restores every shipped group to its default name and members — resetting
+ * edited or soft-deleted seeds and re-adding purged ones, all in shipped order at
+ * the front (matching the first-run seed), while leaving user-created groups in
+ * their existing order after them.
+ */
+fun List<CustomGroup>.withDefaultGroupsRestored(): List<CustomGroup> {
+    val shippedIds = CountryGroups.allIds().toSet()
+    return CountryGroups.preseededGroups() + filterNot { it.id in shippedIds }
+}
+
 /**
  * Member regions of [groupId] from the persisted in-memory group snapshot.
  * Empty for an unknown or deleted id, so a rule's other countries still match

@@ -181,6 +181,10 @@ small stack), fully unit-tested, with `./gradlew test` and `./gradlew lint` gree
         territories, North America, and Caribbean +1 into persisted group state once.
         Users can rename, edit, or delete them; later launches and upgrades preserve
         those choices instead of restoring seed data.
+  - [x] Restore shipped groups to their defaults: per-group "Reset to default" in the
+        editor for a seed the user edited, and a screen-level "Restore default groups"
+        (confirmed) that resets all four and re-adds deleted ones while keeping the
+        user's own groups.
   - [x] Create a group from within the picker: a "New group" row in the rule editor's
         country picker (blank query) opens the same group editor as a nested sub-step,
         so a group can be built mid-rule; on save it's created and added to the rule

@@ -14,9 +14,14 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -27,6 +32,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -39,7 +45,9 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.simmo.R
+import app.simmo.domain.CountryGroups
 import app.simmo.domain.CustomGroup
+import app.simmo.domain.matchesDefault
 
 /**
  * The Country groups screen (SPEC "Calling rules" → custom groups): create, edit, and
@@ -62,6 +70,8 @@ fun GroupsScreen(
         onSaveGroup = viewModel::saveCustomGroup,
         onDeleteGroup = viewModel::deleteCustomGroup,
         onUndoDeleteGroup = viewModel::undoGroupRemoval,
+        onRestoreDefaultGroup = viewModel::restoreDefaultGroup,
+        onRestoreDefaults = viewModel::restoreDefaultGroups,
         onApply = viewModel::purgePendingRemovals,
         onBack = onBack,
     )
@@ -75,6 +85,8 @@ internal fun GroupsContent(
     onSaveGroup: (id: String?, name: String, regionCodes: List<String>) -> Unit = { _, _, _ -> },
     onDeleteGroup: (String) -> Unit = {},
     onUndoDeleteGroup: (String) -> Unit = {},
+    onRestoreDefaultGroup: (String) -> Unit = {},
+    onRestoreDefaults: () -> Unit = {},
     onApply: () -> Unit = {},
     onBack: () -> Unit = {},
 ) {
@@ -83,6 +95,15 @@ internal fun GroupsContent(
     var editingId by rememberSaveable { mutableStateOf<String?>(null) }
     if (editingId != null) {
         val initial = groups.firstOrNull { it.id == editingId }
+        // "Reset to default" is offered only for a shipped group the user has
+        // edited away from its seed — nothing to restore for a user group or an
+        // untouched seed. It applies at once (like Delete) and leaves the editor.
+        val seedDefault = editingId?.let { CountryGroups.preseededGroup(it) }
+        val restoreDefault = if (initial != null && seedDefault != null && !initial.matchesDefault(seedDefault)) {
+            { onRestoreDefaultGroup(initial.id); editingId = null }
+        } else {
+            null
+        }
         // Re-key on the id so switching which group is edited starts the
         // editor's fields fresh from that group.
         key(editingId) {
@@ -94,11 +115,17 @@ internal fun GroupsContent(
                     editingId = null
                 },
                 onDelete = initial?.let { { onDeleteGroup(it.id); editingId = null } },
+                onRestoreDefault = restoreDefault,
                 onCancel = { editingId = null },
             )
         }
         return
     }
+
+    // The reset-all confirm survives recreation; the menu is transient. Reset
+    // overwrites the user's edits to the shipped groups, so it confirms first.
+    var menuOpen by remember { mutableStateOf(false) }
+    var confirmRestoreDefaults by rememberSaveable { mutableStateOf(false) }
 
     BackHandler(onBack = onBack)
     Surface(modifier = Modifier.fillMaxSize()) {
@@ -128,6 +155,20 @@ internal fun GroupsContent(
                         TextButton(onClick = onApply) { Text(stringResource(R.string.action_apply)) }
                     } else {
                         TextButton(onClick = onBack) { Text(stringResource(R.string.action_back)) }
+                    }
+                    Box {
+                        IconButton(onClick = { menuOpen = true }) {
+                            Icon(
+                                imageVector = Icons.Filled.MoreVert,
+                                contentDescription = stringResource(R.string.rule_menu_more),
+                            )
+                        }
+                        DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.groups_restore_defaults)) },
+                                onClick = { menuOpen = false; confirmRestoreDefaults = true },
+                            )
+                        }
                     }
                 }
                 Text(
@@ -165,6 +206,29 @@ internal fun GroupsContent(
                 )
             }
         }
+    }
+
+    if (confirmRestoreDefaults) {
+        AlertDialog(
+            onDismissRequest = { confirmRestoreDefaults = false },
+            title = { Text(stringResource(R.string.groups_restore_defaults_title)) },
+            text = { Text(stringResource(R.string.groups_restore_defaults_body)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        confirmRestoreDefaults = false
+                        onRestoreDefaults()
+                    },
+                ) {
+                    Text(stringResource(R.string.groups_restore_defaults))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmRestoreDefaults = false }) {
+                    Text(stringResource(R.string.editor_cancel))
+                }
+            },
+        )
     }
 }
 
@@ -204,6 +268,10 @@ private fun GroupRow(group: CustomGroup, onClick: () -> Unit, onUndoDelete: () -
  * sub-step (not a dialog), so its text field composes without the popup-window
  * loop the Robolectric tests hit. Reused by the rule editor's picker so a group
  * can be created mid-rule (there [initial] is null and [onDelete] absent).
+ *
+ * [onRestoreDefault], when non-null, offers "Reset to default" — only for a
+ * shipped group the user has edited away from its seed; it resets that group and
+ * leaves the editor.
  */
 @Composable
 internal fun GroupEditor(
@@ -212,6 +280,7 @@ internal fun GroupEditor(
     onSave: (name: String, regionCodes: List<String>) -> Unit,
     onDelete: (() -> Unit)?,
     onCancel: () -> Unit,
+    onRestoreDefault: (() -> Unit)? = null,
 ) {
     var name by rememberSaveable { mutableStateOf(initial?.name.orEmpty()) }
     var regions by rememberSaveable(stateSaver = GroupRegionsSaver) {
@@ -274,6 +343,16 @@ internal fun GroupEditor(
                     )
                 }
                 item { AddCountryRow(onClick = { showPicker = true }) }
+            }
+            if (onRestoreDefault != null) {
+                // A whole line to itself so the Delete/Cancel/Save row stays
+                // uncrowded; only shows for an edited shipped group.
+                TextButton(
+                    onClick = onRestoreDefault,
+                    modifier = Modifier.padding(top = 8.dp),
+                ) {
+                    Text(stringResource(R.string.groups_restore_default))
+                }
             }
             androidx.compose.foundation.layout.Row(
                 modifier = Modifier
