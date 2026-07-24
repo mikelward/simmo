@@ -146,6 +146,12 @@ small stack), fully unit-tested, with `./gradlew test` and `./gradlew lint` gree
       the matcher model changes from `RuleMatcher.Country(regionCode)` to a set of regions
       and the decision engine matches when the destination is in the set (SPEC update, and
       keep emergency/undetermined-country handling unchanged).
+  - [x] Give each selected country/group entry a leading checkbox in the slot that
+        aligned with the "Any country" radio but was left blank, so the "When" section
+        reads as one choice — any destination vs this checked set — instead of a lone
+        radio over unadorned rows. Checked while the set is active, dimmed and unchecked
+        while "Any country" is; the ✕ still removes. Same treatment in the data-rule
+        editor; the group editor's plain member list keeps the blank indent.
 - [x] Country groups: one "EU/EEA" entry per rule (maintainer decision: a
       first-class group matcher, not expansion — expansion was judged too
       cluttered). Membership = EU-27 + EEA EFTA + EU territories with their own

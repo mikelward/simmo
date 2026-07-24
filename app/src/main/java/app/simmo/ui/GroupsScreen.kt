@@ -268,7 +268,7 @@ internal fun GroupEditor(
                         .firstOrNull { it.regionCode.equals(entry, ignoreCase = true) }?.label ?: entry
                     SelectedCountryRow(
                         label = label,
-                        dimmed = false,
+                        checked = null,
                         onSelect = {},
                         onRemove = { regions = regions.filterNot { it == entry } },
                     )

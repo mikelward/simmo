@@ -21,14 +21,17 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
@@ -49,6 +52,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
@@ -424,11 +428,13 @@ internal fun RuleEditorContent(
                         onSelect = { matchesAny = true },
                     )
                 }
-                // Each chosen group and country is a removable entry; the add
-                // row below opens the searchable picker rather than listing
-                // ~240 countries inline. Entries stay visible (dimmed) while
-                // "Any country" is selected, same as the old single-country
-                // label did, so switching back is one tap with nothing lost.
+                // Each chosen group and country is a removable, checked entry
+                // under the "Any country" radio — together one legible choice
+                // between any destination and this specific set. The add row
+                // below opens the searchable picker rather than listing ~240
+                // countries inline. Entries stay visible (dimmed, unchecked)
+                // while "Any country" is selected, so switching back is one tap
+                // with nothing lost.
                 items(groups, key = { "group:$it" }) { entry ->
                     // A pending group isn't in groupOptions yet (persisted only on
                     // Save), so resolve its name from the pending list too.
@@ -437,7 +443,7 @@ internal fun RuleEditorContent(
                         ?: entry
                     SelectedCountryRow(
                         label = label,
-                        dimmed = matchesAny,
+                        checked = !matchesAny,
                         onSelect = { matchesAny = false },
                         onRemove = { groups = groups.filterNot { it == entry } },
                     )
@@ -448,7 +454,7 @@ internal fun RuleEditorContent(
                         ?: entry
                     SelectedCountryRow(
                         label = label,
-                        dimmed = matchesAny,
+                        checked = !matchesAny,
                         onSelect = { matchesAny = false },
                         onRemove = { regions = regions.filterNot { it == entry } },
                     )
@@ -639,32 +645,68 @@ private fun ChoiceRow(selected: Boolean, text: String, onSelect: () -> Unit) {
 }
 
 /**
- * One country already on the rule: tappable to re-select the countries branch,
- * with a remove affordance. Indented to align with the radio rows' labels
- * (48dp radio + 8dp gap); dimmed with the same alpha the rules list uses for
- * paused rules while "Any country" is the selected branch.
+ * One country already on the rule, with a remove affordance.
+ *
+ * [checked] fills the leading control slot that aligns with the "Any country"
+ * radio above, turning the match-set into one legible choice: a checkbox per
+ * country, all checked while the countries branch is the selected one, dimmed
+ * and unchecked while "Any country" is. The checkbox and its label are one
+ * merged, [Role.Checkbox]-toggleable control, so a screen reader announces
+ * "<country>, checked" rather than an unlabeled checkbox. The toggle is honored
+ * both ways: checking an entry (from the dimmed "Any country" state) re-selects
+ * the countries branch ([onSelect]); unchecking a checked entry removes it
+ * ([onRemove]), the same outcome as its X — so the advertised toggle action
+ * always changes state rather than no-opping.
+ * Pass `checked = null` where there is no such branch (the group editor's plain
+ * member list): the leading slot is then a blank indent aligning the label with
+ * radio rows (48dp control + 8dp gap).
  */
 @Composable
 internal fun SelectedCountryRow(
     label: String,
-    dimmed: Boolean,
+    checked: Boolean?,
     onSelect: () -> Unit,
     onRemove: () -> Unit,
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .alpha(if (dimmed) 0.4f else 1f)
-            .padding(start = 56.dp),
+            .alpha(if (checked == false) 0.4f else 1f),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodyLarge,
-            modifier = Modifier
-                .weight(1f)
-                .clickable(onClick = onSelect),
-        )
+        if (checked != null) {
+            Row(
+                modifier = Modifier
+                    .weight(1f)
+                    .toggleable(
+                        value = checked,
+                        role = Role.Checkbox,
+                        // Honor the requested state: check → activate the set,
+                        // uncheck → remove this entry (never a silent no-op).
+                        onValueChange = { nowChecked -> if (nowChecked) onSelect() else onRemove() },
+                    ),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                // Decorative: the toggleable row owns the click and semantics, so
+                // the checkbox itself takes no handler. minimumInteractiveComponentSize
+                // keeps its 48dp slot aligned with the radios above.
+                Checkbox(
+                    checked = checked,
+                    onCheckedChange = null,
+                    modifier = Modifier.minimumInteractiveComponentSize(),
+                )
+                Text(label, style = MaterialTheme.typography.bodyLarge)
+            }
+        } else {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodyLarge,
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(start = 56.dp),
+            )
+        }
         IconButton(onClick = onRemove) {
             Icon(
                 imageVector = Icons.Filled.Clear,
