@@ -86,7 +86,7 @@ class RulesScreenScreenshotTest {
         }
         composeRule.waitForIdle()
 
-        composeRule.onNodeWithText("Simmo").assertExists()
+        composeRule.onNodeWithText("Rules").assertExists()
         composeRule.onNodeWithText("Roaming OK on SIMs homed in these countries").assertExists()
         composeRule.onNodeWithText("Use Telstra for data").assertExists()
         composeRule.onNodeWithText("SIM disabled — rule paused").assertExists()
