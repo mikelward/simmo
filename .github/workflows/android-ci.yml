@@ -71,17 +71,14 @@ jobs:
           # to read-only so only main pushes write the shared cache.
           cache-read-only: ${{ github.event_name == 'pull_request' }}
 
-      - name: Build debug APK
+      - name: Build debug APK (runs R8 in CI)
+        # assembleDebug in CI runs the same shrink-only R8 the release/Play build
+        # uses (isMinifyEnabled = isCiBuild), so a broken keep rule or R8 failure
+        # fails the PR here instead of reaching a tester device. Falls through to
+        # AGP's auto debug key — no keystore secret needed to validate the build.
+        # This catches build-time R8 breakage; runtime reflection still needs a
+        # device check.
         run: ./gradlew assembleDebug
-
-      - name: Build firebase APK (R8)
-        # The `firebase` build type runs the same R8 pipeline (minify +
-        # proguard-rules.pro) that Firebase App Distribution ships to testers,
-        # so a broken keep rule or R8 processing failure fails the PR here
-        # instead of reaching a tester device. Falls through to AGP's auto debug
-        # key — no keystore secret needed to validate the build. This catches
-        # build-time R8 breakage; runtime reflection still needs a device check.
-        run: ./gradlew assembleFirebase
 
       - name: Check licenses export is up to date
         # The open-source attribution list is committed to res/raw (AGP 9 can't
@@ -430,16 +427,17 @@ jobs:
             exit 1
           fi
 
-      - name: Build firebase APK for distribution
-        # The `firebase` build type runs the release R8 pipeline (minify +
-        # proguard-rules.pro) but is debug-signed, so testers exercise the same
-        # shrinking/obfuscation a Play release would — catching R8 regressions
-        # before Play exists — while staying installable without release secrets.
+      - name: Build debug APK for distribution
+        # The debug build is debug-signed and .debug-suffixed (app.simmo.debug) so
+        # it co-installs beside a Play build, and in CI it runs the same shrink-only
+        # R8 the release build does (isMinifyEnabled = isCiBuild) — so testers
+        # exercise the shrinking a Play release would, while staying installable
+        # without release secrets.
         env:
           DEBUG_KEYSTORE_PASSWORD: ${{ secrets.DEBUG_KEYSTORE_PASSWORD }}
           DEBUG_KEY_PASSWORD: ${{ secrets.DEBUG_KEY_PASSWORD }}
           DEBUG_KEY_ALIAS: ${{ secrets.DEBUG_KEY_ALIAS }}
-        run: ./gradlew assembleFirebase
+        run: ./gradlew assembleDebug
 
       - name: Build release notes
         # Walks every commit in this push oldest-first and collects the
@@ -619,7 +617,7 @@ jobs:
           # see docs/firebase-app-distribution.md. Rename there + here
           # together if you change it.
           groups: testers
-          file: app/build/outputs/apk/firebase/app-firebase.apk
+          file: app/build/outputs/apk/debug/app-debug.apk
           # The tester's push notification shows the first ~60 chars of
           # these notes; the same string ships to Play as "What's new", so
           # the two surfaces stay in sync.

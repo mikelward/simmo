@@ -32,6 +32,12 @@ val gitCommitCount: Int =
 val gitShortSha: String = gitOutput("rev-parse", "--short", "HEAD", fallback = "unknown")
 val baseVersionName = "0.1"
 
+// R8 (shrink-only, see proguard-rules.pro) runs on the debug and release builds
+// in CI only: the CI-built tester and Play APKs drop unused code and every PR
+// catches keep-rule breakage, while local builds skip R8 to keep the
+// edit-install loop fast. GitHub Actions sets CI=true.
+val isCiBuild: Boolean = System.getenv("CI") == "true"
+
 android {
     namespace = "app.simmo"
     // Latest platform the remote-session provisioning hook seeds; bump to the
@@ -84,7 +90,10 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = true
+            // R8 in CI only (see isCiBuild): the Play AAB is CI-built so it ships
+            // minified, while a local release build skips R8 and stays fast to
+            // inspect. The debug build below runs the same pipeline.
+            isMinifyEnabled = isCiBuild
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
@@ -96,22 +105,22 @@ android {
                 signingConfig = signingConfigs.getByName("release")
             }
         }
-        // The build Firebase App Distribution ships to testers. It inherits the
-        // release build's R8 pipeline (same minify + proguard rules) so testers
-        // exercise — and catch regressions in — the exact shrinking/obfuscation
-        // a Play release would, instead of the unminified debug APK that never
-        // runs R8. It is signed with the debug key so it stays installable
-        // without a release keystore or Play setup, and so successive tester
-        // builds update in place on a device (same signature as the old debug
-        // distribution). Named for its distribution channel: `alpha`/`beta`
-        // would collide with Play's track names, and AGP reserves `test*`.
-        create("firebase") {
-            initWith(getByName("release"))
-            // Override the release signing inherited above: debug-signed, so no
-            // release secrets are needed to produce an installable tester APK.
-            signingConfig = signingConfigs.getByName("debug")
-            // Resolve dependency variants that only publish debug/release.
-            matchingFallbacks += "release"
+        debug {
+            // Suffix so the tester build (app.simmo.debug) co-installs beside a
+            // release-signed Play build (app.simmo) instead of colliding on the
+            // package name. Firebase App Distribution ships this build, debug-signed
+            // via the stable CI debug key (see signingConfigs.debug) so testers
+            // install successive builds as updates without a release keystore or
+            // Play setup. Mirrors the clothescast and typelauncher tester builds.
+            applicationIdSuffix = ".debug"
+            // Same shrink-only R8 as release, CI-only — so testers and the PR build
+            // job exercise the exact pipeline the Play build ships, while local
+            // debug builds skip R8 and stay fast.
+            isMinifyEnabled = isCiBuild
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
         }
     }
 

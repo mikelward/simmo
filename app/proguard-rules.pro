@@ -1,13 +1,21 @@
-# R8 keep rules for the minified builds (release and the `firebase`
-# build). Without these, code reached only by reflection is renamed or removed
-# and the app misbehaves or crashes in ways the unminified debug build never
-# shows. Keep this list tight — each rule names why it exists.
+# R8 keep rules for the minified builds — the CI `release` and `debug` builds
+# (isMinifyEnabled = isCiBuild in app/build.gradle.kts). R8 here is shrink-only
+# (-dontoptimize -dontobfuscate, below), so the only risk these guard against is
+# tree-shaking removing code reached solely by reflection — which the unminified
+# local debug build never shows. Keep this list tight — each rule names why it exists.
+
+# Shrink-only: R8 strips unused code but never rewrites or renames it. That drops
+# a whole class of optimizer/obfuscator "works in debug, breaks in release" bugs,
+# keeps crash stack traces readable (no mapping.txt to upload), and matches the
+# sibling Type Launcher builds. The size win comes almost entirely from shrinking.
+-dontoptimize
+-dontobfuscate
 
 # --- kotlinx.serialization ---------------------------------------------------
 # The persisted state is read on the startup path with the reflective
 # Json.decodeFromString<SimmoState>() (see SimmoStateStore), and the licenses
-# screen deserializes AboutLibraries' @Serializable models the same way. R8 full
-# mode (AGP's default) can strip the generated $$serializer / Companion those
+# screen deserializes AboutLibraries' @Serializable models the same way. R8
+# shrinking can strip the generated $$serializer / Companion those
 # lookups need. These are the serialization library's own recommended rules,
 # covering every @Serializable class (app and library).
 -keepattributes RuntimeVisibleAnnotations,AnnotationDefault
@@ -37,7 +45,7 @@
 
 # --- libphonenumber ----------------------------------------------------------
 # The country detector warms and reads region metadata at startup. libphonenumber
-# resolves its bundled metadata by class/resource name, which obfuscation breaks;
-# keep the library intact (resource shrinking is off, so the metadata files stay).
+# resolves its bundled metadata by class/resource name, which R8 removal would
+# break; keep the library intact (resource shrinking is off, so the metadata files stay).
 -keep class com.google.i18n.phonenumbers.** { *; }
 -dontwarn com.google.i18n.phonenumbers.**

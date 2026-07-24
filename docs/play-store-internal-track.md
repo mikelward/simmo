@@ -32,7 +32,8 @@ Forks and fresh clones without these secrets still get a green run — the AAB
 build and upload steps are skipped. The release `signingConfig` in
 `app/build.gradle.kts` is also only attached when `RELEASE_KEYSTORE_FILE` is
 set, so a local `./gradlew bundleRelease` without the env vars produces an
-unsigned AAB rather than a build failure.
+unsigned AAB rather than a build failure — and, without `CI=true`, an unminified
+one (R8 is CI-gated; see Option B below).
 
 ## One-time Play Console setup
 
@@ -64,12 +65,18 @@ and upload it through Play Console.
 **Option B — build locally:**
 
 ```sh
+CI=true \
 RELEASE_KEYSTORE_FILE=/path/to/release.keystore \
 RELEASE_KEYSTORE_PASSWORD=<password> \
 RELEASE_KEY_PASSWORD=<password> \
 RELEASE_KEY_ALIAS=simmo \
 ./gradlew bundleRelease
 ```
+
+`CI=true` turns on R8 — release minification is CI-gated
+(`isMinifyEnabled = isCiBuild` in `app/build.gradle.kts`), so without it a local
+`bundleRelease` produces an **unminified** AAB. Setting it makes the hand-seeded
+first upload match the shrink-only artifact the CI pipeline ships thereafter.
 
 Either way, upload `app-release.aab` via Play Console → Internal testing →
 Create new release, and accept Play App Signing when prompted. Then add
