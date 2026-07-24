@@ -275,9 +275,9 @@
     <!-- TODO: translate -->
     <string name="settings_guard_description" tools:ignore="MissingTranslation">Stop these calls when you can\'t look — from Bluetooth or Android Auto — and offer them back by notification</string>
     <!-- TODO: translate -->
-    <string name="settings_guard_overseas_label" tools:ignore="MissingTranslation">Overseas calls</string>
+    <string name="settings_guard_overseas_label" tools:ignore="MissingTranslation">Guard overseas calls</string>
     <!-- TODO: translate -->
-    <string name="settings_guard_disabled_sim_label" tools:ignore="MissingTranslation">Calls needing a disabled SIM</string>
+    <string name="settings_guard_disabled_sim_label" tools:ignore="MissingTranslation">Guard calls needing a disabled SIM</string>
     <!-- TODO: translate -->
     <string name="guard_blocked_overseas_title" tools:ignore="MissingTranslation">Blocked a call to %1$s</string>
     <!-- TODO: translate -->

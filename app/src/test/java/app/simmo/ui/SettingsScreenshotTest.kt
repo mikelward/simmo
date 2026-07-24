@@ -57,8 +57,10 @@ class SettingsScreenshotTest {
         composeRule.onNodeWithText("3 seconds").assertExists()
         composeRule.onNodeWithText("Use contacts' local numbers").assertExists()
         composeRule.onNodeWithText("Hands-free guard").assertExists()
-        composeRule.onNodeWithText("Overseas calls").assertExists()
-        composeRule.onNodeWithText("Calls needing a disabled SIM").assertExists()
+        // Each switch names the action, so a row read on its own — away from
+        // the heading above it — still says what turning it on does.
+        composeRule.onNodeWithText("Guard overseas calls").assertExists()
+        composeRule.onNodeWithText("Guard calls needing a disabled SIM").assertExists()
         composeRule.onNodeWithText("Make Simmo better").assertExists()
         // Privacy policy, Licenses, Share debug logs, and version sit at the
         // foot of the page.
