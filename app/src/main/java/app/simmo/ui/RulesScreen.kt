@@ -161,7 +161,7 @@ internal fun RulesScreenContent(
                     Text(
                         // A sub-screen of the SIMs home now; the Calling/Data
                         // tabs below name the two lists.
-                        text = stringResource(R.string.app_name),
+                        text = stringResource(R.string.rules_title),
                         style = MaterialTheme.typography.headlineMedium,
                         modifier = Modifier.weight(1f),
                     )

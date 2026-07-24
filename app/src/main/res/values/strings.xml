@@ -88,6 +88,8 @@
     <!-- TODO: translate -->
     <string name="rule_account_unavailable" tools:ignore="MissingTranslation">Calling account unavailable — rule paused</string>
     <!-- TODO: translate -->
+    <string name="rules_title" tools:ignore="MissingTranslation">Rules</string>
+    <!-- TODO: translate -->
     <string name="editor_title_new" tools:ignore="MissingTranslation">New rule</string>
     <!-- TODO: translate -->
     <string name="editor_title_edit" tools:ignore="MissingTranslation">Edit rule</string>
