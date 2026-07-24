@@ -483,7 +483,11 @@ class RulesViewModel(
             .flowOn(Dispatchers.Default)
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    /** Shipped seed options used only until persisted state reaches the UI. */
+    /**
+     * The shipped groups' static labels/descriptions, used only to label an
+     * existing rule's group reference before the persisted snapshot loads (see
+     * [builtInGroupLabels]) — not offered as pickable options (see [groupOptions]).
+     */
     private val builtInGroupOptions: List<CountryGroupOptionUi> = CountryGroups.allIds().map { id ->
         val label = application.getString(groupLabelRes(id))
         CountryGroupOptionUi(
@@ -512,12 +516,19 @@ class RulesViewModel(
      * while an existing rule that already references it still resolves its label
      * here during the undo window rather than showing the raw id (Codex on PR
      * #61).
+     *
+     * Seeded empty, not with [builtInGroupOptions]: now that shipped groups are
+     * editable, the static seed could offer a group the user had deleted during
+     * the brief pre-load window, and picking it would save a rule whose group
+     * resolves to nothing (Codex on PR #104). The country picker isn't the
+     * mid-call chooser, so an empty group section for the first frames of a cold
+     * start is fine — the real groups arrive as soon as the snapshot loads.
      */
     val groupOptions: StateFlow<List<CountryGroupOptionUi>> =
         customGroups
             .map { groups -> groups.map(::customGroupOption) }
             .flowOn(Dispatchers.Default)
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), builtInGroupOptions)
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     private fun customGroupOption(group: CustomGroup): CountryGroupOptionUi {
         val regions = group.regionCodes.map { it.uppercase() }
