@@ -13,6 +13,7 @@ import app.simmo.domain.RuleAction
 import app.simmo.domain.RuleMatcher
 import app.simmo.domain.SimRef
 import app.simmo.store.SimmoState
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -46,15 +47,28 @@ internal object DebugReport {
     suspend fun share(
         context: Context,
         mainDispatcher: CoroutineDispatcher = Dispatchers.Main,
+        payloadCollect: (Context, SimmoState?, DebugFileSink?) -> String = ::collectPayload,
         clipboardWrite: (Context, String) -> Boolean = ::copyToClipboard,
     ) {
         val appContext = context.applicationContext
-        val state = (appContext as? SimmoApp)?.stateHolder()?.current
         val fileSink = (appContext as? SimmoApp)?.debugFileSink
         // Build the payload off the main thread: it reads persisted settings and,
         // via the sink's worker, up to a few prior-run log files — and share() runs
         // from a UI click scope, so it must not block the main thread (Codex #92).
-        val text = withContext(Dispatchers.IO) { collectPayload(appContext, state, fileSink) }
+        val text = try {
+            withContext(Dispatchers.IO) {
+                val state = (appContext as? SimmoApp)?.stateHolder()?.current
+                payloadCollect(appContext, state, fileSink)
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Throwable) {
+            // A report is most useful after something has already gone wrong.
+            // Never turn a failure while inspecting that state into another app
+            // crash; retain a small shareable diagnostic instead.
+            SimmoDebugLog.warning("DebugReport payload collection failed", e)
+            buildFallbackPayload(e)
+        }
         // Clipboard + chooser touch the Activity/context, so run them on the main
         // thread; the payload build above hopped to IO.
         val clipboardOk = withContext(mainDispatcher) {
@@ -71,6 +85,13 @@ internal object DebugReport {
         if (clipboardOk) {
             withContext(Dispatchers.IO) { fileSink?.clearPreviousRun() }
         }
+    }
+
+    private fun buildFallbackPayload(failure: Throwable): String = buildString {
+        appendLine("Simmo debug log")
+        appendLine("Version: ${BuildConfig.VERSION_NAME}")
+        appendLine("Android: ${Build.VERSION.RELEASE} (SDK ${Build.VERSION.SDK_INT})")
+        appendLine("Report collection failed: ${failure.javaClass.name}")
     }
 
     private fun collectPayload(context: Context, state: SimmoState?, fileSink: DebugFileSink?): String {

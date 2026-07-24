@@ -74,6 +74,27 @@ class DebugReportShareTest {
         assertNotNull(sink.readPreviousRun())
     }
 
+    @Test
+    fun `a report collection failure shares a fallback instead of crashing`() = runBlocking {
+        var sharedText: String? = null
+
+        withTimeout(SHARE_TIMEOUT_MS) {
+            DebugReport.share(
+                app,
+                mainDispatcher = Dispatchers.Unconfined,
+                clipboardWrite = { _, text ->
+                    sharedText = text
+                    true
+                },
+                payloadCollect = { _, _, _ -> error("broken report state") },
+            )
+        }
+
+        assertTrue(sharedText!!.startsWith("Simmo debug log\n"))
+        assertTrue(sharedText!!.contains("Report collection failed: java.lang.IllegalStateException"))
+        assertFalse(sharedText!!.contains("broken report state"))
+    }
+
     /**
      * Drops a crash-suffixed prior-run file straight into the sink's cache dir, as
      * the next start would leave one after a crash — so
