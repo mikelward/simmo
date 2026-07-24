@@ -9,6 +9,7 @@ import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import app.simmo.domain.CountryGroups
 import app.simmo.domain.CustomGroup
 import com.github.takahirom.roborazzi.captureRoboImage
 import org.junit.Assert.assertEquals
@@ -155,6 +156,104 @@ class GroupsScreenshotTest {
         // The editor's Delete button soft-deletes at once — no confirm dialog.
         composeRule.onNodeWithText("Delete").performClick()
         composeRule.runOnIdle { assertEquals("custom:1", deleted) }
+    }
+
+    @Test
+    fun restoreDefaultGroupsFromTheMenuConfirmsBeforeResetting() {
+        var restored = false
+        composeRule.setContent {
+            MaterialTheme {
+                GroupsContent(
+                    groups = listOf(CustomGroup("custom:1", "Zone", listOf("AU"))),
+                    countryOptions = emptyList(),
+                    onRestoreDefaults = { restored = true },
+                )
+            }
+        }
+        composeRule.onNodeWithContentDescription("More options").performClick()
+        composeRule.onNodeWithText("Restore default groups").performClick() // the menu item
+        // The confirm dialog appears; nothing is reset until it's confirmed.
+        composeRule.onNodeWithText("Restore default groups?").assertExists()
+        composeRule.runOnIdle { assertEquals(false, restored) }
+        composeRule.onNodeWithText("Restore default groups").performClick() // the confirm button
+        composeRule.runOnIdle { assertEquals(true, restored) }
+    }
+
+    @Test
+    fun cancelingTheRestoreDefaultsDialogResetsNothing() {
+        var restored = false
+        composeRule.setContent {
+            MaterialTheme {
+                GroupsContent(
+                    groups = listOf(CustomGroup("custom:1", "Zone", listOf("AU"))),
+                    countryOptions = emptyList(),
+                    onRestoreDefaults = { restored = true },
+                )
+            }
+        }
+        composeRule.onNodeWithContentDescription("More options").performClick()
+        composeRule.onNodeWithText("Restore default groups").performClick()
+        composeRule.onNodeWithText("Cancel").performClick()
+        composeRule.runOnIdle { assertEquals(false, restored) }
+    }
+
+    @Test
+    fun groups_editorShowsResetToDefaultForAnEditedShippedGroup() {
+        composeRule.setContent {
+            MaterialTheme {
+                GroupsContent(
+                    // A shipped group edited away from its seed (renamed, trimmed).
+                    groups = listOf(CustomGroup(CountryGroups.EU_EEA, "My Europe", listOf("FR", "DE"))),
+                    countryOptions = listOf(
+                        CountryOptionUi("FR", "+33 France"),
+                        CountryOptionUi("DE", "+49 Germany"),
+                    ),
+                )
+            }
+        }
+        composeRule.onNodeWithText("My Europe").performClick()
+        composeRule.onNodeWithText("Reset to default").assertExists()
+        captureSnapshot("groups_editor_reset_default.png")
+    }
+
+    @Test
+    fun theEditorResetToDefaultRestoresThatOneGroup() {
+        var restoredId: String? = null
+        composeRule.setContent {
+            MaterialTheme {
+                GroupsContent(
+                    groups = listOf(CustomGroup(CountryGroups.EU_EEA, "My Europe", listOf("FR"))),
+                    countryOptions = listOf(CountryOptionUi("FR", "+33 France")),
+                    onRestoreDefaultGroup = { restoredId = it },
+                )
+            }
+        }
+        composeRule.onNodeWithText("My Europe").performClick()
+        composeRule.onNodeWithText("Reset to default").performClick()
+        composeRule.runOnIdle { assertEquals(CountryGroups.EU_EEA, restoredId) }
+    }
+
+    @Test
+    fun theEditorHidesResetToDefaultWhenThereIsNothingToRestore() {
+        composeRule.setContent {
+            MaterialTheme {
+                GroupsContent(
+                    groups = listOf(
+                        // An untouched shipped seed and a user-created group.
+                        CountryGroups.preseededGroup(CountryGroups.EU_EEA)!!,
+                        CustomGroup("custom:1", "Zone", listOf("AU")),
+                    ),
+                    countryOptions = emptyList(),
+                )
+            }
+        }
+        // The seed matches its default, so there's nothing to reset.
+        composeRule.onNodeWithText("EU/EEA").performClick()
+        composeRule.onNodeWithText("Reset to default").assertDoesNotExist()
+        composeRule.onNodeWithText("Cancel").performClick()
+        // A user group is never "shippable", so it never offers a reset.
+        composeRule.onNodeWithText("Zone").performClick()
+        composeRule.onNodeWithText("Reset to default").assertDoesNotExist()
     }
 
     private fun captureSnapshot(name: String, widthPx: Int = 1080, heightPx: Int = 1920) {

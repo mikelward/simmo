@@ -71,4 +71,72 @@ class CustomGroupTest {
         val snapshot = marked.associate { it.id to it.regionCodes }
         assertEquals(listOf("GB", "FR"), groupMembers("custom:1", snapshot))
     }
+
+    @Test
+    fun `matchesDefault ignores member order but sees name and membership changes`() {
+        val default = CountryGroups.preseededGroup(CountryGroups.EU_EEA)!!
+        // Same name and members in a different order still counts as default.
+        assertTrue(default.copy(regionCodes = default.regionCodes.reversed()).matchesDefault(default))
+        // A rename or a membership change does not.
+        assertFalse(default.copy(name = "My Europe").matchesDefault(default))
+        assertFalse(default.copy(regionCodes = default.regionCodes + "GB").matchesDefault(default))
+    }
+
+    @Test
+    fun `restoring one shipped group resets an edited copy in place`() {
+        val eu = CountryGroups.EU_EEA
+        val groups = listOf(
+            CustomGroup(eu, "My Europe", listOf("FR")),
+            CustomGroup("custom:1", "Zone", listOf("AU")),
+        )
+        val restored = groups.withDefaultGroupRestored(eu)
+        // Position preserved; the seed is back to its shipped name and members.
+        assertEquals(listOf(eu, "custom:1"), restored.map { it.id })
+        assertEquals(CountryGroups.preseededGroup(eu), restored.first())
+        // The user's own group is untouched.
+        assertEquals(groups[1], restored[1])
+    }
+
+    @Test
+    fun `restoring one shipped group re-adds a deleted one in shipped order`() {
+        // North America deleted; EU/EEA kept, plus a user group. Restoring NA
+        // puts it back between EU/EEA and USA + territories' canonical slots —
+        // i.e. after every earlier shipped group, before user groups.
+        val groups = listOf(
+            CountryGroups.preseededGroup(CountryGroups.EU_EEA)!!,
+            CountryGroups.preseededGroup(CountryGroups.USA_TERRITORIES)!!,
+            CustomGroup("custom:1", "Zone", listOf("AU")),
+        )
+        val restored = groups.withDefaultGroupRestored(CountryGroups.NORTH_AMERICA)
+        assertEquals(
+            listOf(
+                CountryGroups.EU_EEA,
+                CountryGroups.USA_TERRITORIES,
+                CountryGroups.NORTH_AMERICA,
+                "custom:1",
+            ),
+            restored.map { it.id },
+        )
+        assertEquals(CountryGroups.preseededGroup(CountryGroups.NORTH_AMERICA), restored[2])
+    }
+
+    @Test
+    fun `restoring an unknown id is a no-op`() {
+        val groups = listOf(CustomGroup("custom:1", "Zone", listOf("AU")))
+        assertEquals(groups, groups.withDefaultGroupRestored("custom:1"))
+        assertEquals(groups, groups.withDefaultGroupRestored("custom:404"))
+    }
+
+    @Test
+    fun `restoring all shipped groups resets edits, re-adds deletions, keeps user groups`() {
+        val user = CustomGroup("custom:1", "Zone", listOf("AU"))
+        val groups = listOf(
+            // Edited seed and a user group; the other three seeds are deleted.
+            CustomGroup(CountryGroups.EU_EEA, "My Europe", listOf("FR")),
+            user,
+        )
+        val restored = groups.withDefaultGroupsRestored()
+        // All four shipped groups back in shipped order, then the user's group.
+        assertEquals(CountryGroups.preseededGroups() + user, restored)
+    }
 }

@@ -160,6 +160,14 @@
     <!-- TODO: translate -->
     <string name="groups_name_label" tools:ignore="MissingTranslation">Group name</string>
     <!-- TODO: translate -->
+    <string name="groups_restore_defaults" tools:ignore="MissingTranslation">Restore default groups</string>
+    <!-- TODO: translate -->
+    <string name="groups_restore_defaults_title" tools:ignore="MissingTranslation">Restore default groups?</string>
+    <!-- TODO: translate -->
+    <string name="groups_restore_defaults_body" tools:ignore="MissingTranslation">Resets EU/EEA, USA + territories, North America, and Caribbean +1 to their original countries, and brings back any you deleted. Your own groups are kept.</string>
+    <!-- TODO: translate -->
+    <string name="groups_restore_default" tools:ignore="MissingTranslation">Reset to default</string>
+    <!-- TODO: translate -->
     <string name="new_sim_prompt_title" tools:ignore="MissingTranslation">New SIM: %1$s</string>
     <!-- TODO: translate -->
     <string name="new_sim_prompt_body" tools:ignore="MissingTranslation">Add a rule for when to use it.</string>

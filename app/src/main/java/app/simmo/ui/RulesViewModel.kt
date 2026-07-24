@@ -13,6 +13,8 @@ import app.simmo.domain.DialHandoffApp
 import app.simmo.domain.withGroupSaved
 import app.simmo.domain.withGroupMarkedForRemoval
 import app.simmo.domain.withGroupRemovalUndone
+import app.simmo.domain.withDefaultGroupRestored
+import app.simmo.domain.withDefaultGroupsRestored
 import app.simmo.telecom.TelephonyReader
 import app.simmo.telecom.buildDataSnapshot
 import app.simmo.telecom.installedDialHandoffApps
@@ -895,6 +897,29 @@ class RulesViewModel(
     fun undoGroupRemoval(id: String) {
         viewModelScope.launch {
             app.stateHolders().filterNotNull().first().updateCustomGroups { it.withGroupRemovalUndone(id) }
+        }
+    }
+
+    /**
+     * Restore the shipped group [id] to its default name and members — the
+     * editor's "Reset to default" for a seed the user edited. Applies at once
+     * (like Delete), overwriting the user's edits to that one group; other groups
+     * are untouched.
+     */
+    fun restoreDefaultGroup(id: String) {
+        viewModelScope.launch {
+            app.stateHolders().filterNotNull().first().updateCustomGroups { it.withDefaultGroupRestored(id) }
+        }
+    }
+
+    /**
+     * Restore every shipped group to its default — the Groups screen's "Restore
+     * default groups". Resets edited seeds and re-adds deleted ones; user-created
+     * groups are kept. Overwrites edits, so the UI confirms first.
+     */
+    fun restoreDefaultGroups() {
+        viewModelScope.launch {
+            app.stateHolders().filterNotNull().first().updateCustomGroups { it.withDefaultGroupsRestored() }
         }
     }
 

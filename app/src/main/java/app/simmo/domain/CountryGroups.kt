@@ -109,4 +109,11 @@ object CountryGroups {
         CustomGroup(NORTH_AMERICA, "North America", northAmerica),
         CustomGroup(CARIBBEAN_NANP, "Caribbean +1", caribbeanNanp),
     )
+
+    /**
+     * The shipped default for [id] — its original name and members — or null if
+     * [id] is not a shipped group. Backs "restore to default" on the Country
+     * groups screen, which resets an edited seed or re-adds a deleted one.
+     */
+    fun preseededGroup(id: String): CustomGroup? = preseededGroups().firstOrNull { it.id == id }
 }

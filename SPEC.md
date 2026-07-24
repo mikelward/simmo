@@ -95,7 +95,13 @@ none of the group's members — see below). A rule pairs a **matcher** with an *
   Each preseeded group is ordinary user-configurable data: it appears on the
   Country groups screen and can be renamed, have countries added or removed, or
   be deleted. Updates do not restore a deleted group or overwrite the user's
-  edits. A group is stored by id and resolved to its persisted members at
+  edits. Because an edit or delete is easy to regret, the Country groups screen
+  offers a way back to the shipped defaults: editing a shipped group whose name
+  or members no longer match its seed shows **Reset to default** (which restores
+  that one group), and a screen-level **Restore default groups** resets all four
+  shipped groups and re-adds any that were deleted, at once — it overwrites edits,
+  so it confirms first, and it leaves the user's own groups untouched. A group is
+  stored by id and resolved to its persisted members at
   decision time, so a rule retains one stable entry while following group edits;
   countries a label excludes but a particular plan covers (UK, Switzerland, …)
   can be added to that group or beside it as ordinary rule entries. The preseeded
