@@ -40,7 +40,7 @@ small stack), fully unit-tested, with `./gradlew test` and `./gradlew lint` gree
       unreachable hand-off targets, UI-needing actions in non-interactive contexts,
       and ambiguous matches.
 - [x] Preseeded default rules: any destination → SIM with matching home country
-      (unique match only); any destination → no change (system default).
+      (unique match only); any destination → use system settings (system default).
 - [x] Chooser payload carries the disabled-SIM rules skipped during evaluation, so
       the enable-assist surfaces there instead of blocking rule hits.
 - [x] Prompt to add rules when a new SIM is first seen; suggest placement above
@@ -80,7 +80,7 @@ small stack), fully unit-tested, with `./gradlew test` and `./gradlew lint` gree
       action labels, preseeded defaults visible, disabled-SIM rules greyed out.
 - [x] Rule editor: add via the list's button, edit by tapping a row, delete; country
       picker (any destination or a specific country) and action picker (specific SIM
-      from the registry, matching-country SIM, Ask, no change). Hand-off actions wait
+      from the registry, matching-country SIM, Ask, use system settings). Hand-off actions wait
       for Phase 5's reachable-app discovery.
 - [x] Per-rule actions menu (its ⋮ button or a long-press on the row): edit, duplicate
       (copy inserted directly below), enable/disable, delete. Disabling adds a user
@@ -506,7 +506,7 @@ System settings.
       subscription, per-subscription roaming flags, per-SIM data-roaming setting,
       network country); table-driven unit tests including the EU roam-like-home
       shapes. Includes the preseeded default *when in EU/EEA → roaming OK on SIMs
-      homed in EU/EEA* and the "SIMs homed in the matched countries" scope it
+      from EU/EEA* and the "SIMs from the matched countries" scope it
       needs (the data-side sibling of the calling matching-country action).
       Landed as `domain/DataRules.kt` + `domain/DataWatch.kt`, plus the
       persisted `SimmoState.dataRules` (pre-field state decodes to the preseed;

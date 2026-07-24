@@ -61,7 +61,7 @@ class DataRuleEditorScreenshotTest {
         composeRule.onNodeWithText("Use Orange Holiday (disabled) for data").assertExists()
         composeRule.onNodeWithText("Use a local SIM for data").assertExists()
         composeRule.onNodeWithText("Roaming OK on any SIM").assertExists()
-        composeRule.onNodeWithText("Roaming OK on SIMs homed in these countries").assertExists()
+        composeRule.onNodeWithText("Roaming OK on SIMs from these countries").assertExists()
         composeRule.onNodeWithText("Always warn").assertExists()
         captureSnapshot("data_rule_editor.png")
     }

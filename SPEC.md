@@ -136,7 +136,7 @@ none of the group's members — see below). A rule pairs a **matcher** with an *
   3. **Hand off to another calling app or account** — e.g. Google Voice, or a
      SIP provider's calling account (see "Hand-off to another app").
   4. **Ask** — show Simmo's chooser for this call.
-  5. **No change** — the call proceeds exactly as the system would have placed it
+  5. **Use system settings** — the call proceeds exactly as the system would have placed it
      (the user's default calling app / default voice SIM); Simmo doesn't intervene.
 
 **Applicability (skip semantics).** A rule that cannot act right now is skipped and
@@ -163,7 +163,7 @@ passes the call through unmodified — no redirect churn, no UI.
 the list — ordinary rules, reorderable and deletable:
 
 1. *Any destination → call with the SIM whose home country matches.*
-2. *Any destination → no change.*
+2. *Any destination → use system settings.*
 
 So out of the box Simmo only intervenes when a destination unambiguously matches one
 SIM's home country; everything else behaves as if Simmo weren't installed. Users who
@@ -382,11 +382,11 @@ withdrawn along with the dedupe mark: a present-tense "Using data roaming" never
 outlives the trip it describes.
 
 **Preseeded default.** A fresh install seeds one data rule (maintainer, 2026-07):
-*When in EU/EEA → Roaming OK on SIMs homed in EU/EEA* — the regulation-backed
+*When in EU/EEA → Roaming OK on SIMs from EU/EEA* — the regulation-backed
 roam-like-at-home arrangement, label-faithful and stable the way the shipped
 country groups are, so an EU user's first trip inside the zone stays silent instead
 of warning about roaming that is free by law. It is an ordinary rule — visible,
-reorderable, editable, deletable — and its SIM scope, "SIMs homed in the matched
+reorderable, editable, deletable — and its SIM scope, "SIMs from the matched
 countries," is the data-side sibling of the calling side's matching-country action.
 
 **No-data nudge (rule-less).** When the data SIM is not local and its data roaming
@@ -853,7 +853,7 @@ redirection service only ever reads the snapshot.
   open part.)
 - Whether to offer per-rule "and remember for this number" overrides when a user
   diverges from a country rule for one number repeatedly.
-- Whether the trailing "no change" default should split into two distinct entries —
+- Whether the trailing "use system settings" default should split into two distinct entries —
   explicitly routing to the default calling app vs. the default voice SIM — rather
   than one non-intervention rule.
 - Hands-free safeguards: whether car-mode signals should supplement the per-call
