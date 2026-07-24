@@ -5,12 +5,15 @@ import android.graphics.Canvas
 import android.view.View
 import androidx.activity.ComponentActivity
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import app.simmo.R
 import com.github.takahirom.roborazzi.captureRoboImage
 import com.mikepenz.aboutlibraries.Libs
 import com.mikepenz.aboutlibraries.util.withJson
+import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -44,6 +47,42 @@ class LicensesScreenshotTest {
 
         composeRule.onNodeWithText("Open source licenses").assertExists()
         captureSnapshot("licenses.png")
+    }
+
+    /**
+     * Tapping a component opens a dialog with its version and a tappable license
+     * link (the bundled export carries no license text, so the link opens the
+     * full text in the browser), and Done dismisses it. Interaction-only, like
+     * CountryPicker's "New group" test — a Compose dialog renders in its own
+     * window, which the decorView snapshot helper can't capture.
+     */
+    @Test
+    fun licenseDialog_showsVersionAndOpensLicenseUrl() {
+        val libraries = Libs.Builder()
+            .withJson(composeRule.activity, R.raw.aboutlibraries)
+            .build()
+        var openedUrl: String? = null
+        composeRule.setContent {
+            MaterialTheme {
+                LicensesContent(libraries, onOpenLicenseUrl = { openedUrl = it })
+            }
+        }
+        composeRule.waitForIdle()
+
+        // Tap the "Activity" row → dialog shows its version and license.
+        composeRule.onNodeWithText("Activity").performClick()
+        composeRule.onNodeWithText("Version 1.13.0").assertIsDisplayed()
+        composeRule.onNodeWithText("Apache License 2.0").assertIsDisplayed()
+
+        // The license name links out to the full text.
+        composeRule.onNodeWithText("Apache License 2.0").performClick()
+        composeRule.runOnIdle {
+            assertEquals("https://spdx.org/licenses/Apache-2.0.html", openedUrl)
+        }
+
+        // Done dismisses the dialog.
+        composeRule.onNodeWithText("Done").performClick()
+        composeRule.onNodeWithText("Version 1.13.0").assertDoesNotExist()
     }
 
     private fun captureSnapshot(name: String, widthPx: Int = 1080, heightPx: Int = 1920) {
