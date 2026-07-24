@@ -4,13 +4,12 @@ import java.util.UUID
 import kotlinx.serialization.Serializable
 
 /**
- * A user-defined country group (SPEC "Calling rules" → custom groups): a named set of
- * countries a rule can match as a single entry, the same way it matches a
- * built-in [CountryGroups] group. Carriers' own zone lists ("Vodafone Zone 1")
- * differ per plan and can't ship as built-in data, so users build their own.
+ * A user-configurable country group (SPEC "Calling rules" → country groups): a
+ * named set of countries a rule can match as a single entry. This represents
+ * both Simmo's preseeded groups and groups the user creates.
  *
- * [id] is stable and never collides with a built-in group id (it carries the
- * [ID_PREFIX]); [name] is what the user typed and can be renamed freely;
+ * [id] is stable; newly created groups carry [ID_PREFIX], while preseeded groups
+ * retain their well-known ids so existing rules keep referring to them.
  * [regionCodes] are the member countries (ISO regions, uppercased). Persisted;
  * membership is resolved on the decision path from the in-memory snapshot, the
  * same as built-in groups resolve from their static table — never from I/O.
@@ -31,7 +30,7 @@ data class CustomGroup(
     val pendingRemoval: Boolean = false,
 ) {
     companion object {
-        /** Prefix that keeps a custom id disjoint from every [CountryGroups] id. */
+        /** Prefix that keeps a newly created id disjoint from every preseeded id. */
         const val ID_PREFIX = "custom:"
 
         /**
@@ -60,10 +59,9 @@ fun List<CustomGroup>.withGroupRemovalUndone(id: String): List<CustomGroup> =
 fun List<CustomGroup>.withPendingGroupRemovalsPurged(): List<CustomGroup> = filterNot { it.pendingRemoval }
 
 /**
- * Member regions of [groupId], resolved from the built-in table first and then
- * [customGroups] (the two id spaces are disjoint). Empty for an id neither
- * knows — a rule referencing a deleted group simply contributes no regions from
- * it, and its other countries still match, never an error on the decision path.
+ * Member regions of [groupId] from the persisted in-memory group snapshot.
+ * Empty for an unknown or deleted id, so a rule's other countries still match
+ * and the decision path never errors.
  */
 fun groupMembers(groupId: String, customGroups: Map<String, List<String>>): List<String> =
-    CountryGroups.members(groupId).ifEmpty { customGroups[groupId].orEmpty() }
+    customGroups[groupId].orEmpty()

@@ -27,7 +27,8 @@ class DecisionEngineTest {
         rules: List<CallingRule>,
         activeSims: List<ActiveSim> = listOf(telstra, tmobile),
         passTokens: List<PassToken> = emptyList(),
-        customGroups: Map<String, List<String>> = emptyMap(),
+        customGroups: Map<String, List<String>> = CountryGroups.preseededGroups()
+            .associate { it.id to it.regionCodes },
         handOffAccounts: Map<PhoneAccountRef, String> = emptyMap(),
         handOffApps: Set<String> = emptySet(),
         contacts: ContactNumberIndex = ContactNumberIndex.EMPTY,
@@ -234,7 +235,7 @@ class DecisionEngineTest {
         // rule matches none of its members and falls through — never an error.
         assertEquals(
             Verdict.Proceed(ProceedReason.SYSTEM_DEFAULT),
-            engine.decide(call(gbNumber), snapshot(rules), now),
+            engine.decide(call(gbNumber), snapshot(rules, customGroups = emptyMap()), now),
         )
     }
 

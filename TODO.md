@@ -172,12 +172,15 @@ small stack), fully unit-tested, with `./gradlew test` and `./gradlew lint` gree
       enabling the guard rule "Caribbean +1 → Ask" placed above a USA rule.
 - [x] Custom country groups: user-defined groups ("Vodafone Zone 1") created and
       managed on a Country groups screen (reached from the rules list) and referenced
-      from rules like the built-ins — the answer to carrier "Tier 1"/zone lists, which
-      differ per carrier so no shipped list can be right. Persisted as
+      from rules like the preseeded groups — the answer to carrier "Tier 1"/zone lists,
+      which differ per carrier so no shipped list can be right. Persisted as
       `SimmoState.customGroups`; membership resolves from the warm snapshot on the
-      decision path, the same as built-in groups resolve from the static table (the
-      two id spaces are disjoint). Custom groups are selectable in the rule editor's
-      country picker; a deleted group leaves referencing rules matching none of it.
+      decision path. Groups are selectable in the rule editor's country picker; a
+      deleted group leaves referencing rules matching none of it.
+  - [x] Make every shipped country group user-configurable: preseed EU/EEA, USA +
+        territories, North America, and Caribbean +1 into persisted group state once.
+        Users can rename, edit, or delete them; later launches and upgrades preserve
+        those choices instead of restoring seed data.
   - [x] Create a group from within the picker: a "New group" row in the rule editor's
         country picker (blank query) opens the same group editor as a nested sub-step,
         so a group can be built mid-rule; on save it's created and added to the rule

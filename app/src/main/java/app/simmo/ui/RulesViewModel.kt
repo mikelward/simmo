@@ -232,8 +232,8 @@ class RulesViewModel(
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
     private fun buildRows(state: SimmoState?, sims: TelephonyReader.SimsAndAccounts): List<RuleRowUi> {
-        // Built-in labels are static; a custom group's label is its user-typed
-        // name from the state. An id neither knows still shows (as its raw id).
+        // Seed labels cover the brief pre-load state; persisted names override
+        // them after load because every group is user-configurable.
         val labels = builtInGroupLabels + state?.customGroups.orEmpty().associate { it.id to it.name }
         val availableAccounts = sims.callingAccounts.mapTo(HashSet()) { it.ref }
         return state?.rules?.rules.orEmpty().map { rule ->
@@ -481,7 +481,7 @@ class RulesViewModel(
             .flowOn(Dispatchers.Default)
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    /** The shipped groups, resolved once; custom groups are appended per state. */
+    /** Shipped seed options used only until persisted state reaches the UI. */
     private val builtInGroupOptions: List<CountryGroupOptionUi> = CountryGroups.allIds().map { id ->
         val label = application.getString(groupLabelRes(id))
         CountryGroupOptionUi(
@@ -495,7 +495,7 @@ class RulesViewModel(
 
     private val builtInGroupLabels = builtInGroupOptions.associate { it.id to it.label }
 
-    /** The user's custom groups, live from persisted state. */
+    /** Every user-configurable group, including the editable shipped seeds. */
     val customGroups: StateFlow<List<CustomGroup>> =
         app.stateHolders()
             .flatMapLatest { holder -> holder?.state ?: flowOf(null) }
@@ -503,8 +503,8 @@ class RulesViewModel(
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     /**
-     * The built-ins plus the user's custom groups. A soft-deleted group stays in
-     * the list but is marked non-[CountryGroupOptionUi.selectable]: the picker
+     * The persisted groups. A soft-deleted group stays in the list but is
+     * marked non-[CountryGroupOptionUi.selectable]: the picker
      * hides it, so a new rule can't point at a group the imminent purge is about
      * to drop (which would strand that rule with a matcher that matches nothing),
      * while an existing rule that already references it still resolves its label
@@ -513,7 +513,7 @@ class RulesViewModel(
      */
     val groupOptions: StateFlow<List<CountryGroupOptionUi>> =
         customGroups
-            .map { groups -> builtInGroupOptions + groups.map(::customGroupOption) }
+            .map { groups -> groups.map(::customGroupOption) }
             .flowOn(Dispatchers.Default)
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), builtInGroupOptions)
 

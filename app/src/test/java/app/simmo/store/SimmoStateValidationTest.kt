@@ -1,5 +1,7 @@
 package app.simmo.store
 
+import app.simmo.domain.CountryGroups
+import app.simmo.domain.CustomGroup
 import app.simmo.domain.DataExpectation
 import app.simmo.domain.DataRule
 import app.simmo.domain.DataRuleBook
@@ -49,6 +51,7 @@ class SimmoStateValidationTest {
         dataWatchMark = "roaming:2:AU",
         dataDismissMarks = setOf("roaming:2:NZ"),
         installId = "old-phone",
+        countryGroupsVersion = 1,
     )
 
     @Test
@@ -128,5 +131,43 @@ class SimmoStateValidationTest {
     fun `validation is idempotent`() {
         val once = state.withInstallValidated("new-phone")
         assertSame(once, once.withInstallValidated("new-phone"))
+    }
+
+    @Test
+    fun `old state receives editable copies of every shipped country group`() {
+        val migrated = state.copy(countryGroupsVersion = 0).withCountryGroupsSeeded()
+
+        assertEquals(CountryGroups.preseededGroups(), migrated.customGroups)
+        assertEquals(1, migrated.countryGroupsVersion)
+    }
+
+    @Test
+    fun `seeding preserves existing groups and does not duplicate an existing seed id`() {
+        val editedEu = CustomGroup(CountryGroups.EU_EEA, "My Europe", listOf("FR", "GB"))
+        val userGroup = CustomGroup("custom:carrier", "Carrier zone", listOf("AU", "NZ"))
+
+        val migrated = state.copy(
+            customGroups = listOf(editedEu, userGroup),
+            countryGroupsVersion = 0,
+        ).withCountryGroupsSeeded()
+
+        assertEquals(
+            listOf(
+                CountryGroups.preseededGroups()[1],
+                CountryGroups.preseededGroups()[2],
+                CountryGroups.preseededGroups()[3],
+                editedEu,
+                userGroup,
+            ),
+            migrated.customGroups,
+        )
+    }
+
+    @Test
+    fun `completed seed version does not restore a group the user deleted`() {
+        val withoutEu = CountryGroups.preseededGroups().filterNot { it.id == CountryGroups.EU_EEA }
+        val edited = state.copy(customGroups = withoutEu, countryGroupsVersion = 1)
+
+        assertSame(edited, edited.withCountryGroupsSeeded())
     }
 }

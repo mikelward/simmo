@@ -70,7 +70,8 @@ none of the group's members — see below). A rule pairs a **matcher** with an *
   calling codes — "+61 Australia"), or **any destination** (used by the preseeded
   defaults below). A multi-country rule matches when the destination is any of its
   countries, so "France, Germany, Italy → local eSIM" is one rule, not three.
-  A rule can also carry a **country group** as a single entry. Shipped groups:
+  A rule can also carry a **country group** as a single entry. Simmo preseeds
+  these groups on first run:
   - **EU/EEA** — the EU-27 and EEA EFTA states (Iceland, Liechtenstein, Norway)
     plus the EU territories with their own calling codes (Åland, Guadeloupe,
     Martinique, French Guiana, Réunion, Mayotte, Saint-Martin) and Svalbard.
@@ -91,21 +92,24 @@ none of the group's members — see below). A rule pairs a **matcher** with an *
     purpose is the guard shape "Caribbean +1 → Ask" placed above a US rule, so
     look-alike domestic calls get confirmed instead of silently billed.
 
-  A group is stored by id and resolved to members at decision time, so membership
-  tracks app updates instead of freezing dozens of entries into the rule;
+  Each preseeded group is ordinary user-configurable data: it appears on the
+  Country groups screen and can be renamed, have countries added or removed, or
+  be deleted. Updates do not restore a deleted group or overwrite the user's
+  edits. A group is stored by id and resolved to its persisted members at
+  decision time, so a rule retains one stable entry while following group edits;
   countries a label excludes but a particular plan covers (UK, Switzerland, …)
-  are added beside the group as ordinary entries. The **shipped** groups are chosen
-  to be label-faithful, stable sets; carrier-specific zone lists ("Tier 1" countries)
-  differ per carrier, so those are **custom groups** the user builds instead — a named
-  set of countries (e.g. "Vodafone Zone 1") created on the Country groups screen — or
+  can be added to that group or beside it as ordinary rule entries. The preseeded
+  memberships are label-faithful starting points; carrier-specific zone lists
+  ("Tier 1" countries) differ per carrier, so users can edit a seed or build another
+  named set of countries (e.g. "Vodafone Zone 1") created on the Country groups screen — or
   from a "New group" entry in the rule editor's picker, which builds the group mid-rule
   and adds it to the rule being scoped (that group is committed together with the rule
   when the rule is saved, so cancelling the rule leaves no orphan group) — and then
-  selectable in a rule exactly like a built-in group. A custom group is stored
-  under a stable id (disjoint from the built-in ids), and its membership resolves on
-  the decision path from the same in-memory snapshot the built-ins resolve from — never
-  from I/O. Deleting a group leaves rules that referenced it matching none of its
-  members (their other countries still match), never an error. The picker offers groups
+  selectable in a rule exactly like a preseeded group. Every group is stored under
+  a stable id, and its membership resolves on the decision path from the in-memory
+  snapshot — never from I/O. Deleting a group leaves rules that referenced it
+  matching none of its members (their other countries still match), never an error.
+  The picker offers groups
   above the country list, found by their aliases
   ("EU", "EEA", "Europe", "European Union"; "USA", "America"; "North America",
   "NA"; "Caribbean", "West Indies") — and also whenever the search matches a

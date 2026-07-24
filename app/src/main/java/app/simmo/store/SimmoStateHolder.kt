@@ -267,7 +267,7 @@ class SimmoStateHolder(
         }
     }
 
-    /** Add / edit / delete a user-defined country group (the Groups screen). */
+    /** Add / edit / delete a user-configurable country group (the Groups screen). */
     suspend fun updateCustomGroups(transform: (List<CustomGroup>) -> List<CustomGroup>) {
         store.updateData {
             val valid = it.withInstallValidated(installId)

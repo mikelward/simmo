@@ -41,7 +41,7 @@ class SimmoStateHolderRetryTest {
         // Without the retry, the eager collector dies into the app scope's
         // exception handler and the state stays null for the whole process —
         // every call would proceed ruleless.
-        val stored = SimmoState(installId = "install-1")
+        val stored = SimmoState(installId = "install-1", countryGroupsVersion = 1)
         val holder = SimmoStateHolder(FlakyDataStore(stored, failures = 2), backgroundScope, "install-1")
         assertEquals(stored, holder.state.filterNotNull().first())
     }
