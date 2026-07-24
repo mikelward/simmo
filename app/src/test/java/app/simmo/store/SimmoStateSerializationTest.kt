@@ -82,6 +82,7 @@ class SimmoStateSerializationTest {
                     ),
                 ),
                 DataRule(RuleMatcher.Country("TR"), DataExpectation.AlwaysWarn, enabled = false),
+                DataRule(RuleMatcher.AnyDestination, DataExpectation.UseLocalSimForData),
             ) + DataRuleBook.defaultDataRules(),
         ),
     )

@@ -62,6 +62,18 @@ class DataRuleRowMappingTest {
     }
 
     @Test
+    fun `use-local expectation maps to its own label and never pauses`() {
+        // No stored SIM, so it never greys — a no-unique-match is a runtime
+        // skip, like the calling matching-country action.
+        val row = DataRule(
+            RuleMatcher.Country("AU"),
+            DataExpectation.UseLocalSimForData,
+        ).toRow(emptyList())
+        assertEquals(DataExpectationUi.UseLocalSimForData, row.expectation)
+        assertNull(row.pause)
+    }
+
+    @Test
     fun `roaming-ok scopes map to their own labels`() {
         val any = DataRule(RuleMatcher.Country("AU"), DataExpectation.RoamingOk()).toRow(emptyList())
         assertEquals(DataExpectationUi.RoamingOkAnySim, any.expectation)

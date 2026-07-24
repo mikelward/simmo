@@ -244,6 +244,72 @@ class DataWatchTest {
         )
     }
 
+    // --- Use a local SIM for data ---
+
+    @Test
+    fun `use-local stays silent when a local SIM already carries data`() {
+        val rules = listOf(inCountry("AU", DataExpectation.UseLocalSimForData))
+        assertEquals(
+            DataVerdict.Silent,
+            evaluate(rules, snapshot("AU", dataSim = telstra, roaming = emptySet())),
+        )
+    }
+
+    @Test
+    fun `use-local nudges toward the unique local SIM when a foreign SIM has data`() {
+        // State-based, like use-SIM: the mismatch fires before any roaming flag.
+        val rules = listOf(inCountry("AU", DataExpectation.UseLocalSimForData))
+        assertEquals(
+            DataVerdict.WrongDataSim(tmobile, telstra, "AU"),
+            evaluate(rules, snapshot("AU", dataSim = tmobile, roaming = emptySet())),
+        )
+    }
+
+    @Test
+    fun `use-local applies anywhere with an any-destination matcher`() {
+        val rules = listOf(DataRule(RuleMatcher.AnyDestination, DataExpectation.UseLocalSimForData))
+        // In the US the local SIM is T-Mobile; data is on Telstra → switch.
+        assertEquals(
+            DataVerdict.WrongDataSim(telstra, tmobile, "US"),
+            evaluate(rules, snapshot("US", dataSim = telstra, roaming = emptySet())),
+        )
+    }
+
+    @Test
+    fun `use-local skips with no local SIM, falling through to the default warning`() {
+        // In Germany neither active SIM is local: no single switch target, so
+        // the rule skips and the roaming data SIM still warns.
+        val rules = listOf(inCountry("DE", DataExpectation.UseLocalSimForData))
+        assertEquals(
+            DataVerdict.RoamingWarning(tmobile, "DE", localSims = emptyList()),
+            evaluate(rules, snapshot("DE", dataSim = tmobile)),
+        )
+    }
+
+    @Test
+    fun `use-local skips when several local SIMs could carry data`() {
+        // Two AU-homed SIMs and data on a foreign one: no unique switch target,
+        // so the rule skips (the default warning below names both locals).
+        val telstra2 = ActiveSim(4, "Boost", "Boost AU", PhoneAccountRef("acct-boost"), countryIso = "au")
+        val rules = listOf(inCountry("AU", DataExpectation.UseLocalSimForData))
+        assertEquals(
+            DataVerdict.RoamingWarning(tmobile, "AU", localSims = listOf(telstra, telstra2)),
+            evaluate(rules, snapshot("AU", dataSim = tmobile, activeSims = listOf(telstra, telstra2, tmobile))),
+        )
+    }
+
+    @Test
+    fun `use-local stays silent with several local SIMs when one already has data`() {
+        // "Any local SIM" is met the moment a homed SIM carries data, however
+        // many locals there are.
+        val telstra2 = ActiveSim(4, "Boost", "Boost AU", PhoneAccountRef("acct-boost"), countryIso = "au")
+        val rules = listOf(inCountry("AU", DataExpectation.UseLocalSimForData))
+        assertEquals(
+            DataVerdict.Silent,
+            evaluate(rules, snapshot("AU", dataSim = telstra, activeSims = listOf(telstra, telstra2, tmobile), roaming = emptySet())),
+        )
+    }
+
     // --- Always warn, ordering, and enablement ---
 
     @Test

@@ -308,6 +308,15 @@ internal fun DataRuleEditorContent(
                     )
                 }
                 item {
+                    // "Use a local SIM" — no specific SIM to pick, the sibling
+                    // of the calling matching-country action.
+                    DataChoiceRow(
+                        selected = choice == DataExpectationChoice.USE_LOCAL,
+                        text = stringResource(R.string.data_rule_use_local),
+                        onSelect = { choice = DataExpectationChoice.USE_LOCAL },
+                    )
+                }
+                item {
                     DataChoiceRow(
                         selected = choice == DataExpectationChoice.ROAMING_OK_ANY,
                         text = stringResource(R.string.data_rule_roaming_ok_any),
@@ -425,13 +434,14 @@ private fun DataChoiceRow(selected: Boolean, text: String, onSelect: () -> Unit)
 
 /** The editor's expectation choices; null keeps an unrepresentable original. */
 internal enum class DataExpectationChoice {
-    USE_SIM, ROAMING_OK_ANY, ROAMING_OK_HOMED, ROAMING_OK_SIM, WARN;
+    USE_SIM, USE_LOCAL, ROAMING_OK_ANY, ROAMING_OK_HOMED, ROAMING_OK_SIM, WARN;
 
     /** Whether this choice needs a SIM selected before Save enables. */
     val needsSim: Boolean get() = this == USE_SIM || this == ROAMING_OK_SIM
 
     fun toExpectation(sim: SimRef?): DataExpectation? = when (this) {
         USE_SIM -> sim?.let { DataExpectation.UseSimForData(it) }
+        USE_LOCAL -> DataExpectation.UseLocalSimForData
         ROAMING_OK_ANY -> DataExpectation.RoamingOk(DataSimScope.AnySim)
         ROAMING_OK_HOMED -> DataExpectation.RoamingOk(DataSimScope.HomedInMatchedCountries)
         ROAMING_OK_SIM -> sim?.let { DataExpectation.RoamingOk(DataSimScope.Sims(listOf(it))) }
@@ -442,6 +452,7 @@ internal enum class DataExpectationChoice {
         fun of(expectation: DataExpectation?): DataExpectationChoice? = when (expectation) {
             null -> null
             is DataExpectation.UseSimForData -> USE_SIM
+            DataExpectation.UseLocalSimForData -> USE_LOCAL
             is DataExpectation.RoamingOk -> when (val scope = expectation.scope) {
                 DataSimScope.AnySim -> ROAMING_OK_ANY
                 DataSimScope.HomedInMatchedCountries -> ROAMING_OK_HOMED
@@ -455,7 +466,7 @@ internal enum class DataExpectationChoice {
             is DataExpectation.UseSimForData -> expectation.sim
             is DataExpectation.RoamingOk ->
                 (expectation.scope as? DataSimScope.Sims)?.sims?.singleOrNull()
-            DataExpectation.AlwaysWarn -> null
+            DataExpectation.UseLocalSimForData, DataExpectation.AlwaysWarn -> null
         }
     }
 }

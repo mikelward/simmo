@@ -49,9 +49,10 @@ sealed interface DataVerdict {
     ) : DataVerdict
 
     /**
-     * A [DataExpectation.UseSimForData] rule wants [wantedSim] carrying data
-     * here, but [dataSim] is — the arrival mismatch, raised before roaming
-     * data flows rather than after.
+     * A rule wants [wantedSim] carrying data here, but [dataSim] is — the
+     * arrival mismatch, raised before roaming data flows rather than after.
+     * Raised by [DataExpectation.UseSimForData] (a named SIM) and by
+     * [DataExpectation.UseLocalSimForData] (the unique local SIM to switch to).
      */
     data class WrongDataSim(
         val dataSim: ActiveSim,
@@ -111,6 +112,24 @@ fun evaluateDataRules(book: DataRuleBook, snapshot: DataSnapshot): DataVerdict {
                     // SIM can't act right now.
                     SimResolution.Inactive, is SimResolution.Ambiguous -> Unit
                 }
+
+            DataExpectation.UseLocalSimForData -> {
+                // A SIM homed here already carries data: "any local SIM" is met,
+                // whichever one and however many there are.
+                if (dataSim.countryIso.equals(country, ignoreCase = true)) {
+                    return DataVerdict.Silent
+                }
+                val localSims = snapshot.activeSims.filter {
+                    it.countryIso.equals(country, ignoreCase = true)
+                }
+                // Exactly one local SIM to switch to: nudge toward it. Zero or
+                // several (no single switch target) skip, like the calling
+                // matching-country action acting only on a unique match — the
+                // default warning below still catches a roaming data SIM.
+                if (localSims.size == 1) {
+                    return DataVerdict.WrongDataSim(dataSim, localSims.single(), country)
+                }
+            }
 
             is DataExpectation.RoamingOk ->
                 if (expectation.scope.covers(dataSim, rule.matcher, snapshot)) {

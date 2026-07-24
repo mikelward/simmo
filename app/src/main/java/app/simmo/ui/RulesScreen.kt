@@ -288,6 +288,7 @@ private fun callingActionLabel(action: ActionUi): String = when (action) {
 internal fun dataExpectationLabel(expectation: DataExpectationUi): String = when (expectation) {
     is DataExpectationUi.UseSimForData ->
         stringResource(R.string.data_rule_use_sim, expectation.simName)
+    DataExpectationUi.UseLocalSimForData -> stringResource(R.string.data_rule_use_local)
     DataExpectationUi.RoamingOkAnySim -> stringResource(R.string.data_rule_roaming_ok_any)
     DataExpectationUi.RoamingOkHomedInMatched ->
         stringResource(R.string.data_rule_roaming_ok_homed)

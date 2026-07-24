@@ -45,6 +45,21 @@ sealed interface DataExpectation {
     data class UseSimForData(val sim: SimRef) : DataExpectation
 
     /**
+     * Whichever SIM is local should carry data here — the data-side sibling of
+     * the calling matching-country action ([RuleAction.UseMatchingCountrySim]),
+     * naming no specific SIM so it needs no re-binding and tracks the SIMs the
+     * user actually has. "Any local SIM" means the arrival is satisfied whenever
+     * a SIM homed in the current country carries data, whichever one; when a
+     * different SIM does and exactly one local SIM is active, the watch nudges
+     * to switch to it ([DataVerdict.WrongDataSim]). Zero or several local SIMs
+     * make the rule skip — no single switch target — the same unique-match
+     * discipline the calling action uses.
+     */
+    @Serializable
+    @SerialName("useLocalSimForData")
+    data object UseLocalSimForData : DataExpectation
+
+    /**
      * Data roaming here is expected — paid for, or free — so no warning, when
      * [scope] covers the SIM actually carrying data. A scope miss skips the
      * rule instead of silencing the watch: "in EU/EEA, roaming OK on

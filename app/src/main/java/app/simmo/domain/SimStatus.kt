@@ -135,8 +135,9 @@ internal fun preferredCallingSubId(
 }
 
 /**
- * The subscription id a `UseSimForData` rule wants carrying data here — the
- * "preferred data SIM" for the current country. Mirrors [evaluateDataRules]'s
+ * The subscription id a `UseSimForData` or `UseLocalSimForData` rule wants
+ * carrying data here — the "preferred data SIM" for the current country
+ * (the local one, when exactly one is active). Mirrors [evaluateDataRules]'s
  * control flow exactly (a scope-covering RoamingOk or an AlwaysWarn decides the
  * arrival and names no SIM; a skipped rule falls through), so the dashboard's
  * data-preferred chip always agrees with the triage card and the roaming
@@ -155,6 +156,15 @@ internal fun preferredDataSubId(book: DataRuleBook, snapshot: DataSnapshot): Int
             is DataExpectation.UseSimForData -> when (val resolved = resolveSim(expectation.sim, snapshot.activeSims)) {
                 is SimResolution.Active -> return resolved.sim.subscriptionId
                 SimResolution.Inactive, is SimResolution.Ambiguous -> Unit
+            }
+
+            // The unique local SIM is the wanted one; several (or none) name no
+            // single SIM, mirroring the calling matching-country chip.
+            DataExpectation.UseLocalSimForData -> {
+                val matching = snapshot.activeSims.filter {
+                    it.countryIso.equals(country, ignoreCase = true)
+                }
+                if (matching.size == 1) return matching.single().subscriptionId
             }
 
             // RoamingOk expresses "roaming is fine", not a SIM preference: when

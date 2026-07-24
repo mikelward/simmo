@@ -131,6 +131,7 @@ data class DataRuleRowUi(
 
 sealed interface DataExpectationUi {
     data class UseSimForData(val simName: String) : DataExpectationUi
+    data object UseLocalSimForData : DataExpectationUi
     data object RoamingOkAnySim : DataExpectationUi
     data object RoamingOkHomedInMatched : DataExpectationUi
 
@@ -1439,6 +1440,12 @@ internal fun DataRule.toRow(
                 )
             }
         }
+
+        // No pause: like the calling matching-country action, it names no
+        // stored SIM to disable — a no-unique-match is a runtime skip, not a
+        // greyed rule.
+        DataExpectation.UseLocalSimForData ->
+            DataRuleRowUi(matcherLabel, DataExpectationUi.UseLocalSimForData)
 
         DataExpectation.AlwaysWarn -> DataRuleRowUi(matcherLabel, DataExpectationUi.AlwaysWarn)
     }
